@@ -4,6 +4,9 @@
 #pragma once
 
 #include "vk_types.h"
+#include "engine_util.h"
+#include "vk_descriptors.h"
+#include <vk_mem_alloc.h>
 
 struct FrameData {
 
@@ -12,6 +15,7 @@ struct FrameData {
 
 	VkSemaphore _swapchainSemaphore, _renderSemaphore;
 	VkFence _renderFence;
+	DeletionQueue _deletionQueue;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -42,6 +46,11 @@ public:
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
 
+	DescriptorAllocator globalDescriptorAllocator;
+
+	VkDescriptorSet _drawImageDescriptors;
+	VkDescriptorSetLayout _drawImageDescriptorLayout;
+
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
@@ -57,13 +66,24 @@ public:
 
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
+	DeletionQueue _mainDeletionQueue;
+	VmaAllocator _allocator;
+	AllocatedImage _drawImage;
+	VkExtent2D _drawExtent;
+
+	VkPipeline _gradientPipeline;
+	VkPipelineLayout _gradientPipelineLayout;
 
 private:
 
+	void draw_background(VkCommandBuffer cmd);
 	void init_vulkan();
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();
+	void init_descriptors();
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
+	void init_pipelines();
+	void init_background_pipelines();
 };

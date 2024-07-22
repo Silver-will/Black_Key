@@ -81,4 +81,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\gradient.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\gradient_color.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\sky.comp">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>

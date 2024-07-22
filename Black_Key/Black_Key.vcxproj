@@ -166,6 +166,11 @@
     <ClInclude Include="src\vk_pipelines.h" />
     <ClInclude Include="src\vk_types.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\gradient.comp" />
+    <None Include="shaders\gradient_color.comp" />
+    <None Include="shaders\sky.comp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
