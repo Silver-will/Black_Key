@@ -72,6 +72,12 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp">
       <Filter>Extern\Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="src\vk_gltf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -127,6 +133,12 @@
     </ClInclude>
     <ClInclude Include="external\imgui\imstb_truetype.h">
       <Filter>Extern\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_gltf.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_renderer.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
