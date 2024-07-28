@@ -1,5 +1,8 @@
 #pragma once 
 
+
+#include "stb_image.h"
+
 #include<vulkan/vulkan.h>
 namespace vkutil {
 

@@ -7,8 +7,11 @@
 #include "vk_types.h"
 #include "engine_util.h"
 #include "vk_descriptors.h"
+#include "vk_renderer.h"
 #include <vk_mem_alloc.h>
 #include "vk_gltf.h"
+#include "camera.h"
+#include <chrono>
 
 struct FrameData {
 
@@ -39,6 +42,8 @@ public:
 	//run main loop
 	void run();
 
+	Camera mainCamera;
+
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
 	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
@@ -54,7 +59,7 @@ public:
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
 
-	DescriptorAllocatorGrowable globalDescriptorAllocator;
+	DescriptorAllocator globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
@@ -111,19 +116,29 @@ public:
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
+	DrawContext drawCommands;
+
+	EngineStats stats;
+
+	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	void init_mesh_pipeline();
 	void init_default_data();
 	void init_triangle_pipeline();
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
-private:
+	DrawContext mainDrawContext;
+	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 
+	void update_scene();
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
 	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	void destroy_image(const AllocatedImage& img);
+
+private:
+	void draw_main(VkCommandBuffer cmd);
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
 	void resize_swapchain();
@@ -137,4 +152,6 @@ private:
 	void destroy_swapchain();
 	void init_pipelines();
 	void init_background_pipelines();
+	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 };
