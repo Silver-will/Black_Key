@@ -9,12 +9,12 @@ A modern rendering engine in vulkan
 * Opaque and transparent object loading
 
 ##  Upcoming work list
-* Optimize rendering (30ms for demo scene is obseen)
+* Optimize rendering (30ms for demo scene is obscene)
 * PBR
-* Clustered forwards shading
+* Clustered forward shading
 * Global illumination
 * HDR and bloom
-* cascaded shadow maps
+* Cascaded shadow maps
 * MSAA
 * SSAO
 * SSR
