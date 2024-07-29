@@ -19,3 +19,5 @@ A modern rendering engine in vulkan
 * SSAO
 * SSR
 * Skybox
+* gamma correction
+* normal mapping

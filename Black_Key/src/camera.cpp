@@ -74,12 +74,11 @@ void Camera::processMouseMovement(GLFWwindow* window, double xPos, double yPos)
 		last_y = yPos;
 
 	}
-
 	float x_offset = xPos - last_x;
 	float y_offset = last_y - yPos;
 
-	x_offset *= 0.0001f;
-	y_offset *= 0.0001f;
+	x_offset *= 0.005f;
+	y_offset *= 0.005f;
 
 	yaw += x_offset;
 	pitch += y_offset;
@@ -89,10 +88,13 @@ void Camera::processMouseMovement(GLFWwindow* window, double xPos, double yPos)
 		pitch = 89.0f;
 	if (pitch < -89.0f)
 		pitch = -89.0f;
+
+	last_x = xPos;
+	last_y = yPos;
 }
 
 void Camera::update()
 {
 	glm::mat4 cameraRotation = getRotationMatrix();
-	position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.f));
+	position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.05f, 0.f));
 }

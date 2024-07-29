@@ -156,7 +156,6 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\vk_descriptors.cpp" />
     <ClCompile Include="src\vk_engine.cpp" />
-    <ClCompile Include="src\vk_gltf.cpp" />
     <ClCompile Include="src\vk_images.cpp" />
     <ClCompile Include="src\vk_initializers.cpp" />
     <ClCompile Include="src\vk_loader.cpp" />
@@ -177,7 +176,6 @@
     <ClInclude Include="src\input_handler.h" />
     <ClInclude Include="src\vk_descriptors.h" />
     <ClInclude Include="src\vk_engine.h" />
-    <ClInclude Include="src\vk_gltf.h" />
     <ClInclude Include="src\vk_images.h" />
     <ClInclude Include="src\vk_initializers.h" />
     <ClInclude Include="src\vk_loader.h" />
@@ -188,6 +186,9 @@
   <ItemGroup>
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
+    <None Include="shaders\input_structures.glsl" />
+    <None Include="shaders\mesh.frag" />
+    <None Include="shaders\mesh.vert" />
     <None Include="shaders\sky.comp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

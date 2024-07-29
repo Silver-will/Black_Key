@@ -248,6 +248,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materials.push_back(newMat);
         file.materials[mat.name.c_str()] = newMat;
 
+        
+
         GLTFMetallic_Roughness::MaterialConstants constants;
         constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
         constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
@@ -281,6 +283,24 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
             materialResources.colorImage = images[img];
             materialResources.colorSampler = file.samplers[sampler];
+        }
+
+        if (mat.pbrData.metallicRoughnessTexture.has_value())
+        {
+            size_t img = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.metalRoughImage = images[img];
+            materialResources.metalRoughSampler = file.samplers[sampler];
+        }
+
+        if (mat.normalTexture.has_value())
+        {
+            size_t img = gltf.textures[mat.normalTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.normalTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.normalImage = images[img];
+            materialResources.normalSampler = file.samplers[sampler];
         }
         // build material
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
@@ -471,6 +491,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -539,6 +560,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
     writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     writer.update_set(device, matData.materialSet);
 
@@ -604,11 +626,16 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
         def.firstIndex = s.startIndex;
         def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
         def.material = &s.material->data;
-
+        def.bounds = s.bounds;
         def.transform = nodeMatrix;
         def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
 
-        ctx.OpaqueSurfaces.push_back(def);
+        if (s.material->data.passType == MaterialPass::Transparent) {
+            ctx.TransparentSurfaces.push_back(def);
+        }
+        else {
+            ctx.OpaqueSurfaces.push_back(def);
+        }
     }
 
     // recurse down

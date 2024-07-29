@@ -118,6 +118,8 @@ struct EngineStats {
     int drawcall_count;
     float scene_update_time;
     float mesh_draw_time;
+    float ui_draw_time;
+    float update_time;
 };
 #define VK_CHECK(x)                                                     \
     do {                                                                \

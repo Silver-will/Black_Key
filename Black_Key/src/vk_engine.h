@@ -9,7 +9,6 @@
 #include "vk_descriptors.h"
 #include "vk_renderer.h"
 #include <vk_mem_alloc.h>
-#include "vk_gltf.h"
 #include "camera.h"
 #include <chrono>
 

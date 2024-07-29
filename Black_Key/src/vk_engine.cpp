@@ -22,7 +22,12 @@
 #include <imgui/imgui_impl_vulkan.h>
 
 VulkanEngine* loadedEngine = nullptr;
+
+#ifdef _DEBUG
 constexpr bool bUseValidationLayers = true;
+#else
+constexpr bool bUseValidationLayers = false;
+#endif
 
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 void VulkanEngine::init()
@@ -78,36 +83,29 @@ void VulkanEngine::init()
 void VulkanEngine::cleanup()
 {
     if (_isInitialized) {
-		vkDeviceWaitIdle(_device);
 
-		loadedScenes.clear();
+        // make sure the gpu has stopped doing its things
+        vkDeviceWaitIdle(_device);
 
-		for (int i = 0; i < FRAME_OVERLAP; i++) {
-			vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr);
+        loadedScenes.clear();
 
-			//destroy sync objects
-			vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
-			vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
-			vkDestroySemaphore(_device, _frames[i]._swapchainSemaphore, nullptr);
+        for (auto& frame : _frames) {
+            frame._deletionQueue.flush();
+        }
 
-			_frames[i]._deletionQueue.flush();
-		}
-		for (auto& mesh : testMeshes) {
-			destroy_buffer(mesh->meshBuffers.indexBuffer);
-			destroy_buffer(mesh->meshBuffers.vertexBuffer);
-		}
+        _mainDeletionQueue.flush();
 
-		_mainDeletionQueue.flush();
+        destroy_swapchain();
 
-		destroy_swapchain();
+        vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
-		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		vkDestroyDevice(_device, nullptr);
+        vmaDestroyAllocator(_allocator);
 
-		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
-		vkDestroyInstance(_instance, nullptr);
+        vkDestroyDevice(_device, nullptr);
+        vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+        vkDestroyInstance(_instance, nullptr);
 
-        glfwDestroyWindow(window);
+       glfwDestroyWindow(window);
     }
 
     // clear engine pointer
@@ -119,14 +117,23 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
+	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
 
 	get_current_frame()._deletionQueue.flush();
 	get_current_frame()._frameDescriptors.clear_pools(_device);
+
+	
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
 
+	auto start_update = std::chrono::system_clock::now();
 	VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
+
+	auto end_update = std::chrono::system_clock::now();
+	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
+	stats.update_time = elapsed_update.count() / 1000.f;
+
 	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
 		resize_requested = true;
 		return;
@@ -153,11 +160,12 @@ void VulkanEngine::draw()
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
+	
 	draw_main(cmd);
-
+	
+	
 	//transtion the draw image and the swapchain image into their correct transfer layouts
-	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	VkExtent2D extent;
@@ -466,16 +474,23 @@ void VulkanEngine::run()
             continue;
         }
 
+		auto start_imgui = std::chrono::system_clock::now();
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
+
+		
 		ImGui::NewFrame();
 
 		ImGui::Begin("Stats");
 
+		ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
 		ImGui::Text("frametime %f ms", stats.frametime);
 		ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
 		ImGui::Text("triangles %i", stats.triangle_count);
 		ImGui::Text("draws %i", stats.drawcall_count);
+		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
+		ImGui::Text("Update time %f ms", stats.update_time);
+		ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::End();
 
 		if (ImGui::Begin("background")) {
@@ -493,12 +508,20 @@ void VulkanEngine::run()
 			ImGui::InputFloat4("data4", (float*)&selected.data.data4);
 		}
 		ImGui::End();
-
 		ImGui::Render();
+		auto end_imgui = std::chrono::system_clock::now();
+		auto elapsed_imgui = std::chrono::duration_cast<std::chrono::microseconds>(end_imgui - start_imgui);
+		stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
 
+		auto start_update = std::chrono::system_clock::now();
 		update_scene();
+		auto end_update = std::chrono::system_clock::now();
+		auto elapsed_update= std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
+		//stats.update_time = elapsed_update.count() / 1000.f;
+
 
         draw();
+
         glfwPollEvents();
 
 		auto end = std::chrono::system_clock::now();
@@ -593,11 +616,12 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
 		//.use_default_format_selection()
 		.set_desired_format(VkSurfaceFormatKHR{ .format = _swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+		.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(width, height)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build()
 		.value();
+	
 
 	_swapchainExtent = vkbSwapchain.extent;
 	//store swapchain and its related images
@@ -1026,6 +1050,7 @@ void VulkanEngine::init_default_data() {
 			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
+
 	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
 
@@ -1039,16 +1064,6 @@ void VulkanEngine::init_default_data() {
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
-
-	_mainDeletionQueue.push_function([&]() {
-		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
-	vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
-
-	destroy_image(_whiteImage);
-	destroy_image(_greyImage);
-	destroy_image(_blackImage);
-	destroy_image(_errorCheckerboardImage);
-		});
 	//< default_img
 }
 
