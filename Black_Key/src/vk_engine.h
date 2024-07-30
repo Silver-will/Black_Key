@@ -8,7 +8,7 @@
 #include "engine_util.h"
 #include "vk_descriptors.h"
 #include "vk_renderer.h"
-#include <vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
 #include "camera.h"
 #include <chrono>
 

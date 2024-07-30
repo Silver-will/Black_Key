@@ -13,7 +13,14 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/parser.hpp>
 #include <fastgltf/tools.hpp>
+#include <fastgltf/util.hpp>
+#include <fastgltf/base64.hpp>
+#include <fastgltf/types.hpp>
 #include <iostream>
+#include <string>
+
+
+std::unordered_map<std::string, AllocatedImage> image_test;
 
 std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image,const std::string& rootPath)
 {
@@ -218,13 +225,15 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     std::vector<std::shared_ptr<GLTFMaterial>> materials;
     //< load_arrays
 
+    int count = 0;
         // load all textures
     for (fastgltf::Image& image : gltf.images) {
-        std::optional<AllocatedImage> img = load_image(engine, gltf, image,rootPath);
+        std::optional<AllocatedImage> img = load_image(engine, gltf, image, rootPath);
 
         if (img.has_value()) {
             images.push_back(*img);
-            file.images[image.name.c_str()] = *img;
+            file.images["image" + std::to_string(count)] = *img;
+            count++;
         }
         else {
             // we failed to load, so lets give the slot a default white texture to not
@@ -587,7 +596,7 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void LoadedGLTF::clearAll()
 {
     VkDevice dv = creator->_device;
-
+    
     for (auto& [k, v] : meshes) {
 
         creator->destroy_buffer(v->meshBuffers.indexBuffer);

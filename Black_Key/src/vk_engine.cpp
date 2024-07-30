@@ -13,9 +13,15 @@
 #include <chrono>
 #include <thread>
 
-#define VMA_IMPLEMENTATION
+#ifdef _DEBUG
+constexpr bool bUseValidationLayers = true;
+#define VMA_DEBUG_LOG
+#else
+constexpr bool bUseValidationLayers = false;
+#endif
 
-#include <vk_mem_alloc.h>
+#define VMA_IMPLEMENTATION
+#include <vma/vk_mem_alloc.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -23,11 +29,7 @@
 
 VulkanEngine* loadedEngine = nullptr;
 
-#ifdef _DEBUG
-constexpr bool bUseValidationLayers = true;
-#else
-constexpr bool bUseValidationLayers = false;
-#endif
+
 
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 void VulkanEngine::init()
@@ -98,7 +100,6 @@ void VulkanEngine::cleanup()
         destroy_swapchain();
 
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
-
         vmaDestroyAllocator(_allocator);
 
         vkDestroyDevice(_device, nullptr);
@@ -599,11 +600,8 @@ void VulkanEngine::init_vulkan()
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-	vmaCreateAllocator(&allocatorInfo, &_allocator);
 
-	_mainDeletionQueue.push_function([&]() {
-		vmaDestroyAllocator(_allocator);
-		});
+	vmaCreateAllocator(&allocatorInfo, &_allocator);
 }
 
 void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
@@ -659,7 +657,7 @@ void VulkanEngine::init_swapchain()
 
 	//allocate and create the image
 	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
-
+	vmaSetAllocationName(_allocator, _drawImage.allocation,"Draw image");
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -682,12 +680,12 @@ void VulkanEngine::init_swapchain()
 
 	//add to deletion queues
 	_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
+	vkDestroyImageView(_device, _drawImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
 	vkDestroyImageView(_device, _depthImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
-		});
+	});
 }
 
 void VulkanEngine::init_commands()
@@ -823,6 +821,9 @@ void VulkanEngine::init_pipelines()
 {
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
+	_mainDeletionQueue.push_function([&]() {
+		metalRoughMaterial.clear_resources(_device);
+		});
 }
 
 void VulkanEngine::init_triangle_pipeline()
@@ -1065,6 +1066,16 @@ void VulkanEngine::init_default_data() {
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
 	//< default_img
+
+	_mainDeletionQueue.push_function([=]() {
+		destroy_image(_whiteImage);
+		destroy_image(_blackImage);
+		destroy_image(_greyImage);
+		destroy_image(_errorCheckerboardImage);
+		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+		});
+	
 }
 
 void VulkanEngine::init_imgui()
