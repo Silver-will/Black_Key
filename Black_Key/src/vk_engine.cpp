@@ -822,7 +822,7 @@ void VulkanEngine::init_pipelines()
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
-		metalRoughMaterial.clear_resources(_device);
+	//	metalRoughMaterial.clear_resources(_device);
 		});
 }
 
