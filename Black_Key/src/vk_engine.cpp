@@ -15,7 +15,7 @@
 
 #ifdef _DEBUG
 constexpr bool bUseValidationLayers = true;
-#define VMA_DEBUG_LOG
+//#define VMA_DEBUG_LOG
 #else
 constexpr bool bUseValidationLayers = false;
 #endif
@@ -822,7 +822,7 @@ void VulkanEngine::init_pipelines()
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
-	//	metalRoughMaterial.clear_resources(_device);
+	metalRoughMaterial.clear_resources(_device);
 		});
 }
 
@@ -1314,6 +1314,7 @@ void VulkanEngine::update_scene()
 	mainDrawContext.OpaqueSurfaces.clear();
 
 	sceneData.view = mainCamera.getViewMatrix();
+	sceneData.cameraPos = glm::vec4(mainCamera.position,0.0f);
 	// camera projection
 	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
 
@@ -1325,7 +1326,7 @@ void VulkanEngine::update_scene()
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
 	sceneData.sunlightColor = glm::vec4(1.f);
-	sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1.f);
+	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
 
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 }

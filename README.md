@@ -11,13 +11,14 @@ A modern rendering engine in vulkan
 ##  Upcoming work list
 * Optimize rendering (30ms for demo scene is obscene)
 * PBR
+* normal mapping
+* gamma correction
 * Clustered forward shading
-* Global illumination
+* Skybox
+* Global illumination(Screen space ray tracing)
 * HDR and bloom
 * Cascaded shadow maps
 * MSAA
 * SSAO
 * SSR
-* Skybox
-* gamma correction
-* normal mapping
+* Volumetric lighting

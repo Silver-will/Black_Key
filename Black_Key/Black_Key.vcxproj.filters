@@ -145,13 +145,28 @@
     <None Include="shaders\sky.comp">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\mesh.frag">
+    <None Include="shaders\brdf.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\mesh.vert">
+    <None Include="shaders\brdf.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\input_structures.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\brdf.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\brdf.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\cascaded_shadows.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\cascaded_shadows.gs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\cascaded_shadows.vs">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

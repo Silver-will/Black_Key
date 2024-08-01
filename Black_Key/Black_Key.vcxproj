@@ -185,11 +185,16 @@
     <ClInclude Include="src\vk_types.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\brdf.fs" />
+    <None Include="shaders\brdf.vs" />
+    <None Include="shaders\cascaded_shadows.fs" />
+    <None Include="shaders\cascaded_shadows.gs" />
+    <None Include="shaders\cascaded_shadows.vs" />
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
     <None Include="shaders\input_structures.glsl" />
-    <None Include="shaders\mesh.frag" />
-    <None Include="shaders\mesh.vert" />
+    <None Include="shaders\brdf.frag" />
+    <None Include="shaders\brdf.vert" />
     <None Include="shaders\sky.comp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
