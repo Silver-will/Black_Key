@@ -71,10 +71,9 @@ void main()
     float roughness = metallicRough.x;
     float metallic = metallicRough.y;
     
-
     vec3 N = CalculateNormalFromMap();
+    
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
-
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
     vec3 H = normalize(V + L);
     vec3 radiance = sceneData.sunlightColor.xyz;
@@ -105,7 +104,7 @@ void main()
     // add to outgoing radiance Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 ambient = vec3(0.03) * albedo;
     
     vec3 color = ambient + Lo;
 
@@ -114,5 +113,6 @@ void main()
     // gamma correct
     color = pow(color, vec3(1.0/2.2)); 
     outFragColor = vec4(color, 1.0);
+    
 }
 

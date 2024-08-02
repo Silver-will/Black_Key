@@ -137,6 +137,7 @@ public:
 	void destroy_image(const AllocatedImage& img);
 
 private:
+	void draw_shadows(VkCommandBuffer cmd);
 	void draw_main(VkCommandBuffer cmd);
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);

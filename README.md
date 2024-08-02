@@ -9,16 +9,19 @@ A modern rendering engine in vulkan
 * Opaque and transparent object loading
 
 ##  Upcoming work list
-* Optimize rendering (30ms for demo scene is obscene)
-* PBR
-* normal mapping
-* gamma correction
-* Clustered forward shading
-* Skybox
-* Global illumination(Screen space ray tracing)
-* HDR and bloom
-* Cascaded shadow maps
-* MSAA
-* SSAO
-* SSR
-* Volumetric lighting
+* [ ] Optimize rendering (30ms for demo scene is obscene)
+* [ ] PBR
+* [ ] normal mapping
+* [ ] gamma correction
+* [ ] Clustered forward shading
+* [ ] Skybox
+* [ ] Global illumination(Screen space ray tracing)
+* [ ] HDR and bloom
+* [ ] Cascaded shadow maps
+* [ ] MSAA
+* [ ] SSAO
+* [ ] SSR
+* [ ] Volumetric lighting
+* [ ] Move mipmap generation to a compute shader
+* [ ] Move Frustum culling to a compute shader
+* [ ] Compare Doing TBN matrix calculation in vertex vs fragment

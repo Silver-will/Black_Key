@@ -118,8 +118,14 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
+	auto start_update = std::chrono::system_clock::now();
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
+	
+	auto end_update = std::chrono::system_clock::now();
+	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
+	stats.update_time = elapsed_update.count() / 1000.f;
+
 
 	get_current_frame()._deletionQueue.flush();
 	get_current_frame()._frameDescriptors.clear_pools(_device);
@@ -128,12 +134,8 @@ void VulkanEngine::draw()
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
 
-	auto start_update = std::chrono::system_clock::now();
+	
 	VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
-
-	auto end_update = std::chrono::system_clock::now();
-	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
-	stats.update_time = elapsed_update.count() / 1000.f;
 
 	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
 		resize_requested = true;
@@ -163,7 +165,6 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	
 	draw_main(cmd);
-	
 	
 	//transtion the draw image and the swapchain image into their correct transfer layouts
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -204,8 +205,6 @@ void VulkanEngine::draw()
 	// _renderFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, get_current_frame()._renderFence));
 
-
-
 	//prepare present
 	// this will put the image we just rendered to into the visible window.
 	// we want to wait on the _renderSemaphore for that, 
@@ -231,19 +230,19 @@ void VulkanEngine::draw()
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	auto start = std::chrono::system_clock::now();
 	ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
 
-	// bind the background compute pipeline
+	//bind the background compute pipeline
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
-	// bind the descriptor set containing the draw image for the compute pipeline
+	//bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
 
 	vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(cmd, std::ceil(_windowExtent.width / 16.0), std::ceil(_windowExtent.height / 16.0), 1);
 
-	//draw the triangle
 
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -253,19 +252,19 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
-	auto start = std::chrono::system_clock::now();
+	
 	draw_geometry(cmd);
+
+	vkCmdEndRendering(cmd);
 
 	auto end = std::chrono::system_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
-
-	vkCmdEndRendering(cmd);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
+	auto start_imgui = std::chrono::system_clock::now();
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
 
@@ -274,6 +273,9 @@ void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
 	vkCmdEndRendering(cmd);
+	auto end_imgui = std::chrono::system_clock::now();
+	auto elapsed_imgui = std::chrono::duration_cast<std::chrono::microseconds>(end_imgui - start_imgui);
+	stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
 }
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
@@ -475,7 +477,7 @@ void VulkanEngine::run()
             continue;
         }
 
-		auto start_imgui = std::chrono::system_clock::now();
+		
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
@@ -510,9 +512,7 @@ void VulkanEngine::run()
 		}
 		ImGui::End();
 		ImGui::Render();
-		auto end_imgui = std::chrono::system_clock::now();
-		auto elapsed_imgui = std::chrono::duration_cast<std::chrono::microseconds>(end_imgui - start_imgui);
-		stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
+		
 
 		auto start_update = std::chrono::system_clock::now();
 		update_scene();
@@ -520,8 +520,9 @@ void VulkanEngine::run()
 		auto elapsed_update= std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
 		//stats.update_time = elapsed_update.count() / 1000.f;
 
-
+		
         draw();
+		
 
         glfwPollEvents();
 
@@ -1293,12 +1294,15 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
 	vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
 		&copyRegion);
 
-	vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	if (mipmapped) {
+		vkutil::generate_mipmaps(cmd, new_image.image, VkExtent2D{ new_image.imageExtent.width,new_image.imageExtent.height });
+	}
+	else {
+		vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
 		});
-
 	destroy_buffer(uploadbuffer);
-
 	return new_image;
 }
 
@@ -1325,9 +1329,10 @@ void VulkanEngine::update_scene()
 
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
-	sceneData.sunlightColor = glm::vec4(1.f);
+	sceneData.sunlightColor = glm::vec4(3.f);
 	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
 
+	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 }
 
