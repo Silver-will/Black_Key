@@ -980,6 +980,8 @@ void VulkanEngine::init_background_pipelines()
 		fmt::print("Error when building the compute shader \n");
 	}
 
+	VkShaderModule skyboxFragShader;
+
 	VkPipelineShaderStageCreateInfo stageinfo{};
 	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stageinfo.pNext = nullptr;

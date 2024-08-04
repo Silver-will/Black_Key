@@ -113,6 +113,8 @@ public:
 	AllocatedImage _greyImage;
 	AllocatedImage _errorCheckerboardImage;
 
+	AllocatedImage _skyImage;
+
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	DrawContext drawCommands;

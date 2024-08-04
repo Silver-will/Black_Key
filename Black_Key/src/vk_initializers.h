@@ -42,9 +42,12 @@ VkWriteDescriptorSet write_descriptor_image(VkDescriptorType type, VkDescriptorS
 VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptorSet dstSet,
     VkDescriptorBufferInfo* bufferInfo, uint32_t binding);
 VkDescriptorBufferInfo buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range);
+VkSamplerCreateInfo create_sampler(VkFilter filter, VkSamplerMipmapMode mipMode, VkSamplerAddressMode addressMode, int mipCount);
 
 VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent);
+VkImageCreateInfo image_cubemap_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, uint32_t mipCount);
 VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
+VkImageViewCreateInfo imageview_cubemap_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
 VkPipelineLayoutCreateInfo pipeline_layout_create_info();
 VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage,
     VkShaderModule shaderModule,

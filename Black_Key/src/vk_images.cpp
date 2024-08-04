@@ -133,3 +133,16 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ima
     // transition all mip levels into the final read_only layout
     transition_image(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
+
+
+AllocatedImage create_cubemap_image(std::string_view path, VkExtent3D size, VmaAllocator& allocator, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false)
+{
+    int width, height, nrChannels;
+
+    unsigned char* data = stbi_load(path.data(), &width, &height, &nrChannels, 4);
+    if (!data)
+    {
+        fmt::println("Failed to load image at path: {}", path);
+    }
+
+}

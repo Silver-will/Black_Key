@@ -169,5 +169,11 @@
     <None Include="shaders\cascaded_shadows.vs">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\skybox.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.fs">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
