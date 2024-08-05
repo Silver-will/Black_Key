@@ -155,6 +155,7 @@
     <ClCompile Include="src\engine_util.cpp" />
     <ClCompile Include="src\input_handler.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\vk_buffer.cpp" />
     <ClCompile Include="src\vk_descriptors.cpp" />
     <ClCompile Include="src\vk_engine.cpp" />
     <ClCompile Include="src\vk_images.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\engine_util.h" />
     <ClInclude Include="src\input_handler.h" />
+    <ClInclude Include="src\vk_buffer.h" />
     <ClInclude Include="src\vk_descriptors.h" />
     <ClInclude Include="src\vk_engine.h" />
     <ClInclude Include="src\vk_images.h" />

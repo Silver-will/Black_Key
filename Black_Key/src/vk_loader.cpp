@@ -7,6 +7,7 @@
 #include "vk_initializers.h"
 #include "vk_pipelines.h"
 #include "vk_types.h"
+#include "vk_images.h"
 #include <glm/gtx/quaternion.hpp>
 
 
@@ -47,7 +48,7 @@ if (data) {
     imagesize.height = height;
     imagesize.depth = 1;
 
-    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,true);
+    newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
     stbi_image_free(data);
 }
@@ -61,7 +62,7 @@ if (data) {
         imagesize.height = height;
         imagesize.depth = 1;
 
-        newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,true);
+        newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
         stbi_image_free(data);
     }
@@ -84,8 +85,7 @@ if (data) {
         imagesize.height = height;
         imagesize.depth = 1;
 
-        newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_USAGE_SAMPLED_BIT,true);
+        newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
         stbi_image_free(data);
     }
