@@ -231,18 +231,8 @@ void VulkanEngine::draw()
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
 	auto start = std::chrono::system_clock::now();
-	ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
-
-	//bind the background compute pipeline
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
-
-	//bind the descriptor set containing the draw image for the compute pipeline
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
-
-	vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
-	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
-	vkCmdDispatch(cmd, std::ceil(_windowExtent.width / 16.0), std::ceil(_windowExtent.height / 16.0), 1);
-
+	
+	draw_background(cmd);
 
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -764,10 +754,17 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
 
 	_mainDeletionQueue.push_function([&]() {
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-	vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
 		});
 
 	_drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
@@ -935,7 +932,7 @@ void VulkanEngine::init_mesh_pipeline()
 
 	//pipelineBuilder.enable_blending_additive();
 
-	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//connect the image format we will draw into, from draw image
 	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
@@ -979,8 +976,6 @@ void VulkanEngine::init_background_pipelines()
 	if (!vkutil::load_shader_module("shaders/sky.spv", _device, &skyShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
-
-	VkShaderModule skyboxFragShader;
 
 	VkPipelineShaderStageCreateInfo stageinfo{};
 	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1029,6 +1024,66 @@ void VulkanEngine::init_background_pipelines()
 		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
 	vkDestroyPipeline(_device, sky.pipeline, nullptr);
 	vkDestroyPipeline(_device, gradient.pipeline, nullptr);
+		});
+
+	VkShaderModule vertShader;
+	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", _device, &vertShader))
+	{
+		fmt::println("Error when building the Skybox vertex shader module");
+	}
+
+	VkShaderModule fragShader;
+	if (!vkutil::load_shader_module("shaders/skybox.frag.spv", _device, &fragShader))
+	{
+		fmt::println("Error when building the Skybox fragment shader module");
+	}
+
+	VkPushConstantRange pushConstantSky{};
+	pushConstantSky.offset = 0;
+	pushConstantSky.size = sizeof(glm::mat4);
+	pushConstantSky.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
+	pipeline_layout_info.pPushConstantRanges = &pushConstantSky;
+	pipeline_layout_info.pushConstantRangeCount = 1;
+	pipeline_layout_info.pSetLayouts = &_skyboxDescriptorLayout;
+	pipeline_layout_info.setLayoutCount = 1;
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_skyboxPipelineLayout));
+
+	PipelineBuilder pipelineBuilder;
+
+	pipelineBuilder._pipelineLayout = _skyboxPipelineLayout;
+
+	pipelineBuilder.set_shaders(vertShader, fragShader);
+	//it will draw triangles
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	//filled triangles
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	//no backface culling
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	//no multisampling
+	pipelineBuilder.set_multisampling_none();
+	//no blending
+	pipelineBuilder.disable_blending();
+
+	//pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(false,false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	//connect the image format we will draw into, from draw image
+	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+	
+	//pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+
+	//finally build the pipeline
+	_skyboxPipeline = pipelineBuilder.build_pipeline(_device);
+
+	vkDestroyShaderModule(_device, vertShader, nullptr);
+	vkDestroyShaderModule(_device, fragShader, nullptr);
+
+	_mainDeletionQueue.push_function([=]() {
+	vkDestroyPipelineLayout(_device, _skyboxPipelineLayout, nullptr);
+	vkDestroyPipeline(_device, _skyboxPipeline, nullptr);
 		});
 }
 

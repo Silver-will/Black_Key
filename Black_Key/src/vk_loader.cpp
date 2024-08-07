@@ -549,7 +549,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
     pipelineBuilder.set_multisampling_none();
     pipelineBuilder.disable_blending();
-    pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     //render format
     pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
@@ -564,7 +564,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     // create the transparent variant
     pipelineBuilder.enable_blending_additive();
 
-    pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    pipelineBuilder.enable_depthtest(false,true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 

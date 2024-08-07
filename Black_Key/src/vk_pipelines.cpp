@@ -200,9 +200,9 @@ void PipelineBuilder::set_color_attachment_format(VkFormat format)
 }
 
 
-void PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op)
+void PipelineBuilder::enable_depthtest(bool depthWriteEnable, bool depthTestEnable, VkCompareOp op)
 {
-    _depthStencil.depthTestEnable = VK_TRUE;
+    _depthStencil.depthTestEnable = depthTestEnable;
     _depthStencil.depthWriteEnable = depthWriteEnable;
     _depthStencil.depthCompareOp = op;
     _depthStencil.depthBoundsTestEnable = VK_FALSE;

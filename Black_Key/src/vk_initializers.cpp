@@ -370,6 +370,8 @@ VkSamplerCreateInfo vkinit::create_sampler(VkFilter filter, VkSamplerMipmapMode 
 
     info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
     info.maxAnisotropy = 1.0f;
+
+    return info;
 }
 
 //< image_set

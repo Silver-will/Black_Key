@@ -100,6 +100,8 @@ public:
 	VkPipeline _trianglePipeline;
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
+	VkPipelineLayout _skyboxPipelineLayout; 
+	VkPipeline _skyboxPipeline;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -107,6 +109,8 @@ public:
 	GPUSceneData sceneData;
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
+	VkDescriptorSetLayout _skyboxDescriptorLayout;
+	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;

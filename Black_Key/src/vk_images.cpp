@@ -264,18 +264,31 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
         {
             vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             std::vector<VkBufferImageCopy> bufferCopyRegions;
-            uint32_t offset = 0;
-            for (uint32_t face = 0; face < 6; face++)
-            {
+            
                 size_t offset;
                 VkBufferImageCopy bufferCopyRegion = {};
                 bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 bufferCopyRegion.imageSubresource.mipLevel = 0;
-                bufferCopyRegion.imageSubresource.baseArrayLayer = face;
-                bufferCopyRegion.imageSubresource.layerCount = 1;
+                bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+                bufferCopyRegion.imageSubresource.layerCount = 6;
                 bufferCopyRegion.imageExtent = size;
-                bufferCopyRegion.bufferOffset = offset;
-                
-            }
-     });
+                bufferCopyRegion.bufferOffset = 0;
+                bufferCopyRegion.bufferRowLength = 0;
+                bufferCopyRegion.bufferImageHeight = 0;
+
+                vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                    &bufferCopyRegion);
+
+                if (mipmapped) {
+                    vkutil::generate_mipmaps(cmd, newImage.image, VkExtent2D{ newImage.imageExtent.width,newImage.imageExtent.height });
+                }
+                else {
+                    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                }
+
+        });
+
+    destroy_buffer(uploadbuffer, engine);
+    return newImage;
 }

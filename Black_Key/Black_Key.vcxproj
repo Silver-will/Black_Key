@@ -198,8 +198,8 @@
     <None Include="shaders\brdf.frag" />
     <None Include="shaders\brdf.vert" />
     <None Include="shaders\sky.comp" />
-    <None Include="shaders\skybox.fs" />
-    <None Include="shaders\skybox.vs" />
+    <None Include="shaders\skybox.frag" />
+    <None Include="shaders\skybox.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
