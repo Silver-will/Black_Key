@@ -52,4 +52,7 @@ VkPipelineLayoutCreateInfo pipeline_layout_create_info();
 VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage,
     VkShaderModule shaderModule,
     const char * entry = "main");
+VkVertexInputBindingDescription vertex_binding_description(uint32_t binding, uint32_t stride, VkVertexInputRate input);
+VkVertexInputAttributeDescription vertex_attribute_description(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset);
+VkPipelineVertexInputStateCreateInfo pipeline_vertex_input_create_info(std::vector<VkVertexInputBindingDescription>& bindings, std::vector<VkVertexInputAttributeDescription>& attributes);
 } // namespace vkinit

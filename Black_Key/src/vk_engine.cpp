@@ -1026,7 +1026,7 @@ void VulkanEngine::init_background_pipelines()
 	vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 		});
 
-	VkShaderModule vertShader;
+	/*VkShaderModule vertShader;
 	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", _device, &vertShader))
 	{
 		fmt::println("Error when building the Skybox vertex shader module");
@@ -1049,10 +1049,22 @@ void VulkanEngine::init_background_pipelines()
 	pipeline_layout_info.pSetLayouts = &_skyboxDescriptorLayout;
 	pipeline_layout_info.setLayoutCount = 1;
 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_skyboxPipelineLayout));
+	
+	std::vector<VkVertexInputBindingDescription> bindings{ 
+		vkinit::vertex_binding_description(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
+	};
+
+	std::vector<VkVertexInputAttributeDescription> attributes{ 
+		vkinit::vertex_attribute_description(0,0,VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3))
+	};
+
+	auto vertexInputState = vkinit::pipeline_vertex_input_create_info(bindings, attributes);
 
 	PipelineBuilder pipelineBuilder;
 
 	pipelineBuilder._pipelineLayout = _skyboxPipelineLayout;
+
+	pipelineBuilder.set_vertex_input_state(vertexInputState);
 
 	pipelineBuilder.set_shaders(vertShader, fragShader);
 	//it will draw triangles
@@ -1085,6 +1097,7 @@ void VulkanEngine::init_background_pipelines()
 	vkDestroyPipelineLayout(_device, _skyboxPipelineLayout, nullptr);
 	vkDestroyPipeline(_device, _skyboxPipeline, nullptr);
 		});
+	*/
 }
 
 void VulkanEngine::init_default_data() {

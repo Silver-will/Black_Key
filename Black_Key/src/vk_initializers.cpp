@@ -406,3 +406,32 @@ VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShad
     info.pName = entry;
     return info;
 }
+
+VkVertexInputBindingDescription vkinit::vertex_binding_description(uint32_t binding, uint32_t stride, VkVertexInputRate input)
+{
+    VkVertexInputBindingDescription InputBinding = {};
+    InputBinding.binding = binding;
+    InputBinding.stride = stride;
+    InputBinding.inputRate = input;
+    return InputBinding;
+}
+
+VkVertexInputAttributeDescription vkinit::vertex_attribute_description(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
+{
+    VkVertexInputAttributeDescription attrib;
+    attrib.location = location;
+    attrib.binding = binding;
+    attrib.format = format;
+    attrib.offset = offset;
+}
+
+VkPipelineVertexInputStateCreateInfo vkinit::pipeline_vertex_input_create_info(std::vector<VkVertexInputBindingDescription>& bindings, std::vector<VkVertexInputAttributeDescription>& attributes)
+{
+    VkPipelineVertexInputStateCreateInfo vertexInput;
+    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInput.vertexBindingDescriptionCount = static_cast<uint32_t>(bindings.size());
+    vertexInput.pVertexBindingDescriptions = bindings.data();
+    vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
+    vertexInput.pVertexAttributeDescriptions = attributes.data();
+    return vertexInput;
+}

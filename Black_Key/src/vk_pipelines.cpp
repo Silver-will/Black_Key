@@ -50,6 +50,9 @@ void PipelineBuilder::clear()
 {
     // clear all of the structs we need back to 0 with their correct stype
 
+     // completely clear VertexInputStateCreateInfo, as we have no need for it
+    _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
     _inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 
     _rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
@@ -88,9 +91,6 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &_colorBlendAttachment;
-
-    // completely clear VertexInputStateCreateInfo, as we have no need for it
-    VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 
     VkGraphicsPipelineCreateInfo pipelineInfo = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     // connect the renderInfo to the pNext extension mechanism
@@ -240,4 +240,9 @@ void PipelineBuilder::enable_blending_alphablend()
 void PipelineBuilder::set_depth_format(VkFormat format)
 {
     _renderInfo.depthAttachmentFormat = format;
+}
+
+void PipelineBuilder::set_vertex_input_state(VkPipelineVertexInputStateCreateInfo vertexInfo)
+{
+    _vertexInputInfo = vertexInfo;
 }

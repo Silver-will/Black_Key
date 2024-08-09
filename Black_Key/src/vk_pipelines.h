@@ -18,6 +18,7 @@ public:
     VkPipelineDepthStencilStateCreateInfo _depthStencil;
     VkPipelineRenderingCreateInfo _renderInfo;
     VkFormat _colorAttachmentformat;
+    VkPipelineVertexInputStateCreateInfo _vertexInputInfo;
 
     PipelineBuilder() { clear(); }
 
@@ -25,6 +26,7 @@ public:
 
     VkPipeline build_pipeline(VkDevice device);
 
+    void set_vertex_input_state(VkPipelineVertexInputStateCreateInfo vertexInfo);
     void set_input_topology(VkPrimitiveTopology topology);
     void set_polygon_mode(VkPolygonMode polygon);
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
