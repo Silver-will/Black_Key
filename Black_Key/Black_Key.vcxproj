@@ -157,6 +157,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\vk_buffer.cpp" />
     <ClCompile Include="src\vk_descriptors.cpp" />
+    <ClCompile Include="src\graphics.cpp" />
     <ClCompile Include="src\vk_engine.cpp" />
     <ClCompile Include="src\vk_images.cpp" />
     <ClCompile Include="src\vk_initializers.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="src\input_handler.h" />
     <ClInclude Include="src\vk_buffer.h" />
     <ClInclude Include="src\vk_descriptors.h" />
+    <ClInclude Include="src\graphics.h" />
     <ClInclude Include="src\vk_engine.h" />
     <ClInclude Include="src\vk_images.h" />
     <ClInclude Include="src\vk_initializers.h" />

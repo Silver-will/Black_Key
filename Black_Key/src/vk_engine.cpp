@@ -50,6 +50,7 @@ void VulkanEngine::init()
     glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	init_vulkan();
 
@@ -126,14 +127,11 @@ void VulkanEngine::draw()
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
 	stats.update_time = elapsed_update.count() / 1000.f;
 
-
 	get_current_frame()._deletionQueue.flush();
 	get_current_frame()._frameDescriptors.clear_pools(_device);
-
 	
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
-
 	
 	VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
 
@@ -447,6 +445,12 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	// we delete the draw commands now that we processed them
 	drawCommands.OpaqueSurfaces.clear();
 	drawCommands.TransparentSurfaces.clear();
+}
+
+
+void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
+{
+
 }
 
 void VulkanEngine::run()
@@ -1399,7 +1403,7 @@ void VulkanEngine::update_scene()
 
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
-	sceneData.sunlightColor = glm::vec4(3.f);
+	sceneData.sunlightColor = glm::vec4(1.5f);
 	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
 
 	//Not an actual api Draw call

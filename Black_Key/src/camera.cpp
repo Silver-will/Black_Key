@@ -2,7 +2,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-glm::mat4 Camera::getViewMatrix()
+glm::mat4 Camera::getViewMatrix() const
 {
     // to create a correct model view, we need to move the world in opposite
     // direction to the camera
@@ -12,7 +12,7 @@ glm::mat4 Camera::getViewMatrix()
     return glm::inverse(cameraTranslation * cameraRotation);
 }
 
-glm::mat4 Camera::getRotationMatrix()
+glm::mat4 Camera::getRotationMatrix() const
 {
     // fairly typical FPS style camera. we join the pitch and yaw rotations into
     // the final rotation matrix
@@ -61,6 +61,16 @@ void Camera::processKeyInput(GLFWwindow* window, int key, int action)
 		if (key == GLFW_KEY_S || key == GLFW_KEY_DOWN)
 		{
 			velocity.z = 0.0f;
+		}
+		if (key == GLFW_KEY_C && cursor_locked)
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			cursor_locked = false;
+		}
+		else if(key == GLFW_KEY_C)
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			cursor_locked = true;
 		}
 	}
 }

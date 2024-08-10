@@ -1,3 +1,4 @@
+#pragma once
 #include "vk_types.h"
 
 class Camera {
@@ -12,8 +13,11 @@ public:
 
     bool first_movement{ true };
 
-    glm::mat4 getViewMatrix();
-    glm::mat4 getRotationMatrix();
+    float zoom{ 45.0f };
+    bool cursor_locked{ true };
+
+    glm::mat4 getViewMatrix() const;
+    glm::mat4 getRotationMatrix() const;
 
     void processKeyInput(GLFWwindow* window, int key, int action);
     void processMouseMovement(GLFWwindow* window, double xPos, double yPos);

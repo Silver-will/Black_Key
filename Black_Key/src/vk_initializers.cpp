@@ -423,6 +423,7 @@ VkVertexInputAttributeDescription vkinit::vertex_attribute_description(uint32_t 
     attrib.binding = binding;
     attrib.format = format;
     attrib.offset = offset;
+    return attrib;
 }
 
 VkPipelineVertexInputStateCreateInfo vkinit::pipeline_vertex_input_create_info(std::vector<VkVertexInputBindingDescription>& bindings, std::vector<VkVertexInputAttributeDescription>& attributes)

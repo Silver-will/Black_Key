@@ -63,7 +63,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 
 void main() 
 {
-    vec4 colorVal     = texture(colorTex, inUV).rgba;
+    vec4 colorVal = texture(colorTex, inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     float ao = colorVal.a;
 

@@ -78,6 +78,9 @@
     <ClCompile Include="src\vk_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\graphics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -138,6 +141,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\vk_buffer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\graphics.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
