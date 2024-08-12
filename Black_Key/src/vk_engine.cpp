@@ -77,10 +77,13 @@ void VulkanEngine::init()
 
 	std::string structurePath = { "assets/sponza/sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath);
-
 	assert(structureFile.has_value());
 
+	auto skyCubeFile = loadGltf(this, "assets/cube.glb");
+	assert(skyCubeFile.has_value());
+
 	loadedScenes["sponza"] = *structureFile;
+	loadedScenes["sky_cube"] = *skyCubeFile;
 }
 
 void VulkanEngine::cleanup()
@@ -654,7 +657,7 @@ void VulkanEngine::init_swapchain()
 	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
 	vmaSetAllocationName(_allocator, _drawImage.allocation,"Draw image");
 	//build a image-view for the draw image to use for rendering
-	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
 
@@ -669,7 +672,7 @@ void VulkanEngine::init_swapchain()
 	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
-	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 
@@ -760,8 +763,7 @@ void VulkanEngine::init_descriptors()
 	}
 	{
 		DescriptorLayoutBuilder builder;
-		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
@@ -823,8 +825,10 @@ void VulkanEngine::init_pipelines()
 {
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
+	skyMaterial.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
+	skyMaterial.clear_resources(_device);
 		});
 }
 
@@ -1333,7 +1337,7 @@ AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkIm
 	}
 
 	// build a image-view for the image
-	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
+	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D);
 	view_info.subresourceRange.levelCount = img_info.mipLevels;
 
 	VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &newImage.imageView));
@@ -1407,6 +1411,7 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
 
 	//Not an actual api Draw call
+	loadedScenes["sky_cube"]->Draw(glm::mat4{ 1.f }, drawCommands);
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 }
 

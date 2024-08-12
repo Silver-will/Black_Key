@@ -165,7 +165,7 @@ AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkIm
     }
 
     // build a image-view for the image
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
+    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D);
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
@@ -226,7 +226,8 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
 {
     int width, height, nrChannels;
 
-    unsigned char* data = stbi_load(path.data(), &width, &height, &nrChannels, 4);
+    float* data = stbi_loadf(path.data(), &width, &height, &nrChannels, 4);
+   
     if (!data)
     {
         fmt::println("Failed to load image at path: {}", path);
@@ -291,4 +292,10 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
 
     destroy_buffer(uploadbuffer, engine);
     return newImage;
+}
+
+AllocatedImage vkutil::create_array_image(VkExtent3D size, VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+    AllocatedImage image;
+    return image;
 }

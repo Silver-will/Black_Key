@@ -281,6 +281,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materialResources.colorSampler = engine->_defaultSamplerLinear;
         materialResources.metalRoughImage = engine->_whiteImage;
         materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
+        materialResources.normalImage = engine->_whiteImage;
+        materialResources.normalSampler = engine->_defaultSamplerLinear;
+       
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
@@ -570,6 +573,77 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+}
+
+void GLTFMetallic_Roughness::build_background_pipeline(VulkanEngine* engine)
+{
+    VkShaderModule skyFragShader;
+    if (!vkutil::load_shader_module("shaders/skybox.frag.spv", engine->_device, &skyFragShader)) {
+        fmt::println("Error when building the triangle fragment shader module");
+    }
+
+    VkShaderModule skyVertexShader;
+    if (!vkutil::load_shader_module("shaders/skybox.vert.spv", engine->_device, &skyVertexShader)) {
+        fmt::println("Error when building the triangle vertex shader module");
+    }
+
+    VkPushConstantRange matrixRange{};
+    matrixRange.offset = 0;
+    matrixRange.size = sizeof(glm::mat4);
+    matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+
+    VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout};
+
+    VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+    mesh_layout_info.setLayoutCount = 1;
+    mesh_layout_info.pSetLayouts = layouts;
+    mesh_layout_info.pPushConstantRanges = &matrixRange;
+    mesh_layout_info.pushConstantRangeCount = 1;
+
+    VkPipelineLayout newLayout;
+    VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+    opaquePipeline.layout = newLayout;
+    transparentPipeline.layout = newLayout;
+
+    std::vector<VkVertexInputBindingDescription> bindings{
+        vkinit::vertex_binding_description(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
+    };
+
+    std::vector<VkVertexInputAttributeDescription> attributes{
+        vkinit::vertex_attribute_description(0,0,VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3))
+    };
+
+    auto vertexInputState = vkinit::pipeline_vertex_input_create_info(bindings, attributes);
+
+    PipelineBuilder pipelineBuilder;
+    pipelineBuilder.set_vertex_input_state(vertexInputState);
+    pipelineBuilder.set_shaders(skyVertexShader, skyFragShader);
+    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    pipelineBuilder.set_multisampling_none();
+    pipelineBuilder.disable_blending();
+    pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    //connect the image format we will draw into, from draw image
+    pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
+
+    //pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+
+    pipelineBuilder._pipelineLayout = newLayout;
+
+    //finally build the pipeline
+    opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+    pipelineBuilder.enable_blending_additive();
+
+    pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+    transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+    vkDestroyShaderModule(engine->_device, skyVertexShader, nullptr);
+    vkDestroyShaderModule(engine->_device, skyFragShader, nullptr);
 }
 
 MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)

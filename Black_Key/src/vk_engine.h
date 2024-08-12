@@ -57,6 +57,7 @@ public:
 
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
+	GLTFMetallic_Roughness skyMaterial;
 
 	DescriptorAllocator globalDescriptorAllocator;
 

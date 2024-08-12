@@ -85,22 +85,22 @@ glm::mat4 blackKey::getLightSpaceMatrix(const float nearPlane, const float farPl
 
 
 
-std::vector<glm::mat4> blackKey::getLightSpaceMatrices(const std::vector<float>& shadowCascadeLevels,const float cameraNearPlane,const float cameraFarPlane)
+std::vector<glm::mat4> blackKey::getLightSpaceMatrices(const std::vector<float>& shadowCascadeLevels,const float cameraNearPlane,const float cameraFarPlane, Camera& camera, glm::vec3& lightDir, VkExtent2D window)
 {
     std::vector<glm::mat4> ret;
     for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i)
     {
         if (i == 0)
         {
-            ret.push_back(getLightSpaceMatrix(cameraNearPlane, shadowCascadeLevels[i]));
+            ret.push_back(getLightSpaceMatrix(cameraNearPlane, shadowCascadeLevels[i], camera, lightDir, window));
         }
         else if (i < shadowCascadeLevels.size())
         {
-            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
+            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i], camera, lightDir, window));
         }
         else
         {
-            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], cameraFarPlane));
+            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], cameraFarPlane, camera, lightDir, window));
         }
     }
     return ret;

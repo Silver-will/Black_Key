@@ -296,7 +296,7 @@ VkImageCreateInfo vkinit::image_cubemap_create_info(VkFormat format, VkImageUsag
     info.format = format;
     info.extent = extent;
 
-    info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
+    info.mipLevels = mipCount;
     info.arrayLayers = 6;
     info.samples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -310,7 +310,7 @@ VkImageCreateInfo vkinit::image_cubemap_create_info(VkFormat format, VkImageUsag
     return info;
 }
 
-VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags)
+VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags, VkImageViewType viewType)
 {
     // build a image-view for the depth image to use for rendering
     VkImageViewCreateInfo info = {};
@@ -326,6 +326,15 @@ VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage ima
     info.subresourceRange.layerCount = 1;
     info.subresourceRange.aspectMask = aspectFlags;
 
+    if (viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+    {
+        info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        info.subresourceRange.layerCount = 6;
+    }
+    if (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+    {
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    }
     return info;
 }
 
