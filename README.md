@@ -9,7 +9,8 @@ A modern rendering engine in vulkan
 * Opaque and transparent object loading
 
 ##  Upcoming work list
-* [ ] Optimize rendering (30ms for demo scene is obscene)
+* [ ] Backend Changes
+* [x] GLTF Loading
 * [x] PBR
 * [x] normal mapping
 * [x] gamma correction
