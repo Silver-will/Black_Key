@@ -10,9 +10,9 @@ A modern rendering engine in vulkan
 
 ##  Upcoming work list
 * [ ] Optimize rendering (30ms for demo scene is obscene)
-* [ ] PBR
-* [ ] normal mapping
-* [ ] gamma correction
+* [x] PBR
+* [x] normal mapping
+* [x] gamma correction
 * [ ] Clustered forward shading
 * [ ] Skybox
 * [ ] Global illumination(Screen space ray tracing)
@@ -20,7 +20,9 @@ A modern rendering engine in vulkan
 * [ ] Cascaded shadow maps
 * [ ] MSAA
 * [ ] SSAO
+* [ ] HBAO
 * [ ] SSR
+* [ ] GPU driven rendering
 * [ ] Volumetric lighting
 * [ ] Move mipmap generation to a compute shader
 * [ ] Move Frustum culling to a compute shader
