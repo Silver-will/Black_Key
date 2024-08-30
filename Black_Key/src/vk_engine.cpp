@@ -825,7 +825,7 @@ void VulkanEngine::init_pipelines()
 {
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
-	skyMaterial.build_pipelines(this);
+	skyMaterial.build_background_pipeline(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
 	skyMaterial.clear_resources(_device);
