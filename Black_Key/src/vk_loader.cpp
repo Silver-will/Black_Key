@@ -592,7 +592,6 @@ void GLTFMetallic_Roughness::build_background_pipeline(VulkanEngine* engine)
     matrixRange.size = sizeof(glm::mat4);
     matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-
     VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout};
 
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
@@ -618,18 +617,17 @@ void GLTFMetallic_Roughness::build_background_pipeline(VulkanEngine* engine)
     auto vertexInputState = vkinit::pipeline_vertex_input_create_info(bindings, attributes);
 
     PipelineBuilder pipelineBuilder;
-    pipelineBuilder.set_vertex_input_state(vertexInputState);
+    //pipelineBuilder.set_vertex_input_state(vertexInputState);
     pipelineBuilder.set_shaders(skyVertexShader, skyFragShader);
     pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
     pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     pipelineBuilder.set_multisampling_none();
     pipelineBuilder.disable_blending();
-    pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    pipelineBuilder.disable_depthtest();
     //connect the image format we will draw into, from draw image
     pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
-
-    //pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+    pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
 
     pipelineBuilder._pipelineLayout = newLayout;
 
@@ -644,6 +642,10 @@ void GLTFMetallic_Roughness::build_background_pipeline(VulkanEngine* engine)
 
     vkDestroyShaderModule(engine->_device, skyVertexShader, nullptr);
     vkDestroyShaderModule(engine->_device, skyFragShader, nullptr);
+
+    //Define Writer properties
+    writer.clear();
+    writer.write_image(0, engine->_whiteImage.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 }
 
 MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
