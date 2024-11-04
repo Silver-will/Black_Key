@@ -109,6 +109,11 @@ struct GPUSceneData {
     glm::vec4 sunlightColor;
 };
 
+struct tessellationShader {
+    VkShaderModule controlShader;
+    VkShaderModule evaluationShader;
+};
+
 // push constants for our mesh object draws
 struct GPUDrawPushConstants {
     glm::mat4 worldMatrix;

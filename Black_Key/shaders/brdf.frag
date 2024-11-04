@@ -73,7 +73,7 @@ void main()
     
     vec3 N = CalculateNormalFromMap();
     
-    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
+    /*vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
     vec3 H = normalize(V + L);
     vec3 radiance = sceneData.sunlightColor.xyz;
@@ -111,7 +111,10 @@ void main()
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+    color = pow(color, vec3(1.0/2.2));
+    */
+
+    vec3 color = N;
     outFragColor = vec4(color, 1.0);
     
 }
