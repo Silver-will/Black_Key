@@ -81,6 +81,9 @@
     <ClCompile Include="src\graphics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\engine_psos.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -146,6 +149,9 @@
     <ClInclude Include="src\graphics.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\engine_psos.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\gradient.comp">
@@ -172,13 +178,13 @@
     <None Include="shaders\brdf.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\cascaded_shadows.fs">
+    <None Include="shaders\cascaded_shadows.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\cascaded_shadows.gs">
+    <None Include="shaders\cascaded_shadows.geom">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\cascaded_shadows.vs">
+    <None Include="shaders\cascaded_shadows.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\skybox.vert">

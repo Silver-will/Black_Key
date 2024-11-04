@@ -37,21 +37,21 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                 assert(filePath.uri.isLocalPath()); // We're only capable of loading
                 // local files.
 
- std::string path(filePath.uri.path().begin(),
-    filePath.uri.path().end()); // Thanks C++.
- std::cout << filePath.uri.string() << std::endl;
- path = rootPath + path;
-unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-if (data) {
-    VkExtent3D imagesize;
-    imagesize.width = width;
-    imagesize.height = height;
-    imagesize.depth = 1;
+                std::string path(filePath.uri.path().begin(),
+                filePath.uri.path().end()); // Thanks C++.
+                std::cout << filePath.uri.string() << std::endl;
+                path = rootPath + path;
+                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+                if (data) {
+                    VkExtent3D imagesize;
+                    imagesize.width = width;
+                    imagesize.height = height;
+                    imagesize.depth = 1;
 
-    newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
+                    newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
-    stbi_image_free(data);
-}
+                    stbi_image_free(data);
+                }
 },
 [&](fastgltf::sources::Vector& vector) {
     unsigned char* data = stbi_load_from_memory(vector.bytes.data(), static_cast<int>(vector.bytes.size()),
@@ -190,7 +190,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     }
     //< load_1
     //> load_2
-        // we can stimate the descriptors we will need accurately
+        // we can estimate the descriptors we will need accurately
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 } };
@@ -549,7 +549,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
     pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     pipelineBuilder.set_multisampling_none();
     pipelineBuilder.disable_blending();
     pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_GREATER_OR_EQUAL);

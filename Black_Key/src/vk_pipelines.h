@@ -29,7 +29,7 @@ public:
     void set_vertex_input_state(VkPipelineVertexInputStateCreateInfo vertexInfo);
     void set_input_topology(VkPrimitiveTopology topology);
     void set_polygon_mode(VkPolygonMode polygon);
-    void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
+    void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader, VkShaderModule geometryShader = NULL);
     void set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void disable_blending();
     void set_multisampling_none();

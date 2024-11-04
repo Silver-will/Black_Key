@@ -79,11 +79,7 @@ void VulkanEngine::init()
 	auto structureFile = loadGltf(this, structurePath);
 	assert(structureFile.has_value());
 
-	auto skyCubeFile = loadGltf(this, "assets/cube.glb");
-	assert(skyCubeFile.has_value());
-
 	loadedScenes["sponza"] = *structureFile;
-	loadedScenes["sky_cube"] = *skyCubeFile;
 }
 
 void VulkanEngine::cleanup()
@@ -825,10 +821,10 @@ void VulkanEngine::init_pipelines()
 {
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
-	skyMaterial.build_background_pipeline(this);
+	//skyMaterial.build_background_pipeline(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
-	skyMaterial.clear_resources(_device);
+	//skyMaterial.clear_resources(_device);
 		});
 }
 
@@ -1034,78 +1030,6 @@ void VulkanEngine::init_background_pipelines()
 	vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 		});
 
-	/*VkShaderModule vertShader;
-	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", _device, &vertShader))
-	{
-		fmt::println("Error when building the Skybox vertex shader module");
-	}
-
-	VkShaderModule fragShader;
-	if (!vkutil::load_shader_module("shaders/skybox.frag.spv", _device, &fragShader))
-	{
-		fmt::println("Error when building the Skybox fragment shader module");
-	}
-
-	VkPushConstantRange pushConstantSky{};
-	pushConstantSky.offset = 0;
-	pushConstantSky.size = sizeof(glm::mat4);
-	pushConstantSky.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-	pipeline_layout_info.pPushConstantRanges = &pushConstantSky;
-	pipeline_layout_info.pushConstantRangeCount = 1;
-	pipeline_layout_info.pSetLayouts = &_skyboxDescriptorLayout;
-	pipeline_layout_info.setLayoutCount = 1;
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_skyboxPipelineLayout));
-	
-	std::vector<VkVertexInputBindingDescription> bindings{ 
-		vkinit::vertex_binding_description(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
-	};
-
-	std::vector<VkVertexInputAttributeDescription> attributes{ 
-		vkinit::vertex_attribute_description(0,0,VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3))
-	};
-
-	auto vertexInputState = vkinit::pipeline_vertex_input_create_info(bindings, attributes);
-
-	PipelineBuilder pipelineBuilder;
-
-	pipelineBuilder._pipelineLayout = _skyboxPipelineLayout;
-
-	pipelineBuilder.set_vertex_input_state(vertexInputState);
-
-	pipelineBuilder.set_shaders(vertShader, fragShader);
-	//it will draw triangles
-	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	//filled triangles
-	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	//no backface culling
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	//no multisampling
-	pipelineBuilder.set_multisampling_none();
-	//no blending
-	pipelineBuilder.disable_blending();
-
-	//pipelineBuilder.enable_blending_additive();
-
-	pipelineBuilder.enable_depthtest(false,false, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	//connect the image format we will draw into, from draw image
-	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-	
-	//pipelineBuilder.set_depth_format(_depthImage.imageFormat);
-
-	//finally build the pipeline
-	_skyboxPipeline = pipelineBuilder.build_pipeline(_device);
-
-	vkDestroyShaderModule(_device, vertShader, nullptr);
-	vkDestroyShaderModule(_device, fragShader, nullptr);
-
-	_mainDeletionQueue.push_function([=]() {
-	vkDestroyPipelineLayout(_device, _skyboxPipelineLayout, nullptr);
-	vkDestroyPipeline(_device, _skyboxPipeline, nullptr);
-		});
-	*/
 }
 
 void VulkanEngine::init_default_data() {
@@ -1289,7 +1213,7 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
 
 	immediate_submit([&](VkCommandBuffer cmd) {
-		VkBufferCopy vertexCopy{ 0 };
+	VkBufferCopy vertexCopy{ 0 };
 	vertexCopy.dstOffset = 0;
 	vertexCopy.srcOffset = 0;
 	vertexCopy.size = vertexBufferSize;
@@ -1411,7 +1335,6 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
 
 	//Not an actual api Draw call
-	loadedScenes["sky_cube"]->Draw(glm::mat4{ 1.f }, drawCommands);
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 }
 

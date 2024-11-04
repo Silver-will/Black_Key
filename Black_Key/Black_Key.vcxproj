@@ -152,6 +152,7 @@
     <ClCompile Include="external\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\engine_psos.cpp" />
     <ClCompile Include="src\engine_util.cpp" />
     <ClCompile Include="src\input_handler.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
     <ClInclude Include="src\camera.h" />
+    <ClInclude Include="src\engine_psos.h" />
     <ClInclude Include="src\engine_util.h" />
     <ClInclude Include="src\input_handler.h" />
     <ClInclude Include="src\vk_buffer.h" />
@@ -191,9 +193,9 @@
   <ItemGroup>
     <None Include="shaders\brdf.fs" />
     <None Include="shaders\brdf.vs" />
-    <None Include="shaders\cascaded_shadows.fs" />
-    <None Include="shaders\cascaded_shadows.gs" />
-    <None Include="shaders\cascaded_shadows.vs" />
+    <None Include="shaders\cascaded_shadows.frag" />
+    <None Include="shaders\cascaded_shadows.geom" />
+    <None Include="shaders\cascaded_shadows.vert" />
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
     <None Include="shaders\input_structures.glsl" />
