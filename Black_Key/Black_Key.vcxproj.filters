@@ -84,6 +84,12 @@
     <ClCompile Include="src\engine_psos.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\shadows.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Lights.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -150,6 +156,12 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\engine_psos.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shadows.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Lights.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

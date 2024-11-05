@@ -14,6 +14,10 @@ struct ShadowPipelineResources {
 
 	DescriptorWriter writer;
 
+	struct ShadowMatrices {
+		glm::mat4 lightSpaceMatrices[16];
+	};
+
 	struct MaterialResources {
 		AllocatedImage shadowImage;
 		VkSampler shadowSampler;

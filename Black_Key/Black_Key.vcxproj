@@ -155,7 +155,9 @@
     <ClCompile Include="src\engine_psos.cpp" />
     <ClCompile Include="src\engine_util.cpp" />
     <ClCompile Include="src\input_handler.cpp" />
+    <ClCompile Include="src\Lights.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\shadows.cpp" />
     <ClCompile Include="src\vk_buffer.cpp" />
     <ClCompile Include="src\vk_descriptors.cpp" />
     <ClCompile Include="src\graphics.cpp" />
@@ -179,6 +181,8 @@
     <ClInclude Include="src\engine_psos.h" />
     <ClInclude Include="src\engine_util.h" />
     <ClInclude Include="src\input_handler.h" />
+    <ClInclude Include="src\Lights.h" />
+    <ClInclude Include="src\shadows.h" />
     <ClInclude Include="src\vk_buffer.h" />
     <ClInclude Include="src\vk_descriptors.h" />
     <ClInclude Include="src\graphics.h" />

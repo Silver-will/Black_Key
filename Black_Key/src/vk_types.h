@@ -128,6 +128,7 @@ struct EngineStats {
     float mesh_draw_time;
     float ui_draw_time;
     float update_time;
+    float shadow_pass_time;
 };
 #define VK_CHECK(x)                                                     \
     do {                                                                \

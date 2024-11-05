@@ -1,6 +1,5 @@
 ﻿// vulkan_guide.h : Include file for standard system include files,
 // or project specific include files.
-
 #pragma once
 
 #include "vk_loader.h"
@@ -10,6 +9,7 @@
 #include "vk_renderer.h"
 #include <vma/vk_mem_alloc.h>
 #include "camera.h"
+#include "shadows.h"
 #include <chrono>
 
 struct FrameData {
@@ -84,6 +84,7 @@ public:
 	VmaAllocator _allocator;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+	AllocatedImage _shadowDepthImage;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 

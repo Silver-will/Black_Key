@@ -310,31 +310,31 @@ VkImageCreateInfo vkinit::image_cubemap_create_info(VkFormat format, VkImageUsag
     return info;
 }
 
-VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags, VkImageViewType viewType)
+VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags, VkImageViewType viewType,int layerCount)
 {
     // build a image-view for the depth image to use for rendering
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.pNext = nullptr;
 
-    info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    info.viewType = viewType;
     info.image = image;
     info.format = format;
     info.subresourceRange.baseMipLevel = 0;
     info.subresourceRange.levelCount = 1;
     info.subresourceRange.baseArrayLayer = 0;
-    info.subresourceRange.layerCount = 1;
+    info.subresourceRange.layerCount = layerCount;
     info.subresourceRange.aspectMask = aspectFlags;
 
-    if (viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+    /*if (viewType == VK_IMAGE_VIEW_TYPE_CUBE)
     {
         info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-        info.subresourceRange.layerCount = 6;
     }
     if (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
     {
         info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
     }
+    */
     return info;
 }
 
