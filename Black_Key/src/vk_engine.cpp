@@ -7,6 +7,7 @@
 #include "vk_images.h"
 #include "vk_pipelines.h"
 #include "vk_loader.h"
+#include "Lights.h"
 
 #include <VkBootstrap.h>
 
@@ -227,6 +228,13 @@ void VulkanEngine::draw()
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	auto startShadow = std::chrono::system_clock::now();
+	draw_shadows(cmd);
+	auto endShadow = std::chrono::system_clock::now();
+	auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
+	stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
+
+
 	auto start = std::chrono::system_clock::now();
 	
 	draw_background(cmd);
@@ -349,7 +357,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
 	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
 	if (A.material == B.material) {
 		return A.indexBuffer < B.indexBuffer;
@@ -511,11 +519,8 @@ void VulkanEngine::run()
 		update_scene();
 		auto end_update = std::chrono::system_clock::now();
 		auto elapsed_update= std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
-		//stats.update_time = elapsed_update.count() / 1000.f;
-
 		
         draw();
-		
 
         glfwPollEvents();
 
@@ -825,6 +830,12 @@ void VulkanEngine::init_pipelines()
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
 	//skyMaterial.clear_resources(_device);
+		});
+
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
+	_mainDeletionQueue.push_function([=]() {
+	vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
 		});
 }
 
@@ -1329,10 +1340,11 @@ void VulkanEngine::update_scene()
 	sceneData.proj[1][1] *= -1;
 	sceneData.viewproj = sceneData.proj * sceneData.view;
 
+	DirectionalLight directLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
-	sceneData.sunlightColor = glm::vec4(1.5f);
-	sceneData.sunlightDirection = glm::vec4(-1, -2, 0, 1.f);
+	sceneData.sunlightColor = directLight.color;
+	sceneData.sunlightDirection = directLight.direction;
 
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
