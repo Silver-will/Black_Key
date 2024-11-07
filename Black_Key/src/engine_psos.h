@@ -11,6 +11,7 @@ struct ShadowPipelineResources {
 	MaterialPipeline shadowPipeline;
 
 	VkDescriptorSetLayout materialLayout;
+	MaterialInstance matData;
 
 	DescriptorWriter writer;
 
@@ -29,7 +30,7 @@ struct ShadowPipelineResources {
 
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	void write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct EarlyDepthPipelineResources {

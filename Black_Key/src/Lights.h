@@ -3,9 +3,10 @@
 struct DirectionalLight
 {
 	DirectionalLight(const glm::vec4& dir,const glm::vec4& col,const glm::vec4& intens): direction{dir},
-								color{col},intensity{intens} {}
+								color{col},intensity{intens},lastDirection(glm::vec4(0)) {}
 	DirectionalLight() {}
 	glm::vec4 direction;
+	glm::vec4 lastDirection;
 	glm::vec4 intensity;
 	glm::vec4 color;
 };

@@ -9,7 +9,9 @@
 #include "vk_renderer.h"
 #include <vma/vk_mem_alloc.h>
 #include "camera.h"
+#include "engine_psos.h"
 #include "shadows.h"
+#include "Lights.h"
 #include <chrono>
 
 struct FrameData {
@@ -58,6 +60,7 @@ public:
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
 	GLTFMetallic_Roughness skyMaterial;
+	ShadowPipelineResources cascadedShadows;
 
 	DescriptorAllocator globalDescriptorAllocator;
 
@@ -125,9 +128,14 @@ public:
 	VkSampler _defaultSamplerNearest;
 	DrawContext drawCommands;
 
+	ShadowCascades shadows;
+
 	EngineStats stats;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+
+	//lights
+	DirectionalLight directLight;
 
 	void init_mesh_pipeline();
 	void init_default_data();

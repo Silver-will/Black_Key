@@ -196,7 +196,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\brdf.fs" />
-    <None Include="shaders\brdf.vs" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
     <None Include="shaders\cascaded_shadows.vert" />

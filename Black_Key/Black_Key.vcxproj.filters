@@ -187,9 +187,6 @@
     <None Include="shaders\brdf.fs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\brdf.vs">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="shaders\cascaded_shadows.frag">
       <Filter>Shaders</Filter>
     </None>
