@@ -6,10 +6,12 @@
 struct ShadowCascades
 {
     ShadowCascades(const float camNearPlane,const float camFarPlane,const Camera& cam,const int cascadeCount, const DirectionalLight& dirLight);
+    ShadowCascades() {}
     std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projView);
     glm::mat4 getLightSpaceMatrix(const float nearPlane, const float farPlane);
     std::vector<glm::mat4> getLightSpaceMatrices(VkExtent2D& windowSize);
     void setCascadeLevels(std::vector<float> cascades);
+    void update(const DirectionalLight& light, const Camera& cam);
 
 private:
     int numOfCascades;

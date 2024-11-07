@@ -114,3 +114,9 @@ std::vector<glm::mat4> ShadowCascades::getLightSpaceMatrices(VkExtent2D& windowS
     }
     return ret;
 }
+
+void ShadowCascades::update(const DirectionalLight& light, const Camera& cam)
+{
+    this->light = light;
+    this->camera = cam;
+}

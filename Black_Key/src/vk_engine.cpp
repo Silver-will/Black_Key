@@ -81,6 +81,9 @@ void VulkanEngine::init()
 	assert(structureFile.has_value());
 
 	loadedScenes["sponza"] = *structureFile;
+
+	shadows = ShadowCascades(0.1f, 500.0f, mainCamera, 4, directLight);
+	shadows.update(directLight,mainCamera);
 }
 
 void VulkanEngine::cleanup()
@@ -457,7 +460,100 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 {
+	std::vector<uint32_t> draws;
+	draws.reserve(drawCommands.OpaqueSurfaces.size());
 
+	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
+		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
+			draws.push_back(i);
+		}
+	}
+
+	// sort the opaque surfaces by material and mesh
+	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+	if (A.material == B.material) {
+		return A.indexBuffer < B.indexBuffer;
+	}
+	else {
+		return A.material < B.material;
+	}
+		});
+
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+
+	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(ShadowPipelineResources::ShadowMatrices), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(shadowDataBuffer);
+		});
+
+	ShadowPipelineResources::ShadowMatrices* shadowUniformData = (ShadowPipelineResources::ShadowMatrices*)shadowDataBuffer.allocation->GetMappedData();
+	
+
+	MaterialPipeline* lastPipeline = nullptr;
+	MaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	auto draw = [&](const RenderObject& r) {
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
+					&globalDescriptor, 0, nullptr);
+
+				VkViewport viewport = {};
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = (float)_windowExtent.width;
+				viewport.height = (float)_windowExtent.height;
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
+
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _windowExtent.width;
+				scissor.extent.height = _windowExtent.height;
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
+				&cascadedShadows.matData.materialSet, 0, nullptr);
+		if (r.indexBuffer != lastIndexBuffer) 
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		stats.shadow_drawcall_count++;
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+	};
+	for (auto& r : draws) {
+		draw(drawCommands.OpaqueSurfaces[r]);
+	}
 }
 
 void VulkanEngine::run()
@@ -494,6 +590,7 @@ void VulkanEngine::run()
 		ImGui::Text("draws %i", stats.drawcall_count);
 		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
 		ImGui::Text("Update time %f ms", stats.update_time);
+		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
 		ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::End();
 
@@ -826,6 +923,7 @@ void VulkanEngine::init_pipelines()
 {
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
+	cascadedShadows.build_pipelines(this);
 	//skyMaterial.build_background_pipeline(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
@@ -1045,6 +1143,8 @@ void VulkanEngine::init_background_pipelines()
 
 void VulkanEngine::init_default_data() {
 
+	directLight = DirectionalLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
+	
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
@@ -1340,11 +1440,17 @@ void VulkanEngine::update_scene()
 	sceneData.proj[1][1] *= -1;
 	sceneData.viewproj = sceneData.proj * sceneData.view;
 
-	DirectionalLight directLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
 	sceneData.sunlightColor = directLight.color;
 	sceneData.sunlightDirection = directLight.direction;
+	
+	//Re-calculate shadow maps
+	if (directLight.direction != directLight.lastDirection)
+	{
+		shadows.update(directLight, mainCamera);
+		auto lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
+	}
 
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);

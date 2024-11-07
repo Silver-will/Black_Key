@@ -70,19 +70,15 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	vkDestroyShaderModule(engine->_device, shadowGeometryShader, nullptr);
 }
 
-MaterialInstance ShadowPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+void ShadowPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
-	MaterialInstance matData;
 	matData.passType = pass;
 	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
-
 
 	writer.clear();
 	writer.write_buffer(0, resources.dataBuffer, sizeof(ShadowMatrices), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 	writer.update_set(device, matData.materialSet);
-
-	return matData;
 }
 
 void ShadowPipelineResources::clear_resources(VkDevice device)
