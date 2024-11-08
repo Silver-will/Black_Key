@@ -138,7 +138,7 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ima
     transition_image(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VulkanEngine* engine, bool mipmapped, int layers)
+AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VulkanEngine* engine, VkImageViewType viewType, bool mipmapped, int layers)
 {
     AllocatedImage newImage;
     newImage.imageFormat = format;
@@ -165,7 +165,7 @@ AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkIm
     }
 
     // build a image-view for the image
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D);
+    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, viewType);
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
@@ -180,7 +180,7 @@ AllocatedImage vkutil::create_image(void* data, VkExtent3D size, VkFormat format
 
     memcpy(uploadbuffer.info.pMappedData, data, data_size);
 
-    AllocatedImage new_image = create_image_empty(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,engine, mipmapped);
+    AllocatedImage new_image = create_image_empty(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,engine,VK_IMAGE_VIEW_TYPE_2D, mipmapped);
     
 
     engine->immediate_submit([&](VkCommandBuffer cmd) {

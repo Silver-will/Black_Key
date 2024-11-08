@@ -325,16 +325,6 @@ VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage ima
     info.subresourceRange.baseArrayLayer = 0;
     info.subresourceRange.layerCount = layerCount;
     info.subresourceRange.aspectMask = aspectFlags;
-
-    /*if (viewType == VK_IMAGE_VIEW_TYPE_CUBE)
-    {
-        info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-    }
-    if (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
-    {
-        info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-    }
-    */
     return info;
 }
 
