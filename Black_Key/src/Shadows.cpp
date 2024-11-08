@@ -1,12 +1,11 @@
 #include "Shadows.h"
 
 
-ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane, const Camera& cam, const int cascadeCount, const DirectionalLight& dirLight)
+ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane, const Camera& cam, const DirectionalLight& dirLight)
 {
     this->camera = cam;
     this->nearPlane = camNearPlane;
     this->farPlane = camFarPlane;
-    this->numOfCascades = cascadeCount;
     this->light = dirLight;
 }
 
@@ -91,6 +90,7 @@ glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float
 void ShadowCascades::setCascadeLevels(std::vector<float> shadowCascadeLevels)
 {
     this->shadowCascadeLevels = shadowCascadeLevels;
+    numOfCascades = shadowCascadeLevels.size();
 }
 
 std::vector<glm::mat4> ShadowCascades::getLightSpaceMatrices(VkExtent2D& windowSize)
@@ -119,4 +119,9 @@ void ShadowCascades::update(const DirectionalLight& light, const Camera& cam)
 {
     this->light = light;
     this->camera = cam;
+}
+
+int ShadowCascades::getCascadeLevels()const
+{
+    return numOfCascades;
 }

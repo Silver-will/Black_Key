@@ -78,6 +78,7 @@ public:
 	static VulkanEngine& Get();
 
 	FrameData _frames[FRAME_OVERLAP];
+	std::vector<glm::mat4> lightMatrices;
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 

@@ -82,8 +82,7 @@ void VulkanEngine::init()
 
 	loadedScenes["sponza"] = *structureFile;
 
-	shadows = ShadowCascades(0.1f, 500.0f, mainCamera, 4, directLight);
-	shadows.update(directLight,mainCamera);
+	
 }
 
 void VulkanEngine::cleanup()
@@ -507,7 +506,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		});
 
 	ShadowPipelineResources::ShadowMatrices* shadowUniformData = (ShadowPipelineResources::ShadowMatrices*)shadowDataBuffer.allocation->GetMappedData();
-	
+	memcpy(shadowUniformData,lightMatrices.data(), sizeof(ShadowPipelineResources::ShadowMatrices));
 
 	MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
@@ -930,7 +929,6 @@ void VulkanEngine::init_pipelines()
 	//skyMaterial.clear_resources(_device);
 		});
 
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
 	_mainDeletionQueue.push_function([=]() {
 	vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
@@ -1144,7 +1142,13 @@ void VulkanEngine::init_background_pipelines()
 void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
-	
+	//
+	shadows = ShadowCascades(0.1f, 500.0f, mainCamera, directLight);
+
+	shadows.update(directLight, mainCamera);
+	shadows.setCascadeLevels({ 500.0f / 50.0f, 500.0f / 25.0f, 500.0f / 10.0f, 500.0f / 2.0f });
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
+
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
@@ -1449,7 +1453,7 @@ void VulkanEngine::update_scene()
 	if (directLight.direction != directLight.lastDirection)
 	{
 		shadows.update(directLight, mainCamera);
-		auto lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
+		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
 	}
 
 	//Not an actual api Draw call
