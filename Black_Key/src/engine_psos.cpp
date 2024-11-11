@@ -7,22 +7,23 @@
 void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 {
 	VkShaderModule shadowVertexShader;
-	if (!vkutil::load_shader_module("../../shaders/cascaded_shadow.vert.spv", engine->_device, &shadowVertexShader)) {
-		fmt::print("Error when building the triangle fragment shader module");
+	if (!vkutil::load_shader_module("shaders/cascaded_shadows.vert.spv", engine->_device, &shadowVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
 	}
 	else {
 		fmt::print("Shadow vertex shader succesfully loaded");
 	}
+
 	VkShaderModule shadowFragmentShader;
-	if (!vkutil::load_shader_module("../../shaders/cascaded_shadow.frag.spv", engine->_device, &shadowFragmentShader)) {
-		fmt::print("Error when building the triangle fragment shader module");
+	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &shadowFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
 	}
 	else {
 		fmt::print("Shadow fragment shader succesfully loaded");
 	}
 	VkShaderModule shadowGeometryShader;
-	if (!vkutil::load_shader_module("../../shaders/cascaded_shadow.geom.spv", engine->_device, &shadowGeometryShader)) {
-		fmt::print("Error when building the triangle fragment shader module");
+	if (!vkutil::load_shader_module("shaders/cascaded_shadows.geom.spv", engine->_device, &shadowGeometryShader)) {
+		fmt::print("Error when building the shadow geometry shader module\n");
 	}
 	else {
 		fmt::print("Shadow geometry shader succesfully loaded");
@@ -60,6 +61,9 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+
+	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
 
 	pipelineBuilder._pipelineLayout = newLayout;
 

@@ -121,7 +121,7 @@ void ShadowCascades::update(const DirectionalLight& light, const Camera& cam)
     this->camera = cam;
 }
 
-int ShadowCascades::getCascadeLevels()const
+std::vector<float> ShadowCascades::getCascadeLevels()const
 {
-    return numOfCascades;
+    return shadowCascadeLevels;
 }

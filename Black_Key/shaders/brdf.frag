@@ -10,9 +10,76 @@ layout (location = 3) in vec2 inUV;
 layout (location = 4) in mat3 inTBN;
 
 
+layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
 layout (location = 0) out vec4 outFragColor;
 
 const float PI = 3.14159265359;
+
+#define CASCADE_COUNT 4 
+
+float ShadowCalculation(vec3 fragPosWorldSpace)
+{
+    //select cascade layer
+    vec4 fragPosViewSpace = sceneData.view * vec4(fragPosWorldSpace, 1.0);
+    float depthValue = abs(fragPosViewSpace.z);
+
+    int layer = -1;
+    for (int i = 0; i < CASCADE_COUNT; ++i)
+    {
+        if (depthValue < sceneData.cascadeDistances[i])
+        {
+            layer = i;
+            break;
+        }
+    }
+    if (layer == -1)
+    {
+        layer = CASCADE_COUNT;
+    }
+
+    vec4 fragPosLightSpace = sceneData.lightMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
+    // perform perspective divide
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    // transform to [0,1] range
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // get depth of current fragment from light's perspective
+    float currentDepth = projCoords.z;
+
+    // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
+    if (currentDepth > 1.0)
+    {
+        return 0.0;
+    }
+
+    // calculate bias (based on depth map resolution and slope)
+    vec3 normal = normalize(inNormal);
+    float bias = max(0.05 * (1.0 - dot(normal, sceneData.sunlightDirection.xyz)), 0.005);
+    const float biasModifier = 0.5f;
+
+    if (layer == CASCADE_COUNT)
+    {
+        bias *= 1 / (sceneData.cascadeConfigData.x * biasModifier);
+    }
+    else
+    {
+        bias *= 1 / (sceneData.cascadeDistances[layer] * biasModifier);
+    }
+
+    // PCF
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r;
+            shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    shadow /= 9.0;
+    return shadow;
+}
 
 vec3 CalculateNormalFromMap()
 {
@@ -73,7 +140,7 @@ void main()
     
     vec3 N = CalculateNormalFromMap();
     
-    /*vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
+    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
     vec3 H = normalize(V + L);
     vec3 radiance = sceneData.sunlightColor.xyz;
@@ -108,14 +175,14 @@ void main()
     
     vec3 color = ambient + Lo;
 
+    float shadow = ShadowCalculation(inFragPos);
+    
+    color *= shadow;
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
-    */
-
-    vec3 color = N;
-    outFragColor = vec4(color, 1.0);
-    
+  
+    outFragColor = vec4(color, 1.0);  
 }
 

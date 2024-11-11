@@ -6,7 +6,7 @@ A modern rendering engine in vulkan
 ## Features
 * GLTF loading
 * Frustum culling
-* Opaque and transparent object loading
+* Opaque and transparent object rendering
 
 ##  Upcoming work list
 * [ ] Backend Changes
@@ -14,9 +14,11 @@ A modern rendering engine in vulkan
 * [x] PBR
 * [x] normal mapping
 * [x] gamma correction
+* [x] frustum culling
+* [ ] editor
 * [ ] Clustered forward shading
 * [ ] Skybox
-* [ ] Global illumination(Screen space ray tracing)
+* [ ] Global illumination(Screen space ray tracing or Voxel GI)
 * [ ] HDR and bloom
 * [ ] Cascaded shadow maps
 * [ ] MSAA
