@@ -12,7 +12,7 @@ struct ShadowCascades
     std::vector<glm::mat4> getLightSpaceMatrices(VkExtent2D& windowSize);
     void setCascadeLevels(std::vector<float> cascades);
     void update(const DirectionalLight& light, const Camera& cam);
-    int getCascadeLevels()const;
+    std::vector<float> getCascadeLevels()const;
 
 private:
     int numOfCascades;

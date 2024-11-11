@@ -230,9 +230,16 @@ void VulkanEngine::draw()
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	
+	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &shadowDepthAttachment);
+	
+	vkCmdBeginRendering(cmd,&shadowRenderInfo);
 	auto startShadow = std::chrono::system_clock::now();
 	draw_shadows(cmd);
 	auto endShadow = std::chrono::system_clock::now();
+	vkCmdEndRendering(cmd);
+
 	auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
 	stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
 
@@ -386,6 +393,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(2, _shadowDepthImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -656,18 +664,20 @@ void VulkanEngine::init_vulkan()
 	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 	features.dynamicRendering = true;
 	features.synchronization2 = true;
-
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
-
+	
+	VkPhysicalDeviceFeatures baseFeatures{};
+	baseFeatures.geometryShader = true;
 
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
 	vkb::PhysicalDevice physicalDevice = selector
 		.set_minimum_version(1, 3)
+		.set_required_features(baseFeatures)
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
@@ -856,6 +866,13 @@ void VulkanEngine::init_descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 	{
@@ -926,6 +943,7 @@ void VulkanEngine::init_pipelines()
 	//skyMaterial.build_background_pipeline(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
+	cascadedShadows.clear_resources(_device);
 	//skyMaterial.clear_resources(_device);
 		});
 
@@ -1146,8 +1164,8 @@ void VulkanEngine::init_default_data() {
 	shadows = ShadowCascades(0.1f, 500.0f, mainCamera, directLight);
 
 	shadows.update(directLight, mainCamera);
-	shadows.setCascadeLevels({ 500.0f / 50.0f, 500.0f / 25.0f, 500.0f / 10.0f, 500.0f / 2.0f });
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
+	shadows.setCascadeLevels({ mainCamera.nearPlane / 50.0f, mainCamera.nearPlane / 25.0f, mainCamera.nearPlane / 10.0f, mainCamera.nearPlane / 2.0f });
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size());
 
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -1437,7 +1455,7 @@ void VulkanEngine::update_scene()
 	sceneData.view = mainCamera.getViewMatrix();
 	sceneData.cameraPos = glm::vec4(mainCamera.position,0.0f);
 	// camera projection
-	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.nearPlane, mainCamera.farPlane);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
@@ -1449,11 +1467,18 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightColor = directLight.color;
 	sceneData.sunlightDirection = directLight.direction;
 	
-	//Re-calculate shadow maps
+	//Re-calculate shadow maps when directional light moved
 	if (directLight.direction != directLight.lastDirection)
 	{
 		shadows.update(directLight, mainCamera);
 		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
+		memcpy(&sceneData.lightSpaceMatrices, &lightMatrices, sizeof(lightMatrices));
+		auto cascades = shadows.getCascadeLevels();
+		memcpy(&sceneData.cascadePlaneDistances, &cascades, sizeof(float) * cascades.size());
+		sceneData.cascadeConfigData.x = cascades.size();
+		sceneData.cascadeConfigData.y = mainCamera.farPlane;
+		//Last values
+		directLight.lastDirection = directLight.direction;
 	}
 
 	//Not an actual api Draw call

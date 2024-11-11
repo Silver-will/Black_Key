@@ -8,4 +8,7 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe brdf.vert -o brdf.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe brdf.frag -o brdf.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe skybox.vert -o skybox.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe skybox.frag -o skybox.frag.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.vert -o cascaded_shadows.vert.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.frag -o cascaded_shadows.frag.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.geom -o cascaded_shadows.geom.spv
 pause

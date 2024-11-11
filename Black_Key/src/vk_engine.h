@@ -59,13 +59,13 @@ public:
 
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
-	GLTFMetallic_Roughness skyMaterial;
 	ShadowPipelineResources cascadedShadows;
 
 	DescriptorAllocator globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	VkDescriptorSetLayout _shadowSceneDescriptorSetLayout;
 
 	bool resize_requested = false;
 	bool _isInitialized{ false };
