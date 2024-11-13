@@ -4,6 +4,9 @@
 #include "vk_engine.h"
 
 #include <stb_image.h>
+#include <ktx.h>
+#include <ktxvulkan.h>
+
 
 void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 {
@@ -18,7 +21,7 @@ void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout 
     imageBarrier.oldLayout = currentLayout;
     imageBarrier.newLayout = newLayout;
 
-    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL || currentLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     imageBarrier.subresourceRange = vkinit::image_subresource_range(aspectMask);
     imageBarrier.image = image;
 
@@ -224,24 +227,46 @@ void vkutil::destroy_image(const AllocatedImage& img, VulkanEngine* engine)
 
 AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D size,VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
-    int width, height, nrChannels;
+    ktxResult result;
+    ktxTexture* texture;
+    
+    result = ktxTexture_CreateFromNamedFile(std::string(path).c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &texture);
+    assert(result == KTX_SUCCESS);
 
-    float* data = stbi_loadf(path.data(), &width, &height, &nrChannels, 4);
+    size.width = texture->baseWidth;
+    size.height = texture->baseHeight;
+    uint32_t mipCount = texture->numLevels;
+
+
+    ktx_uint8_t* ktxTextureData = ktxTexture_GetData(texture);
+    auto elementSize = ktxTexture_GetElementSize(texture);
+    ktx_size_t ktxTextureSize = ktxTexture_GetDataSizeUncompressed(texture);
    
-    if (!data)
-    {
-        fmt::println("Failed to load image at path: {}", path);
-    }
-    size.width = width;
-    size.height = height;
-
+    
+    //ktx_size_t imageSize = ktxTextureSize + ((ktx_size_t)elementSize * (ktx_size_t)4 * (ktx_size_t)6 * (ktx_size_t)mipCount);
+    //ktxTextureSize += (ktx_size_t)(elementSize * 4 * 6 * mipCount);
+    /*
+    ktxVulkanDeviceInfo kvdi;
+    ktxVulkanDeviceInfo_Construct(&kvdi, engine->_chosenGPU, engine->_device, engine->_graphicsQueue, engine->_frames[engine->_frameNumber]._commandPool, nullptr);
+   */
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
+   /* ktxVulkanTexture textureInfo;
+    auto vkResult = ktxTexture_VkUploadEx(ktxTexture,&kvdi, &engine->_skyBoxImage, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    uint32_t mipCount = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
 
-    VkImageCreateInfo img_info = vkinit::image_cubemap_create_info(format, usage, size, mipCount);
+    if (KTX_SUCCESS != vkResult) {
+        std::stringstream message;
+
+        message << "ktxTexture_VkUpload failed: " << ktxErrorString(vkResult);
+        throw std::runtime_error(message.str());
+    }
+    */
+
+    //uint32_t mipCount = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+    VkImageCreateInfo img_info = vkinit::image_cubemap_create_info(format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, size, mipCount);
 
     VmaAllocationCreateInfo allocinfo = {};
     allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -250,6 +275,8 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
     // allocate and create the image
     VK_CHECK(vmaCreateImage(engine->_allocator, &img_info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
 
+    // build a image-view for the image
+    
     // if the format is a depth format, we will need to have it use the correct
     // aspect flag
     VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -257,28 +284,42 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
         aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    size_t data_size = size.depth * size.width * size.height * 4;
-    AllocatedBuffer uploadbuffer = vkutil::create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,engine);
-    memcpy(uploadbuffer.info.pMappedData, data, data_size);
-    
+    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D,6);
+    view_info.subresourceRange.levelCount = img_info.mipLevels;
+
+    VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
+
+    AllocatedBuffer uploadbuffer = vkutil::create_buffer(ktxTextureSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,engine);
+    memcpy(uploadbuffer.info.pMappedData, ktxTextureData, ktxTextureSize);
+
     engine->immediate_submit([&](VkCommandBuffer cmd)
         {
             vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             std::vector<VkBufferImageCopy> bufferCopyRegions;
             
                 size_t offset;
-                VkBufferImageCopy bufferCopyRegion = {};
-                bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                bufferCopyRegion.imageSubresource.mipLevel = 0;
-                bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-                bufferCopyRegion.imageSubresource.layerCount = 6;
-                bufferCopyRegion.imageExtent = size;
-                bufferCopyRegion.bufferOffset = 0;
-                bufferCopyRegion.bufferRowLength = 0;
-                bufferCopyRegion.bufferImageHeight = 0;
+                for (uint32_t face = 0; face < 6; face++)
+                {
+                    for (uint32_t level = 0; level < mipCount; level++)
+                    {
+                        ktx_size_t offset;
+                        KTX_error_code ret = ktxTexture_GetImageOffset(texture, level, 0, face, &offset);
+                        assert(ret == KTX_SUCCESS);
+                        VkBufferImageCopy bufferCopyRegion = {};
+                        bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                        bufferCopyRegion.imageSubresource.mipLevel = level;
+                        bufferCopyRegion.imageSubresource.baseArrayLayer = face;
+                        bufferCopyRegion.imageSubresource.layerCount = 1;
+                        bufferCopyRegion.imageExtent.width = texture->baseWidth >> level;
+                        bufferCopyRegion.imageExtent.height = texture->baseHeight >> level;
+                        bufferCopyRegion.imageExtent.depth = 1;
+                        bufferCopyRegion.bufferOffset = offset;
+                        bufferCopyRegions.push_back(bufferCopyRegion);
+                    }
+                }
 
-                vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-                    &bufferCopyRegion);
+                vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(),
+                    bufferCopyRegions.data());
 
                 if (mipmapped) {
                     vkutil::generate_mipmaps(cmd, newImage.image, VkExtent2D{ newImage.imageExtent.width,newImage.imageExtent.height });
@@ -289,8 +330,8 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
                 }
 
         });
-
     destroy_buffer(uploadbuffer, engine);
+    
     return newImage;
 }
 

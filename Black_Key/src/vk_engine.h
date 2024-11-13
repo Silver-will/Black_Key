@@ -13,6 +13,7 @@
 #include "shadows.h"
 #include "Lights.h"
 #include <chrono>
+#include <ktxvulkan.h>
 
 struct FrameData {
 
@@ -65,7 +66,7 @@ public:
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
-	VkDescriptorSetLayout _shadowSceneDescriptorSetLayout;
+	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	bool resize_requested = false;
 	bool _isInitialized{ false };
@@ -124,6 +125,7 @@ public:
 	AllocatedImage _errorCheckerboardImage;
 
 	AllocatedImage _skyImage;
+	ktxVulkanTexture _skyBoxImage;
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;

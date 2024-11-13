@@ -2,8 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
-
 #include "input_structures.glsl"
+
 
 struct Vertex {
 	vec3 position;
@@ -31,6 +31,5 @@ void main()
 	
 	vec4 position = vec4(v.position, 1.0f);
 
-	vec4 fragPos = PushConstants.render_matrix * position;
-	gl_Position =  sceneData.viewproj * fragPos;	
+	gl_Position = PushConstants.render_matrix * position;
 }

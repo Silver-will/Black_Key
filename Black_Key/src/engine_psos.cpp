@@ -10,40 +10,32 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.vert.spv", engine->_device, &shadowVertexShader)) {
 		fmt::print("Error when building the shadow vertex shader module\n");
 	}
-	else {
-		fmt::print("Shadow vertex shader succesfully loaded");
-	}
 
 	VkShaderModule shadowFragmentShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &shadowFragmentShader)) {
 		fmt::print("Error when building the shadow fragment shader module\n");
 	}
-	else {
-		fmt::print("Shadow fragment shader succesfully loaded");
-	}
+	
 	VkShaderModule shadowGeometryShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.geom.spv", engine->_device, &shadowGeometryShader)) {
 		fmt::print("Error when building the shadow geometry shader module\n");
 	}
-	else {
-		fmt::print("Shadow geometry shader succesfully loaded");
-	}
-
+	
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	DescriptorLayoutBuilder layoutBuilder;
-	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	//DescriptorLayoutBuilder layoutBuilder;
+	//layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	//materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-		materialLayout };
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout/*,
+		materialLayout*/};
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.setLayoutCount = 1;
 	mesh_layout_info.pSetLayouts = layouts;
 	mesh_layout_info.pPushConstantRanges = &matrixRange;
 	mesh_layout_info.pushConstantRangeCount = 1;
@@ -61,7 +53,6 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-
 
 	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
 
