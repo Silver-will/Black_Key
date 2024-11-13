@@ -63,11 +63,13 @@ void VulkanEngine::init()
 
 	init_descriptors();
 
+	init_default_data();
+
 	init_pipelines();
 
 	init_imgui();
 
-	init_default_data();
+	
 	_isInitialized = true;
 
 	mainCamera.velocity = glm::vec3(0.f);
@@ -163,7 +165,7 @@ void VulkanEngine::draw()
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	
+	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	draw_main(cmd);
 	
 	//transtion the draw image and the swapchain image into their correct transfer layouts
@@ -231,30 +233,30 @@ void VulkanEngine::draw()
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
 	VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	
-	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &shadowDepthAttachment);
-	
-	vkCmdBeginRendering(cmd,&shadowRenderInfo);
+	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(VkExtent2D{ _shadowDepthImage.imageExtent.width,_shadowDepthImage.imageExtent.height}, nullptr, &shadowDepthAttachment);
 	auto startShadow = std::chrono::system_clock::now();
+
+	vkCmdBeginRendering(cmd,&shadowRenderInfo);
+	
 	draw_shadows(cmd);
-	auto endShadow = std::chrono::system_clock::now();
+	
 	vkCmdEndRendering(cmd);
+	auto endShadow = std::chrono::system_clock::now();
 
 	auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
 	stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
 
-
-	auto start = std::chrono::system_clock::now();
-	
 	draw_background(cmd);
+
 
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
+	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
-
+	auto start = std::chrono::system_clock::now();
 	vkCmdBeginRendering(cmd, &renderInfo);
 	
 	draw_geometry(cmd);
@@ -528,8 +530,8 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 				VkViewport viewport = {};
 				viewport.x = 0;
 				viewport.y = 0;
-				viewport.width = (float)_windowExtent.width;
-				viewport.height = (float)_windowExtent.height;
+				viewport.width = (float)_shadowDepthImage.imageExtent.width;
+				viewport.height = (float)_shadowDepthImage.imageExtent.height;
 				viewport.minDepth = 0.f;
 				viewport.maxDepth = 1.f;
 
@@ -538,11 +540,11 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 				VkRect2D scissor = {};
 				scissor.offset.x = 0;
 				scissor.offset.y = 0;
-				scissor.extent.width = _windowExtent.width;
-				scissor.extent.height = _windowExtent.height;
+				scissor.extent.width = _shadowDepthImage.imageExtent.width;
+				scissor.extent.height = _shadowDepthImage.imageExtent.height;
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
-				&cascadedShadows.matData.materialSet, 0, nullptr);
+			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
+				//&cascadedShadows.matData.materialSet, 0, nullptr);
 		if (r.indexBuffer != lastIndexBuffer) 
 		{
 			lastIndexBuffer = r.indexBuffer;
@@ -872,8 +874,7 @@ void VulkanEngine::init_descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		_shadowSceneDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 	{
 		DescriptorLayoutBuilder builder;
@@ -885,6 +886,7 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _shadowSceneDescriptorLayout, nullptr);
 		});
 
 	_drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
@@ -1179,6 +1181,8 @@ void VulkanEngine::init_default_data() {
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
 
+	_skyImage = vkutil::create_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+	
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
@@ -1208,6 +1212,8 @@ void VulkanEngine::init_default_data() {
 		destroy_image(_blackImage);
 		destroy_image(_greyImage);
 		destroy_image(_errorCheckerboardImage);
+		destroy_image(_skyImage);
+		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		});

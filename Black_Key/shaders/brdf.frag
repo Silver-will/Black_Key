@@ -175,8 +175,9 @@ void main()
     
     vec3 color = ambient + Lo;
 
-    float shadow = ShadowCalculation(inFragPos);
-    
+    //float shadow = ShadowCalculation(inFragPos);
+    float shadow = 1.0f;
+
     color *= shadow;
     // HDR tonemapping
     color = color / (color + vec3(1.0));
