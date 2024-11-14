@@ -83,3 +83,80 @@ void ShadowPipelineResources::clear_resources(VkDevice device)
 
 	vkDestroyPipeline(device, shadowPipeline.pipeline, nullptr);
 }
+
+
+void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
+{
+	VkShaderModule skyVertexShader;
+	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", engine->_device, &skyVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule skyFragmentShader;
+	if (!vkutil::load_shader_module("shaders/skybox.frag.spv", engine->_device, &skyFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
+		materialLayout };
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &skyPipeline.layout));
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(skyVertexShader, skyFragmentShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
+
+
+	skyPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, skyVertexShader, nullptr);
+	vkDestroyShaderModule(engine->_device, skyFragmentShader, nullptr);
+}
+
+void SkyBoxPipelineResources::clear_resources(VkDevice device)
+{
+
+}
+
+MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+
+}
+
+
+void PostProcessingPipelineResources::build_pipelines(VulkanEngine* engine)
+{
+
+}
+
+void PostProcessingPipelineResources::clear_resources(VkDevice device)
+{
+
+}
+
+MaterialInstance PostProcessingPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+
+}

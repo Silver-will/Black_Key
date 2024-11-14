@@ -76,15 +76,14 @@ struct SkyBoxPipelineResources {
 };
 
 struct PostProcessingPipelineResources {
-	MaterialPipeline skyPipeline;
+	MaterialPipeline postProcesssingPipeline;
 
 	VkDescriptorSetLayout materialLayout;
 
 	DescriptorWriter writer;
 
 	struct MaterialResources {
-		AllocatedImage cubeMapImage;
-		VkSampler cubeMapSampler;
+		VkSampler Sampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
 	};
