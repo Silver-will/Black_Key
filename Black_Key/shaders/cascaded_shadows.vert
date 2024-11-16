@@ -32,4 +32,5 @@ void main()
 	vec4 position = vec4(v.position, 1.0f);
 
 	gl_Position = PushConstants.render_matrix * position;
+	//gl_Position = vec4(render_matrix[0][0],render_matrix[0][1],render_matrix[1][0],render_matrix[1][1]);
 }

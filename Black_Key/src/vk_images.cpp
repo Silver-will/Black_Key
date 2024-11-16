@@ -242,16 +242,16 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
     auto elementSize = ktxTexture_GetElementSize(texture);
     ktx_size_t ktxTextureSize = ktxTexture_GetDataSizeUncompressed(texture);
    
-    
-    //ktx_size_t imageSize = ktxTextureSize + ((ktx_size_t)elementSize * (ktx_size_t)4 * (ktx_size_t)6 * (ktx_size_t)mipCount);
-    //ktxTextureSize += (ktx_size_t)(elementSize * 4 * 6 * mipCount);
-    /*
-    ktxVulkanDeviceInfo kvdi;
-    ktxVulkanDeviceInfo_Construct(&kvdi, engine->_chosenGPU, engine->_device, engine->_graphicsQueue, engine->_frames[engine->_frameNumber]._commandPool, nullptr);
-   */
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
+
+    //Upload with ktx vulkan
+    /*
+    ktxVulkanDeviceInfo kvdi;
+    ktxVulkanDeviceInfo_Construct(&kvdi, engine->_chosenGPU, engine->_device, engine->_graphicsQueue, engine->_frames[engine->_frameNumber]._commandPool, nullptr);
+    */
+    
    /* ktxVulkanTexture textureInfo;
     auto vkResult = ktxTexture_VkUploadEx(ktxTexture,&kvdi, &engine->_skyBoxImage, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -284,7 +284,7 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
         aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D,6);
+    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_CUBE,6);
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
