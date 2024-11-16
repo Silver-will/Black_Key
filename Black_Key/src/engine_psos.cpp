@@ -2,6 +2,7 @@
 #include "vk_pipelines.h"
 #include "vk_engine.h"
 #include "vk_initializers.h"
+#include "vk_images.h"
 #include <ktx.h>
 
 void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
@@ -65,14 +66,23 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	vkDestroyShaderModule(engine->_device, shadowGeometryShader, nullptr);
 }
 
-void ShadowPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+ShadowPipelineResources::MaterialResources ShadowPipelineResources::AllocateResources(VulkanEngine* engine)
+{
+	MaterialResources mat;
+	mat.shadowImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, engine, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, engine->shadows.getCascadeLevels().size());
+	mat.shadowSampler = engine->_defaultSamplerLinear;
+	return mat;
+}
+
+void ShadowPipelineResources::write_material(VkDevice device, MaterialPass pass, VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	matData.passType = pass;
 	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
+	
+	auto materialResource = AllocateResources(engine);
 
 	writer.clear();
-	writer.write_buffer(0, resources.dataBuffer, sizeof(ShadowMatrices), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
+	writer.write_image(1, materialResource.shadowImage.imageView, materialResource.shadowSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(device, matData.materialSet);
 }
 
@@ -128,7 +138,6 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 
 	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
 
-
 	skyPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
 	vkDestroyShaderModule(engine->_device, skyVertexShader, nullptr);
@@ -137,12 +146,16 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 
 void SkyBoxPipelineResources::clear_resources(VkDevice device)
 {
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, skyPipeline.layout, nullptr);
 
+	vkDestroyPipeline(device, skyPipeline.pipeline, nullptr);
 }
 
 MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
-
+	MaterialInstance newmat;
+	return newmat;
 }
 
 
@@ -158,5 +171,6 @@ void PostProcessingPipelineResources::clear_resources(VkDevice device)
 
 MaterialInstance PostProcessingPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
-
+	MaterialInstance newmat;
+	return newmat;
 }

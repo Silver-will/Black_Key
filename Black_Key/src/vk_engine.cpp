@@ -83,8 +83,6 @@ void VulkanEngine::init()
 	assert(structureFile.has_value());
 
 	loadedScenes["sponza"] = *structureFile;
-
-	
 }
 
 void VulkanEngine::cleanup()
@@ -233,7 +231,10 @@ void VulkanEngine::draw()
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
 	VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(VkExtent2D{ _shadowDepthImage.imageExtent.width,_shadowDepthImage.imageExtent.height}, nullptr, &shadowDepthAttachment);
+	VkExtent2D shadowExtent{};
+	shadowExtent.width = _shadowDepthImage.imageExtent.width;
+	shadowExtent.height = _shadowDepthImage.imageExtent.height;
+	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment);
 	auto startShadow = std::chrono::system_clock::now();
 
 	vkCmdBeginRendering(cmd,&shadowRenderInfo);
@@ -942,7 +943,8 @@ void VulkanEngine::init_pipelines()
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	cascadedShadows.build_pipelines(this);
-	//skyMaterial.build_background_pipeline(this);
+	skyBoxPSO.build_pipelines(this);
+	postProcessPSO.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
 	cascadedShadows.clear_resources(_device);
@@ -1478,11 +1480,12 @@ void VulkanEngine::update_scene()
 	{
 		shadows.update(directLight, mainCamera);
 		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
-		memcpy(&sceneData.lightSpaceMatrices, &lightMatrices, sizeof(lightMatrices));
+		memcpy(&sceneData.lightSpaceMatrices, &lightMatrices, sizeof(glm::mat4) * lightMatrices.size());
 		auto cascades = shadows.getCascadeLevels();
 		memcpy(&sceneData.cascadePlaneDistances, &cascades, sizeof(float) * cascades.size());
 		sceneData.cascadeConfigData.x = cascades.size();
 		sceneData.cascadeConfigData.y = mainCamera.farPlane;
+		
 		//Last values
 		directLight.lastDirection = directLight.direction;
 	}

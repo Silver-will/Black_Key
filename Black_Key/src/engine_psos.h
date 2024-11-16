@@ -22,15 +22,13 @@ struct ShadowPipelineResources {
 	struct MaterialResources {
 		AllocatedImage shadowImage;
 		VkSampler shadowSampler;
-		VkBuffer dataBuffer;
-		uint32_t dataBufferOffset;
 	};
 
 	void build_pipelines(VulkanEngine* engine);
-
+	MaterialResources AllocateResources(VulkanEngine* engine);
 	void clear_resources(VkDevice device);
 
-	void write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	void write_material(VkDevice device, MaterialPass pass,VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct EarlyDepthPipelineResources {
@@ -42,7 +40,7 @@ struct EarlyDepthPipelineResources {
 
 	struct MaterialResources {
 		AllocatedImage depthImage;
-		VkSampler shadowSampler;
+		VkSampler depthSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
 	};

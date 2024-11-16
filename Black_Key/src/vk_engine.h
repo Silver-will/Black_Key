@@ -61,6 +61,8 @@ public:
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
 	ShadowPipelineResources cascadedShadows;
+	SkyBoxPipelineResources skyBoxPSO;
+	PostProcessingPipelineResources postProcessPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 
