@@ -236,7 +236,6 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	shadowExtent.height = _shadowDepthImage.imageExtent.height;
 	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment);
 	auto startShadow = std::chrono::system_clock::now();
-
 	vkCmdBeginRendering(cmd,&shadowRenderInfo);
 	
 	draw_shadows(cmd);
@@ -481,7 +480,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
 	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
 	if (A.material == B.material) {
 		return A.indexBuffer < B.indexBuffer;
@@ -509,16 +508,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(_device, globalDescriptor);
-
-	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(ShadowPipelineResources::ShadowMatrices), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-	get_current_frame()._deletionQueue.push_function([=, this]() {
-		destroy_buffer(shadowDataBuffer);
-		});
-
-	ShadowPipelineResources::ShadowMatrices* shadowUniformData = (ShadowPipelineResources::ShadowMatrices*)shadowDataBuffer.allocation->GetMappedData();
-	memcpy(shadowUniformData,lightMatrices.data(), sizeof(ShadowPipelineResources::ShadowMatrices));
-
+	
 	MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
@@ -1165,11 +1155,11 @@ void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
-	shadows = ShadowCascades(0.1f, 500.0f, mainCamera, directLight);
+	shadows = ShadowCascades(mainCamera.nearPlane, mainCamera.farPlane, mainCamera, directLight);
 
 	shadows.update(directLight, mainCamera);
 	shadows.setCascadeLevels({ mainCamera.nearPlane / 50.0f, mainCamera.nearPlane / 25.0f, mainCamera.nearPlane / 10.0f, mainCamera.nearPlane / 2.0f });
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size());
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size() + 1);
 
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -1480,11 +1470,11 @@ void VulkanEngine::update_scene()
 	{
 		shadows.update(directLight, mainCamera);
 		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
-		memcpy(&sceneData.lightSpaceMatrices, &lightMatrices, sizeof(glm::mat4) * lightMatrices.size());
+		memcpy(&sceneData.lightSpaceMatrices, lightMatrices.data(), sizeof(glm::mat4) * lightMatrices.size());
 		auto cascades = shadows.getCascadeLevels();
-		memcpy(&sceneData.cascadePlaneDistances, &cascades, sizeof(float) * cascades.size());
+		memcpy(&sceneData.cascadePlaneDistances, cascades.data(), sizeof(float) * cascades.size());
 		sceneData.cascadeConfigData.x = cascades.size();
-		sceneData.cascadeConfigData.y = mainCamera.farPlane;
+		sceneData.cascadeConfigData.y = mainCamera.nearPlane;
 		
 		//Last values
 		directLight.lastDirection = directLight.direction;

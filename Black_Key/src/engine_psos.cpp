@@ -50,7 +50,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_shaders(shadowVertexShader, shadowFragmentShader, shadowGeometryShader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -120,13 +120,15 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
 		materialLayout };
 
-	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-	mesh_layout_info.setLayoutCount = 2;
-	mesh_layout_info.pSetLayouts = layouts;
-	mesh_layout_info.pPushConstantRanges = &matrixRange;
-	mesh_layout_info.pushConstantRangeCount = 1;
+	VkPipelineLayoutCreateInfo sky_layout_info = vkinit::pipeline_layout_create_info();
+	sky_layout_info.setLayoutCount = 2;
+	sky_layout_info.pSetLayouts = layouts;
+	sky_layout_info.pPushConstantRanges = &matrixRange;
+	sky_layout_info.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &skyPipeline.layout));
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &sky_layout_info, nullptr, &skyPipeline.layout));
+
 	PipelineBuilder pipelineBuilder;
 	pipelineBuilder.set_shaders(skyVertexShader, skyFragmentShader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
@@ -135,6 +137,7 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder._pipelineLayout = skyPipeline.layout;
 
 	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
 

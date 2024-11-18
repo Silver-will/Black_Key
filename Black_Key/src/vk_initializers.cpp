@@ -261,19 +261,20 @@ VkDescriptorBufferInfo vkinit::buffer_info(VkBuffer buffer, VkDeviceSize offset,
 }
 
 //> image_set
-VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent)
+VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers)
 {
     VkImageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.pNext = nullptr;
 
     info.imageType = VK_IMAGE_TYPE_2D;
+    
 
     info.format = format;
     info.extent = extent;
 
     info.mipLevels = 1;
-    info.arrayLayers = 1;
+    info.arrayLayers = layers;
 
     //for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
     info.samples = VK_SAMPLE_COUNT_1_BIT;

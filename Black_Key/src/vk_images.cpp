@@ -147,7 +147,7 @@ AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkIm
     newImage.imageFormat = format;
     newImage.imageExtent = size;
 
-    VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size);
+    VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size, layers);
     if (mipmapped) {
         img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
     }
@@ -168,7 +168,7 @@ AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkIm
     }
 
     // build a image-view for the image
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, viewType);
+    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, viewType,layers);
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
