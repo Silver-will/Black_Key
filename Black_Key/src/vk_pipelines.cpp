@@ -146,6 +146,7 @@ void PipelineBuilder::set_input_topology(VkPrimitiveTopology topology)
     _inputAssembly.topology = topology;
     // we are not going to use primitive restart on the entire tutorial so leave
     // it on false
+    
     _inputAssembly.primitiveRestartEnable = VK_FALSE;
 }
 
