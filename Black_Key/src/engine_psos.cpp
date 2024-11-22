@@ -50,11 +50,12 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_shaders(shadowVertexShader, shadowFragmentShader, shadowGeometryShader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
+	//pipelineBuilder.set_color_attachment_format();
 	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
 
 	pipelineBuilder._pipelineLayout = newLayout;
