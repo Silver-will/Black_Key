@@ -1,28 +1,27 @@
 #version 450 core
 
-layout(triangles) in;
-layout(triangle_strip, max_vertices = 3) out;
+layout (triangles, invocations = 5) in;
+layout (triangle_strip, max_vertices = 3) out;
 
 void main(void)
 {
-	gl_Layer = 0;
-	gl_Position = vec4(3,1,2,0);
-	EmitVertex();
-
-	gl_Position = vec4(3,1,2,0);
-	EmitVertex();
-
-	gl_Position = vec4(3,1,2,0);
-	EmitVertex();
-	EndPrimitive();
-
-
-	/*for (int i = 0; i < 3; ++i)
+	for(int i = 0; i < gl_in.length(); ++i)
 	{
-		gl_Position = vec4(1,1,1,1);
-		gl_Layer = 0;
+		gl_Position = gl_in[i].gl_Position.xyzw;
+		gl_Layer = gl_InvocationID;
 		EmitVertex();
 	}
-	*/
 	EndPrimitive();
+	
+	/*gl_Position = gl_in[0].gl_Position.xyzw;
+	EmitVertex();
+
+	gl_Position = gl_in[1].gl_Position.xyzw;
+	EmitVertex();
+	
+	gl_Position = gl_in[2].gl_Position.xyzw;
+	EmitVertex();
+	
+	EndPrimitive();
+	*/
 }  

@@ -92,6 +92,7 @@ public:
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
 	AllocatedImage _shadowDepthImage;
+	AllocatedImage _testImage;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 

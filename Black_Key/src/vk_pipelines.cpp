@@ -138,7 +138,8 @@ void PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fr
         vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShader));
 
     if (geometryShader != NULL)
-        _shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_GEOMETRY_BIT, geometryShader));
+        _shaderStages.push_back(
+            vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_GEOMETRY_BIT, geometryShader));
 }
 
 void PipelineBuilder::set_input_topology(VkPrimitiveTopology topology)
