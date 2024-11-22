@@ -160,14 +160,14 @@ VkRenderingAttachmentInfo vkinit::depth_attachment_info(
 //< depth_info
 //> render_info
 VkRenderingInfo vkinit::rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment,
-    VkRenderingAttachmentInfo* depthAttachment)
+    VkRenderingAttachmentInfo* depthAttachment, int renderLayers)
 {
     VkRenderingInfo renderInfo {};
     renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     renderInfo.pNext = nullptr;
 
     renderInfo.renderArea = VkRect2D { VkOffset2D { 0, 0 }, renderExtent };
-    renderInfo.layerCount = 1;
+    renderInfo.layerCount = renderLayers;
     renderInfo.colorAttachmentCount = colorAttachment == nullptr ? 0 : 1;
     renderInfo.pColorAttachments = colorAttachment;
     renderInfo.pDepthAttachment = depthAttachment;

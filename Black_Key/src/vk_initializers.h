@@ -28,7 +28,7 @@ VkRenderingAttachmentInfo depth_attachment_info(VkImageView view,
     VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
 
 VkRenderingInfo rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment,
-    VkRenderingAttachmentInfo* depthAttachment);
+    VkRenderingAttachmentInfo* depthAttachment, int renderLayers = 1);
 
 VkImageSubresourceRange image_subresource_range(VkImageAspectFlags aspectMask);
 
