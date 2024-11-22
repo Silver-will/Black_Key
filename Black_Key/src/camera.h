@@ -13,11 +13,11 @@ public:
 
     bool first_movement{ true };
 
-    float zoom{ 45.0f };
+    float zoom{ 70.0f };
     bool cursor_locked{ true };
     float farPlane{ 0.1f };
     float nearPlane{ 10000.0f };
-
+    glm::mat4 proj;
     glm::mat4 getViewMatrix() const;
     glm::mat4 getRotationMatrix() const;
 

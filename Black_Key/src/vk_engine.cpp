@@ -235,7 +235,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	VkExtent2D shadowExtent{};
 	shadowExtent.width = _shadowDepthImage.imageExtent.width;
 	shadowExtent.height = _shadowDepthImage.imageExtent.height;
-	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment);
+	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels().size() + 1);
 	auto startShadow = std::chrono::system_clock::now();
 	vkCmdBeginRendering(cmd,&shadowRenderInfo);
 	
@@ -248,8 +248,6 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
 
 	draw_background(cmd);
-
-
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -1155,10 +1153,10 @@ void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::vec4(-1.0f, -2.0f, 0.0f, 1.f), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
-	shadows = ShadowCascades(mainCamera.nearPlane, mainCamera.farPlane, mainCamera, directLight);
+	shadows = ShadowCascades(0.1f, 10000.0f, mainCamera, directLight);
 
 	shadows.update(directLight, mainCamera);
-	shadows.setCascadeLevels({ mainCamera.nearPlane / 50.0f, mainCamera.nearPlane / 25.0f, mainCamera.nearPlane / 10.0f, mainCamera.nearPlane / 2.0f });
+	shadows.setCascadeLevels({ 10000.0f / 100.0f, 10000.0f / 50.0f, 10000.0f / 25.0f, 10000.0f / 10.0f });
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size() + 1);
 	_testImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D,false);
 	
