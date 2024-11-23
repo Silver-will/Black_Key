@@ -214,8 +214,8 @@ void PipelineBuilder::enable_depthtest(bool depthWriteEnable, bool depthTestEnab
     _depthStencil.stencilTestEnable = VK_FALSE;
     _depthStencil.front = {};
     _depthStencil.back = {};
-    _depthStencil.minDepthBounds = 0.f;
-    _depthStencil.maxDepthBounds = 1.f;
+    _depthStencil.minDepthBounds = 1.f;
+    _depthStencil.maxDepthBounds = 0.f;
 }
 
 void PipelineBuilder::enable_blending_additive()

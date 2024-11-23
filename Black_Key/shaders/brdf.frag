@@ -14,7 +14,6 @@ layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
 layout (location = 0) out vec4 outFragColor;
 
 const float PI = 3.14159265359;
-
 #define CASCADE_COUNT 4 
 
 float ShadowCalculation(vec3 fragPosWorldSpace)
@@ -59,7 +58,7 @@ float ShadowCalculation(vec3 fragPosWorldSpace)
 
     if (layer == CASCADE_COUNT)
     {
-        bias *= 1 / (sceneData.cascadeConfigData.x * biasModifier);
+        bias *= 1 / (sceneData.cascadeConfigData.y * biasModifier);
     }
     else
     {
@@ -76,6 +75,10 @@ float ShadowCalculation(vec3 fragPosWorldSpace)
             float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r;
             shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;        
         }    
+    }
+    if(layer == CASCADE_COUNT)
+    {
+        return 0.0f;
     }
     shadow /= 9.0;
     return shadow;
@@ -175,15 +178,19 @@ void main()
     
     vec3 color = ambient + Lo;
 
-    //float shadow = ShadowCalculation(inFragPos);
-    float shadow = 1.0f;
+    float shadow = ShadowCalculation(inFragPos);
+    //float shadow = 1.0f;
 
-    color *= shadow;
+    //color *= shadow;
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
-  
+    //outFragColor  = texture(shadowMap,vec3(inUV.xy,1));
+    //outFragColor.y = outFragColor.x;
+    //outFragColor.z = outFragColor.x;
+    //outFragColor.w = outFragColor.x;
+    //color = vec3(col,col,col);
     outFragColor = vec4(color, 1.0);  
 }
 
