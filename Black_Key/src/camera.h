@@ -15,8 +15,8 @@ public:
 
     float zoom{ 70.0f };
     bool cursor_locked{ true };
-    float farPlane{ 0.1f };
-    float nearPlane{ 10000.0f };
+    float farPlane{ 500.0f };
+    float nearPlane{ 0.1f };
     glm::mat4 proj;
     glm::mat4 getViewMatrix() const;
     glm::mat4 getRotationMatrix() const;

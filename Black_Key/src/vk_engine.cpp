@@ -1153,8 +1153,8 @@ void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
-	shadows = ShadowCascades(0.1f, 10000.0f, mainCamera, directLight);
-	shadows.setCascadeLevels({ 10000.0f / 100.0f, 10000.0f / 50.0f, 10000.0f / 25.0f, 10000.0f / 10.0f });
+	shadows = ShadowCascades(mainCamera.nearPlane, mainCamera.farPlane, mainCamera, directLight);
+	shadows.setCascadeLevels({ mainCamera.farPlane / 50.0f, mainCamera.farPlane / 25.0f, mainCamera.farPlane / 10.0f, mainCamera.farPlane / 2.0f });
 
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size() + 1);
 	_testImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D,false);
@@ -1451,7 +1451,7 @@ void VulkanEngine::update_scene()
 	sceneData.view = mainCamera.getViewMatrix();
 	sceneData.cameraPos = glm::vec4(mainCamera.position,0.0f);
 	// camera projection
-	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.farPlane, mainCamera.nearPlane);
+	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.nearPlane, mainCamera.farPlane);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis

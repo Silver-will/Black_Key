@@ -31,9 +31,11 @@ std::vector<glm::vec4> ShadowCascades::getFrustumCornersWorldSpace(const glm::ma
 
 glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float farPlane)
 {
-    const auto proj = glm::perspective(
+    auto proj = glm::perspective(
         glm::radians(camera.zoom), (float)windowSize.width / (float)windowSize.height, nearPlane,
         farPlane);
+
+    proj[1][1] *= -1;
     const auto corners = getFrustumCornersWorldSpace(proj * camera.getViewMatrix());
 
     glm::vec3 center = glm::vec3(0, 0, 0);
