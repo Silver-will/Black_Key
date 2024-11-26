@@ -14,20 +14,19 @@ A modern rendering engine in vulkan
 * [x] normal mapping
 * [x] gamma correction
 * [x] frustum culling
-* [ ] occlusion culling
-* [ ] Skybox
-* [ ] HDR and bloom
 * [ ] Cascaded shadow maps
+* [ ] Skybox 
+* [ ] HDR and bloom
+* [ ] Volumetric lighting
+* [ ] MSAA
+* [ ] HBAO
+* [ ] SSR
 * [ ] GPU driven rendering
 * [ ] Bindless rendering
 * [ ] Clustered forward shading
-* [ ] Volumetric lighting
-* [ ] MSAA
-* [ ] SSAO
-* [ ] HBAO
-* [ ] SSR
-* [ ] Global illumination(Screen space ray tracing or Voxel GI)
 * [ ] editor
+* [ ] occlusion culling
+* [ ] Global illumination(Screen space ray tracing or Voxel GI)
 * [ ] Move mipmap generation to a compute shader
 * [ ] Move Frustum culling to a compute shader
 * [ ] Compare Doing TBN matrix calculation in vertex vs fragment
