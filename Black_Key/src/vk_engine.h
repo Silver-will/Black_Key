@@ -82,6 +82,7 @@ public:
 
 	FrameData _frames[FRAME_OVERLAP];
 	std::vector<glm::mat4> lightMatrices;
+	std::vector<float>cascades;
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 

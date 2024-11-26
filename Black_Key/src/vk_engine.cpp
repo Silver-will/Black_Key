@@ -658,7 +658,7 @@ void VulkanEngine::init_vulkan()
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
-	features12.descriptorIndexing = true;
+	//features12.descriptorIndexing = true;
 	
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -1464,19 +1464,23 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightDirection = directLight.direction;
 	
 	//Re-calculate shadow maps when directional light moved
-	if (directLight.direction != directLight.lastDirection)
-	{
+	//if (directLight.direction != directLight.lastDirection)
+	//{
 		shadows.update(directLight, mainCamera);
 		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
 		memcpy(&sceneData.lightSpaceMatrices, lightMatrices.data(), sizeof(glm::mat4) * lightMatrices.size());
-		auto cascades = shadows.getCascadeLevels();
+		cascades = shadows.getCascadeLevels();
+		sceneData.distances.x = cascades[0];
+		sceneData.distances.y = cascades[1];
+		sceneData.distances.z = cascades[2];
+		sceneData.distances.w = cascades[3];
 		memcpy(&sceneData.cascadePlaneDistances, cascades.data(), sizeof(float) * cascades.size());
 		sceneData.cascadeConfigData.x = cascades.size();
-		sceneData.cascadeConfigData.y = mainCamera.nearPlane;
+		sceneData.cascadeConfigData.y = mainCamera.farPlane;
 		
 		//Last values
 		directLight.lastDirection = directLight.direction;
-	}
+	//}
 
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
