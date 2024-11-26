@@ -114,19 +114,14 @@ float ShadowCalculation(vec3 fragPosWorldSpace)
     //select cascade layer
     vec4 fragPosViewSpace = sceneData.view * vec4(fragPosWorldSpace, 1.0);
     float depthValue = abs(fragPosViewSpace.z);
-
     int layer = -1;
-    for (int i = 0; i < CASCADE_COUNT; ++i)
+    for (int i = 0; i < CASCADE_COUNT;i++)
     {
-        if (depthValue < sceneData.cascadeDistances[i])
+        if (depthValue < sceneData.distances[i])
         {
             layer = i;
             break;
         }
-    }
-    if (layer == -1)
-    {
-        layer = CASCADE_COUNT;
     }
 
     vec4 fragPosLightSpace = sceneData.lightMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
@@ -141,7 +136,7 @@ float ShadowCalculation(vec3 fragPosWorldSpace)
     // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
     if (currentDepth > 1.0)
     {
-        return 0.0;
+        return 1.0;
     }
 
     // calculate bias (based on depth map resolution and slope)
@@ -166,12 +161,8 @@ float ShadowCalculation(vec3 fragPosWorldSpace)
         for(int y = -1; y <= 1; ++y)
         {
             float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r;
-            shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;        
+            shadow +=  pcfDepth < (currentDepth - bias) ? 1.0 : 0.0;        
         }    
-    }
-    if(layer == CASCADE_COUNT)
-    {
-        return 0.0f;
     }
     shadow /= 9.0;
     return shadow;
@@ -272,20 +263,13 @@ void main()
     vec3 color = ambient + Lo;
 
     float shadow = ShadowCalculation(inFragPos);
-    //float shadow = 1.0f;
-
-
+    color *= shadow;
     color = neutral(color);
-    //color *= shadow;
+    
     // HDR tonemapping
     //color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
-    //outFragColor  = texture(shadowMap,vec3(inUV.xy,1));
-    //outFragColor.y = outFragColor.x;
-    //outFragColor.z = outFragColor.x;
-    //outFragColor.w = outFragColor.x;
-    //color = vec3(col,col,col);
     outFragColor = vec4(color, 1.0);  
 }
 

@@ -1,9 +1,9 @@
 #include "Shadows.h"
 
 
-ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane, const Camera& cam, const DirectionalLight& dirLight)
+ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane, Camera& cam, const DirectionalLight& dirLight)
 {
-    this->camera = cam;
+    camera = &cam;
     this->nearPlane = camNearPlane;
     this->farPlane = camFarPlane;
     this->light = dirLight;
@@ -11,7 +11,7 @@ ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane
 
 std::vector<glm::vec4> ShadowCascades::getFrustumCornersWorldSpace(const glm::mat4& projView)
 {
-    const glm::mat4 inverse = glm::inverse(projView);
+    const auto inv = glm::inverse(projView);
 
     std::vector<glm::vec4> frustumCorners;
     for (unsigned int x = 0; x < 2; ++x)
@@ -20,7 +20,7 @@ std::vector<glm::vec4> ShadowCascades::getFrustumCornersWorldSpace(const glm::ma
         {
             for (unsigned int z = 0; z < 2; ++z)
             {
-                const glm::vec4 pt = inverse * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
                 frustumCorners.push_back(pt / pt.w);
             }
         }
@@ -32,11 +32,12 @@ std::vector<glm::vec4> ShadowCascades::getFrustumCornersWorldSpace(const glm::ma
 glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float farPlane)
 {
     auto proj = glm::perspective(
-        glm::radians(camera.zoom), (float)windowSize.width / (float)windowSize.height, nearPlane,
+        glm::radians(camera->zoom), (float)windowSize.width / (float)windowSize.height, nearPlane,
         farPlane);
 
     proj[1][1] *= -1;
-    const auto corners = getFrustumCornersWorldSpace(proj * camera.getViewMatrix());
+    const auto view = camera->getViewMatrix();
+    const auto corners = getFrustumCornersWorldSpace(proj * camera->getViewMatrix());
 
     glm::vec3 center = glm::vec3(0, 0, 0);
     for (const auto& v : corners)
@@ -44,9 +45,11 @@ glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float
         center += glm::vec3(v);
     }
     center /= corners.size();
+    
+    auto direction = glm::vec3(light.direction.x, light.direction.y, light.direction.z);
 
-    const auto lightView = glm::lookAt(center + glm::vec3(light.direction.x, light.direction.y,
-                                                                    light.direction.z),center, glm::vec3(0.0f, 1.0f, 0.0f));
+    direction = -direction;
+    auto lightView = glm::lookAt(center + direction,center, glm::vec3(0.0f, 1.0f, 0.0f));
 
     float minX = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
@@ -85,8 +88,11 @@ glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float
         maxZ *= zMult;
     }
 
-    const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-    return lightProjection * lightView;
+    glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+    lightProjection[1][1] *= -1;
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(20, 0, 0));
+    return lightProjection * lightView/* * model*/;
 }
 
 void ShadowCascades::setCascadeLevels(std::vector<float> shadowCascadeLevels)
@@ -117,10 +123,10 @@ std::vector<glm::mat4> ShadowCascades::getLightSpaceMatrices(VkExtent2D& windowS
     return ret;
 }
 
-void ShadowCascades::update(const DirectionalLight& light, const Camera& cam)
+void ShadowCascades::update(const DirectionalLight& light,Camera& cam)
 {
     this->light = light;
-    this->camera = cam;
+    this->camera = &cam;
 }
 
 std::vector<float> ShadowCascades::getCascadeLevels()const

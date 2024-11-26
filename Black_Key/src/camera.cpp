@@ -77,28 +77,31 @@ void Camera::processKeyInput(GLFWwindow* window, int key, int action)
 
 void Camera::processMouseMovement(GLFWwindow* window, double xPos, double yPos)
 {
-	if (first_movement)
+	if (cursor_locked)
 	{
-		first_movement = false;
-		last_x = xPos;
-		last_y = yPos;
+		if (first_movement)
+		{
+			first_movement = false;
+			last_x = xPos;
+			last_y = yPos;
 
+		}
+		float x_offset = xPos - last_x;
+		float y_offset = last_y - yPos;
+
+		x_offset *= 0.005f;
+		y_offset *= 0.005f;
+
+		yaw += x_offset;
+		pitch += y_offset;
+
+
+		if (pitch > 89.0f)
+			pitch = 89.0f;
+		if (pitch < -89.0f)
+			pitch = -89.0f;
+		
 	}
-	float x_offset = xPos - last_x;
-	float y_offset = last_y - yPos;
-
-	x_offset *= 0.005f;
-	y_offset *= 0.005f;
-
-	yaw += x_offset;
-	pitch += y_offset;
-
-
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
-
 	last_x = xPos;
 	last_y = yPos;
 }

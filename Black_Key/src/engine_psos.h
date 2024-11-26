@@ -92,3 +92,22 @@ struct PostProcessingPipelineResources {
 
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
+
+struct DebuggingImagePipelineResources {
+	MaterialPipeline debuggingImagePipeline;
+	VkDescriptorSetLayout materialLayout;
+
+	DescriptorWriter writer;
+
+	struct MaterialResources {
+		VkSampler Sampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	void build_pipelines(VulkanEngine* engine);
+
+	void clear_resources(VkDevice device);
+
+	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+};
