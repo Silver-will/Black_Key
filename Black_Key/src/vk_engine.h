@@ -74,6 +74,11 @@ public:
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
+	bool debugShadowMap = true;
+	
+	struct {
+		float lastFrame;
+	} delta;
 	VkExtent2D _windowExtent{ 1440 , 1080 };
 
 	GLFWwindow* window{ nullptr };
@@ -134,7 +139,6 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	DrawContext drawCommands;
-
 	ShadowCascades shadows;
 
 	EngineStats stats;

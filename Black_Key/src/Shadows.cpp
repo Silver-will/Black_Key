@@ -1,135 +1,91 @@
 #include "Shadows.h"
+#include "vk_engine.h"
 
-
-ShadowCascades::ShadowCascades(const float camNearPlane, const float camFarPlane, Camera& cam, const DirectionalLight& dirLight)
+Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 {
-    camera = &cam;
-    this->nearPlane = camNearPlane;
-    this->farPlane = camFarPlane;
-    this->light = dirLight;
-}
+	Cascade cascades;
+	const int SHADOW_MAP_CASCADE_COUNT = 4;
+	cascades.lightSpaceMatrix.resize(SHADOW_MAP_CASCADE_COUNT);
+	cascades.cascadeDistances.resize(SHADOW_MAP_CASCADE_COUNT);
 
-std::vector<glm::vec4> ShadowCascades::getFrustumCornersWorldSpace(const glm::mat4& projView)
-{
-    const auto inv = glm::inverse(projView);
+	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
 
-    std::vector<glm::vec4> frustumCorners;
-    for (unsigned int x = 0; x < 2; ++x)
-    {
-        for (unsigned int y = 0; y < 2; ++y)
-        {
-            for (unsigned int z = 0; z < 2; ++z)
-            {
-                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
-                frustumCorners.push_back(pt / pt.w);
-            }
-        }
-    }
+	float nearClip = engine->mainCamera.getNearClip();
+	float farClip = engine->mainCamera.getFarClip();
+	float clipRange = farClip - nearClip;
 
-    return frustumCorners;
-}
+	float minZ = nearClip;
+	float maxZ = nearClip + clipRange;
 
-glm::mat4 ShadowCascades::getLightSpaceMatrix(const float nearPlane, const float farPlane)
-{
-    auto proj = glm::perspective(
-        glm::radians(camera->zoom), (float)windowSize.width / (float)windowSize.height, nearPlane,
-        farPlane);
+	float range = maxZ - minZ;
+	float ratio = maxZ / minZ;
 
-    proj[1][1] *= -1;
-    const auto view = camera->getViewMatrix();
-    const auto corners = getFrustumCornersWorldSpace(proj * camera->getViewMatrix());
+	// Calculate split depths based on view camera frustum
+	// Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+		float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADE_COUNT);
+		float log = minZ * std::pow(ratio, p);
+		float uniform = minZ + range * p;
+		float d = cascadeSplitLambda * (log - uniform) + uniform;
+		cascadeSplits[i] = (d - nearClip) / clipRange;
+	}
 
-    glm::vec3 center = glm::vec3(0, 0, 0);
-    for (const auto& v : corners)
-    {
-        center += glm::vec3(v);
-    }
-    center /= corners.size();
-    
-    auto direction = glm::vec3(light.direction.x, light.direction.y, light.direction.z);
+	// Calculate orthographic projection matrix for each cascade
+	float lastSplitDist = 0.0;
+	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+		float splitDist = cascadeSplits[i];
 
-    direction = -direction;
-    auto lightView = glm::lookAt(center + direction,center, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::vec3 frustumCorners[8] = {
+			glm::vec3(-1.0f,  1.0f, 0.0f),
+			glm::vec3(1.0f,  1.0f, 0.0f),
+			glm::vec3(1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f,  1.0f,  1.0f),
+			glm::vec3(1.0f,  1.0f,  1.0f),
+			glm::vec3(1.0f, -1.0f,  1.0f),
+			glm::vec3(-1.0f, -1.0f,  1.0f),
+		};
 
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float minY = std::numeric_limits<float>::max();
-    float maxY = std::numeric_limits<float>::lowest();
-    float minZ = std::numeric_limits<float>::max();
-    float maxZ = std::numeric_limits<float>::lowest();
-    for (const auto& v : corners)
-    {
-        const auto trf = lightView * v;
-        
-        minX = std::min(minX, trf.x);
-        maxX = std::max(maxX, trf.x);
-        minY = std::min(minY, trf.y);
-        maxY = std::max(maxY, trf.y);
-        minZ = std::min(minZ, trf.z);
-        maxZ = std::max(maxZ, trf.z);
-    }
+		// Project frustum corners into world space
+		glm::mat4 invCam = glm::inverse(engine->mainCamera.matrices.perspective * engine->mainCamera.matrices.view);
+		for (uint32_t j = 0; j < 8; j++) {
+			glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
+			frustumCorners[j] = invCorner / invCorner.w;
+		}
 
-    // Tune this parameter according to the scene
-    constexpr float zMult = 10.0f;
-    if (minZ < 0)
-    {
-        minZ *= zMult;
-    }
-    else
-    {
-        minZ /= zMult;
-    }
-    if (maxZ < 0)
-    {
-        maxZ /= zMult;
-    }
-    else
-    {
-        maxZ *= zMult;
-    }
+		for (uint32_t j = 0; j < 4; j++) {
+			glm::vec3 dist = frustumCorners[j + 4] - frustumCorners[j];
+			frustumCorners[j + 4] = frustumCorners[j] + (dist * splitDist);
+			frustumCorners[j] = frustumCorners[j] + (dist * lastSplitDist);
+		}
 
-    glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-    lightProjection[1][1] *= -1;
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(20, 0, 0));
-    return lightProjection * lightView/* * model*/;
-}
+		// Get frustum center
+		glm::vec3 frustumCenter = glm::vec3(0.0f);
+		for (uint32_t j = 0; j < 8; j++) {
+			frustumCenter += frustumCorners[j];
+		}
+		frustumCenter /= 8.0f;
 
-void ShadowCascades::setCascadeLevels(std::vector<float> shadowCascadeLevels)
-{
-    this->shadowCascadeLevels = shadowCascadeLevels;
-    numOfCascades = shadowCascadeLevels.size();
-}
+		float radius = 0.0f;
+		for (uint32_t j = 0; j < 8; j++) {
+			float distance = glm::length(frustumCorners[j] - frustumCenter);
+			radius = glm::max(radius, distance);
+		}
+		radius = std::ceil(radius * 16.0f) / 16.0f;
 
-std::vector<glm::mat4> ShadowCascades::getLightSpaceMatrices(VkExtent2D& windowSize)
-{
-    this->windowSize = windowSize;
-    std::vector<glm::mat4> ret;
-    for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i)
-    {
-        if (i == 0)
-        {
-            ret.push_back(getLightSpaceMatrix(nearPlane, shadowCascadeLevels[i]));
-        }
-        else if (i < shadowCascadeLevels.size())
-        {
-            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
-        }
-        else
-        {
-            ret.push_back(getLightSpaceMatrix(shadowCascadeLevels[i - 1], farPlane));
-        }
-    }
-    return ret;
-}
+		glm::vec3 maxExtents = glm::vec3(radius);
+		glm::vec3 minExtents = -maxExtents;
 
-void ShadowCascades::update(const DirectionalLight& light,Camera& cam)
-{
-    this->light = light;
-    this->camera = &cam;
-}
+		glm::vec3 lightDir = glm::normalize(engine->sceneData.sunlightDirection);
+		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
-std::vector<float> ShadowCascades::getCascadeLevels()const
-{
-    return shadowCascadeLevels;
+		lightOrthoMatrix[1][1] *= -1;
+		// Store split distance and matrix in cascade
+		cascades.cascadeDistances[i] = (engine->mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
+		cascades.lightSpaceMatrix[i] = lightOrthoMatrix * lightViewMatrix;
+
+		lastSplitDist = cascadeSplits[i];
+	}
+	return cascades;
 }
