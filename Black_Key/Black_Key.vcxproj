@@ -196,6 +196,7 @@
     <ClInclude Include="src\vk_types.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="helper_functions.glsl" />
     <None Include="shaders\brdf.fs" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />

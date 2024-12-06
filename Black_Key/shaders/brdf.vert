@@ -9,7 +9,9 @@ layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outFragPos;
 layout (location = 3) out vec2 outUV;
-layout (location = 4) out mat3 outTBN;
+layout (location = 4) out vec3 outPos;
+layout (location = 5) out vec4 outViewPos; 
+layout (location = 6) out mat3 outTBN;
 
 struct Vertex {
 	vec3 position;
@@ -36,23 +38,24 @@ void main()
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	
 	vec4 position = vec4(v.position, 1.0f);
-
 	vec4 fragPos = PushConstants.render_matrix * position;
 	gl_Position =  sceneData.viewproj * fragPos;	
 
 	//Note: Change this to transpose of inverse of render mat
 	mat3 normalMatrix = mat3(PushConstants.render_matrix);
+	normalMatrix = transpose(inverse(normalMatrix));
 	vec3 T = normalize(normalMatrix * vec3(v.tangent.xyz));
 	vec3 N = normalize(normalMatrix * v.normal);
 	T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
 
 	outTBN = mat3(T, B, N);
+	outPos = v.position;
+	outViewPos = sceneData.view * vec4(v.position,1.0f); 
 	outNormal = v.normal;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-
 }
 
