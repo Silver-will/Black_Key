@@ -366,15 +366,16 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-	if (A.material == B.material) {
-		return A.indexBuffer < B.indexBuffer;
-	}
-	else {
-		return A.material < B.material;
-	}
+		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+		if (A.material == B.material) {
+			return A.indexBuffer < B.indexBuffer;
+		}
+		else {
+			return A.material < B.material;
+		}
 		});
+
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -393,7 +394,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(2, _shadowDepthImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, _shadowDepthImage.imageView, _cascadeDepthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -471,21 +472,19 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
 			draws.push_back(i);
-		}
 	}
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
-	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-	if (A.material == B.material) {
-		return A.indexBuffer < B.indexBuffer;
-	}
-	else {
-		return A.material < B.material;
-	}
+		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+		if (A.material == B.material) {
+			return A.indexBuffer < B.indexBuffer;
+		}
+		else {
+			return A.material < B.material;
+		}
 		});
 
 	//allocate a new uniform buffer for the scene data
@@ -549,6 +548,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		stats.shadow_drawcall_count++;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 	};
+
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
@@ -561,7 +561,7 @@ void VulkanEngine::run()
 
     // main loop
     while (!glfwWindowShouldClose(window)) {
-		auto start = std::chrono::system_clock::now();
+		delta.start = std::chrono::system_clock::now();
 		if (resize_requested) {
 			resize_swapchain();
 		}
@@ -590,6 +590,7 @@ void VulkanEngine::run()
 		ImGui::Text("Update time %f ms", stats.update_time);
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
 		ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
+		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
 		ImGui::End();
 
 		if (ImGui::Begin("background")) {
@@ -619,10 +620,10 @@ void VulkanEngine::run()
 
         glfwPollEvents();
 
-		auto end = std::chrono::system_clock::now();
+		delta.end = std::chrono::system_clock::now();
 
 		//convert to microseconds (integer), and then come back to miliseconds
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(delta.end - delta.start);
 		stats.frametime = elapsed.count() / 1000.f;
     }
 }
@@ -658,7 +659,9 @@ void VulkanEngine::init_vulkan()
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
-	//features12.descriptorIndexing = true;
+	features12.descriptorIndexing = true;
+	features12.runtimeDescriptorArray = true;
+	features12.descriptorBindingPartiallyBound = true;
 	
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -728,11 +731,14 @@ void VulkanEngine::init_swapchain()
 {
 	create_swapchain(_windowExtent.width, _windowExtent.height);
 
+	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
 	VkExtent3D drawImageExtent = {
-		_windowExtent.width,
-		_windowExtent.height,
+		mode->width,
+		mode->height,
 		1
 	};
+	
 
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -931,8 +937,8 @@ void VulkanEngine::init_pipelines()
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	cascadedShadows.build_pipelines(this);
-	skyBoxPSO.build_pipelines(this);
-	postProcessPSO.build_pipelines(this);
+	//skyBoxPSO.build_pipelines(this);
+	//postProcessPSO.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
 	cascadedShadows.clear_resources(_device);
@@ -1151,10 +1157,10 @@ void VulkanEngine::init_background_pipelines()
 
 void VulkanEngine::init_default_data() {
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::normalize(glm::vec4(20.0f, -50.0f, 20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
 	shadows = ShadowCascades(mainCamera.nearPlane, mainCamera.farPlane, mainCamera, directLight);
-	shadows.setCascadeLevels({ mainCamera.farPlane / 50.0f, mainCamera.farPlane / 25.0f, mainCamera.farPlane / 10.0f, mainCamera.farPlane / 2.0f });
+	shadows.setCascadeLevels({ mainCamera.farPlane / 20.0f, mainCamera.farPlane / 15.0f, mainCamera.farPlane / 10.0f, mainCamera.farPlane / 5.0f });
 
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size() + 1);
 	_testImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D,false);
@@ -1195,6 +1201,17 @@ void VulkanEngine::init_default_data() {
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+
+	sampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampl.addressModeV = sampl.addressModeU;
+	sampl.addressModeW = sampl.addressModeU;
+	sampl.mipLodBias = 0.0f;
+	sampl.maxAnisotropy = 1.0f;
+	sampl.minLod = 0.0f;
+	sampl.maxLod = 1.0f;
+	sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	vkCreateSampler(_device, &sampl, nullptr, &_cascadeDepthSampler);
 	//< default_img
 
 	_mainDeletionQueue.push_function([=]() {
@@ -1206,6 +1223,8 @@ void VulkanEngine::init_default_data() {
 		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+		vkDestroySampler(_device, _cascadeDepthSampler, nullptr);
+
 		});
 	
 }
@@ -1445,13 +1464,19 @@ void VulkanEngine::destroy_image(const AllocatedImage& img)
 
 void VulkanEngine::update_scene()
 {
-	mainCamera.update();
+	float currentFrame = glfwGetTime();
+	float deltaTime = currentFrame - delta.lastFrame;
+	delta.lastFrame = currentFrame;
+	
+	mainCamera.updateSpecial(deltaTime);
+	//mainCamera.update();
 	mainDrawContext.OpaqueSurfaces.clear();
 
-	sceneData.view = mainCamera.getViewMatrix();
-	sceneData.cameraPos = glm::vec4(mainCamera.position,0.0f);
+	sceneData.view = mainCamera.getPreCalcViewMatrix();
+	//sceneData.view = mainCamera.getViewMatrix();
+	sceneData.cameraPos = glm::vec4(mainCamera.viewPos,0.0f);
 	// camera projection
-	sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.nearPlane, mainCamera.farPlane);
+	sceneData.proj = glm::perspective(mainCamera.zoom, (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.nearPlane, mainCamera.farPlane);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
@@ -1464,22 +1489,27 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightDirection = directLight.direction;
 	
 	//Re-calculate shadow maps when directional light moved
-	//if (directLight.direction != directLight.lastDirection)
+	//if (sceneData.distances.x == 0)
 	//{
 		shadows.update(directLight, mainCamera);
-		lightMatrices = shadows.getLightSpaceMatrices(_windowExtent);
+		lightMatrices = shadows.getLightSpaceMatrices2(this);
 		memcpy(&sceneData.lightSpaceMatrices, lightMatrices.data(), sizeof(glm::mat4) * lightMatrices.size());
 		cascades = shadows.getCascadeLevels();
 		sceneData.distances.x = cascades[0];
 		sceneData.distances.y = cascades[1];
 		sceneData.distances.z = cascades[2];
 		sceneData.distances.w = cascades[3];
+		//sceneData.distances *= -1.0f;
 		memcpy(&sceneData.cascadePlaneDistances, cascades.data(), sizeof(float) * cascades.size());
 		sceneData.cascadeConfigData.x = cascades.size();
 		sceneData.cascadeConfigData.y = mainCamera.farPlane;
+		if (debugShadowMap)
+			sceneData.cascadeConfigData.z = 1.0f;
+		else
+			sceneData.cascadeConfigData.z = 0.0f;
 		
-		//Last values
 		directLight.lastDirection = directLight.direction;
+		//mainCamera.updated = false;
 	//}
 
 	//Not an actual api Draw call

@@ -80,6 +80,12 @@ public:
 
 	static VulkanEngine& Get();
 
+	struct{
+		float lastFrame = 0.0f;
+		float currentFrame = 0.0f;
+		std::chrono::system_clock::time_point start;
+		std::chrono::system_clock::time_point end;
+	}delta;
 	FrameData _frames[FRAME_OVERLAP];
 	std::vector<glm::mat4> lightMatrices;
 	std::vector<float>cascades;
@@ -96,6 +102,7 @@ public:
 	AllocatedImage _testImage;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
+	bool debugShadowMap = true;
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
@@ -133,6 +140,7 @@ public:
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
+	VkSampler _cascadeDepthSampler;
 	DrawContext drawCommands;
 
 	ShadowCascades shadows;
@@ -140,6 +148,7 @@ public:
 	EngineStats stats;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+	std::vector<uint32_t> OpaqueDraws;
 
 	//lights
 	DirectionalLight directLight;
