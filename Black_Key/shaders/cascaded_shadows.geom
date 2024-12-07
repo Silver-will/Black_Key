@@ -16,4 +16,15 @@ void main(void)
 	}
 	EndPrimitive();
 	
+	/*gl_Position = gl_in[0].gl_Position.xyzw;
+	EmitVertex();
+
+	gl_Position = gl_in[1].gl_Position.xyzw;
+	EmitVertex();
+	
+	gl_Position = gl_in[2].gl_Position.xyzw;
+	EmitVertex();
+	
+	EndPrimitive();
+	*/
 }  

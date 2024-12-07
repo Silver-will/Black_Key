@@ -165,7 +165,6 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	vkutil::transition_image(cmd, _testImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	draw_main(cmd);
 	
 	//transtion the draw image and the swapchain image into their correct transfer layouts
@@ -367,16 +366,15 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-		if (A.material == B.material) {
-			return A.indexBuffer < B.indexBuffer;
-		}
-		else {
-			return A.material < B.material;
-		}
+	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+	if (A.material == B.material) {
+		return A.indexBuffer < B.indexBuffer;
+	}
+	else {
+		return A.material < B.material;
+	}
 		});
-
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -395,7 +393,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(2, _shadowDepthImage.imageView, _cascadeDepthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, _shadowDepthImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -473,19 +471,21 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
+		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
 			draws.push_back(i);
+		}
 	}
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-		if (A.material == B.material) {
-			return A.indexBuffer < B.indexBuffer;
-		}
-		else {
-			return A.material < B.material;
-		}
+	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+	if (A.material == B.material) {
+		return A.indexBuffer < B.indexBuffer;
+	}
+	else {
+		return A.material < B.material;
+	}
 		});
 
 	//allocate a new uniform buffer for the scene data
@@ -549,7 +549,6 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		stats.shadow_drawcall_count++;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 	};
-
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
@@ -562,7 +561,7 @@ void VulkanEngine::run()
 
     // main loop
     while (!glfwWindowShouldClose(window)) {
-		delta.start = std::chrono::system_clock::now();
+		auto start = std::chrono::system_clock::now();
 		if (resize_requested) {
 			resize_swapchain();
 		}
@@ -625,10 +624,10 @@ void VulkanEngine::run()
 
         glfwPollEvents();
 
-		delta.end = std::chrono::system_clock::now();
+		auto end = std::chrono::system_clock::now();
 
 		//convert to microseconds (integer), and then come back to miliseconds
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(delta.end - delta.start);
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 		stats.frametime = elapsed.count() / 1000.f;
     }
 }
@@ -664,9 +663,7 @@ void VulkanEngine::init_vulkan()
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
-	features12.descriptorIndexing = true;
-	features12.runtimeDescriptorArray = true;
-	features12.descriptorBindingPartiallyBound = true;
+	//features12.descriptorIndexing = true;
 	
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -736,14 +733,11 @@ void VulkanEngine::init_swapchain()
 {
 	create_swapchain(_windowExtent.width, _windowExtent.height);
 
-	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-
 	VkExtent3D drawImageExtent = {
-		mode->width,
-		mode->height,
+		_windowExtent.width,
+		_windowExtent.height,
 		1
 	};
-	
 
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -1162,11 +1156,10 @@ void VulkanEngine::init_background_pipelines()
 
 void VulkanEngine::init_default_data() {
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(20.0f, -50.0f, 20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
 
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
-	_testImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D,false);
 	
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -1204,17 +1197,6 @@ void VulkanEngine::init_default_data() {
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
-
-	sampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampl.addressModeV = sampl.addressModeU;
-	sampl.addressModeW = sampl.addressModeU;
-	sampl.mipLodBias = 0.0f;
-	sampl.maxAnisotropy = 1.0f;
-	sampl.minLod = 0.0f;
-	sampl.maxLod = 1.0f;
-	sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(_device, &sampl, nullptr, &_cascadeDepthSampler);
 	//< default_img
 
 	_mainDeletionQueue.push_function([=]() {
@@ -1226,8 +1208,6 @@ void VulkanEngine::init_default_data() {
 		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
-		vkDestroySampler(_device, _cascadeDepthSampler, nullptr);
-
 		});
 	
 }
@@ -1475,7 +1455,8 @@ void VulkanEngine::update_scene()
 
 	//sceneData.view = mainCamera.getViewMatrix();
 	sceneData.view = mainCamera.matrices.view;
-	sceneData.cameraPos = mainCamera.viewPos;
+	auto camPos = mainCamera.position * -1.0f;
+	sceneData.cameraPos = glm::vec4(camPos,1.0f);
 	// camera projection
 	mainCamera.updateAspectRatio(_windowExtent.width/_windowExtent.height);
 	sceneData.proj = mainCamera.matrices.perspective;
