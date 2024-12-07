@@ -38,18 +38,20 @@ void main()
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	
 	vec4 position = vec4(v.position, 1.0f);
-
 	vec4 fragPos = PushConstants.render_matrix * position;
 	gl_Position =  sceneData.viewproj * fragPos;	
 
 	//Note: Change this to transpose of inverse of render mat
 	mat3 normalMatrix = mat3(PushConstants.render_matrix);
+	normalMatrix = transpose(inverse(normalMatrix));
 	vec3 T = normalize(normalMatrix * vec3(v.tangent.xyz));
 	vec3 N = normalize(normalMatrix * v.normal);
 	T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
 
 	outTBN = mat3(T, B, N);
+	outPos = v.position;
+	outViewPos = sceneData.view * vec4(v.position,1.0f); 
 	outNormal = v.normal;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
 	outFragPos = vec3(fragPos.xyz);
@@ -57,6 +59,5 @@ void main()
 	outPos = v.position;
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-
 }
 
