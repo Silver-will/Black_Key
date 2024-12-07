@@ -14,7 +14,7 @@ A modern rendering engine in vulkan
 * [x] normal mapping
 * [x] gamma correction
 * [x] frustum culling
-* [ ] Cascaded shadow maps
+* [x] Cascaded shadow maps + PCF filtering
 * [ ] Skybox 
 * [ ] HDR and bloom
 * [ ] Volumetric lighting
