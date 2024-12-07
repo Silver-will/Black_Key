@@ -72,11 +72,12 @@ void VulkanEngine::init()
 	
 	_isInitialized = true;
 
-	mainCamera.velocity = glm::vec3(0.f);
-	mainCamera.position = glm::vec3(0, 0, 5);
-
-	mainCamera.pitch = 0;
-	mainCamera.yaw = 0;
+	mainCamera.type = Camera::CameraType::firstperson;
+	//mainCamera.flipY = true;
+	mainCamera.movementSpeed = 2.5f;
+	mainCamera.setPerspective(75.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 500.0f);
+	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
+	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
 	std::string structurePath = { "assets/sponza/sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath);
@@ -235,7 +236,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	VkExtent2D shadowExtent{};
 	shadowExtent.width = _shadowDepthImage.imageExtent.width;
 	shadowExtent.height = _shadowDepthImage.imageExtent.height;
-	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels().size() + 1);
+	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels());
 	auto startShadow = std::chrono::system_clock::now();
 	vkCmdBeginRendering(cmd,&shadowRenderInfo);
 	
@@ -589,8 +590,12 @@ void VulkanEngine::run()
 		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
 		ImGui::Text("Update time %f ms", stats.update_time);
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
-		ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
+		ImGui::SeparatorText("light options");
+		float direction[] = { directLight.direction.x,directLight.direction.y, directLight.direction.z};
+		ImGui::SliderFloat3("lightDirection", direction, -5.0f, 5.0f, "%.05f");
+		directLight.direction = glm::vec4(direction[0], direction[1], direction[2], directLight.direction.w);
+		//ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::End();
 
 		if (ImGui::Begin("background")) {
@@ -1159,10 +1164,8 @@ void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(20.0f, -50.0f, 20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
-	shadows = ShadowCascades(mainCamera.nearPlane, mainCamera.farPlane, mainCamera, directLight);
-	shadows.setCascadeLevels({ mainCamera.farPlane / 20.0f, mainCamera.farPlane / 15.0f, mainCamera.farPlane / 10.0f, mainCamera.farPlane / 5.0f });
 
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels().size() + 1);
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
 	_testImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D,false);
 	
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
@@ -1467,16 +1470,15 @@ void VulkanEngine::update_scene()
 	float currentFrame = glfwGetTime();
 	float deltaTime = currentFrame - delta.lastFrame;
 	delta.lastFrame = currentFrame;
-	
-	mainCamera.updateSpecial(deltaTime);
-	//mainCamera.update();
+	mainCamera.update(deltaTime);
 	mainDrawContext.OpaqueSurfaces.clear();
 
-	sceneData.view = mainCamera.getPreCalcViewMatrix();
 	//sceneData.view = mainCamera.getViewMatrix();
-	sceneData.cameraPos = glm::vec4(mainCamera.viewPos,0.0f);
+	sceneData.view = mainCamera.matrices.view;
+	sceneData.cameraPos = mainCamera.viewPos;
 	// camera projection
-	sceneData.proj = glm::perspective(mainCamera.zoom, (float)_windowExtent.width / (float)_windowExtent.height, mainCamera.nearPlane, mainCamera.farPlane);
+	mainCamera.updateAspectRatio(_windowExtent.width/_windowExtent.height);
+	sceneData.proj = mainCamera.matrices.perspective;
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
@@ -1488,30 +1490,19 @@ void VulkanEngine::update_scene()
 	sceneData.sunlightColor = directLight.color;
 	sceneData.sunlightDirection = directLight.direction;
 	
-	//Re-calculate shadow maps when directional light moved
-	//if (sceneData.distances.x == 0)
-	//{
-		shadows.update(directLight, mainCamera);
-		lightMatrices = shadows.getLightSpaceMatrices2(this);
-		memcpy(&sceneData.lightSpaceMatrices, lightMatrices.data(), sizeof(glm::mat4) * lightMatrices.size());
-		cascades = shadows.getCascadeLevels();
-		sceneData.distances.x = cascades[0];
-		sceneData.distances.y = cascades[1];
-		sceneData.distances.z = cascades[2];
-		sceneData.distances.w = cascades[3];
-		//sceneData.distances *= -1.0f;
-		memcpy(&sceneData.cascadePlaneDistances, cascades.data(), sizeof(float) * cascades.size());
-		sceneData.cascadeConfigData.x = cascades.size();
-		sceneData.cascadeConfigData.y = mainCamera.farPlane;
-		if (debugShadowMap)
-			sceneData.cascadeConfigData.z = 1.0f;
-		else
-			sceneData.cascadeConfigData.z = 0.0f;
-		
-		directLight.lastDirection = directLight.direction;
-		//mainCamera.updated = false;
-	//}
+	auto cascadeData = shadows.getCascades(this);
+	memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
+	memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
+	sceneData.distances.x = cascadeData.cascadeDistances[0];
+	sceneData.distances.y = cascadeData.cascadeDistances[1];
+	sceneData.distances.z = cascadeData.cascadeDistances[2];
+	sceneData.distances.w = cascadeData.cascadeDistances[3];
 
+	if (debugShadowMap)
+		sceneData.cascadeConfigData.z = 1.0f;
+	else
+		sceneData.cascadeConfigData.z = 0.0f;
+	
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 }
