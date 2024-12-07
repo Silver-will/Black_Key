@@ -204,10 +204,12 @@ void main()
     
     vec3 color = ambient + Lo;
     
-    float depthValue = inViewPos.z;
+    vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
+    //float depthValue = inViewPos.z;
+    float depthValue = fragPosViewSpace.z;
     int layer = 0;
 	for(int i = 0; i < 4 - 1; ++i) {
-		if(inViewPos.z < sceneData.cascadeDistances[i]) {	
+		if(depthValue < sceneData.distances[i]) {	
 			layer = i + 1;
 		}
 	}

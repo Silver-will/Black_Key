@@ -79,7 +79,7 @@ void VulkanEngine::init()
 	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
-	std::string structurePath = { "assets/structure_mat.glb" };
+	std::string structurePath = { "assets/sponza/sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath);
 	assert(structureFile.has_value());
 
@@ -1471,7 +1471,11 @@ void VulkanEngine::update_scene()
 	auto cascadeData = shadows.getCascades(this);
 	memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
 	memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
-	
+	sceneData.distances.x = cascadeData.cascadeDistances[0];
+	sceneData.distances.y = cascadeData.cascadeDistances[1];
+	sceneData.distances.z = cascadeData.cascadeDistances[2];
+	sceneData.distances.w = cascadeData.cascadeDistances[3];
+
 	if (debugShadowMap)
 		sceneData.cascadeConfigData.z = 1.0f;
 	else
