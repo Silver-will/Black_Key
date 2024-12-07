@@ -90,6 +90,9 @@
     <ClCompile Include="src\Lights.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\tracy\public\TracyClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -200,6 +203,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\skybox.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="helper_functions.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
