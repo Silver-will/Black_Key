@@ -8,9 +8,9 @@
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outFragPos;
-layout (location = 3) out vec2 outUV;
+layout (location = 3) out vec3 outViewPos;
 layout (location = 4) out vec3 outPos;
-layout (location = 5) out vec4 outViewPos; 
+layout (location = 5) out vec2 outUV;
 layout (location = 6) out mat3 outTBN;
 
 struct Vertex {
@@ -55,6 +55,8 @@ void main()
 	outNormal = v.normal;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
 	outFragPos = vec3(fragPos.xyz);
+	outViewPos = (sceneData.view * position).xyz;
+	outPos = v.position;
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
 }

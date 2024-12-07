@@ -7,10 +7,11 @@
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec3 inFragPos;
-layout (location = 3) in vec2 inUV;
+layout (location = 3) in vec3 inViewPos;
 layout (location = 4) in vec3 inPos;
-layout (location = 5) in vec4 inViewPos;
+layout (location = 5) in vec2 inUV;
 layout (location = 6) in mat3 inTBN;
+
 
 layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
 layout (location = 0) out vec4 outFragColor;
@@ -78,72 +79,6 @@ float TestShadow(vec4 shadowCoord, int layer)
     return shadow;
 }
 
-float ShadowCalculation(vec3 fragPosWorldSpace)
-{
-    //select cascade layer
-    vec4 fragPosViewSpace = sceneData.view * vec4(fragPosWorldSpace, 1.0);
-    float depthValue = abs(fragPosViewSpace.z);
-    int layer = -1;
-    for (int i = 0; i < CASCADE_COUNT; ++i)
-    {
-        if (depthValue < sceneData.distances[i])
-        {
-            layer = i;
-            break;
-        }
-    }
-    if(layer == -1)
-    {
-       layer == CASCADE_COUNT;
-    }
-
-    vec4 fragPosLightSpace = sceneData.lightMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
-    // perform perspective divide
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    //projCoords.y *= -1;
-    // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-
-    // get depth of current fragment from light's perspective
-    float currentDepth = projCoords.z;
-
-    // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
-    if (currentDepth > 1.0)
-    {
-        return 1.0;
-    }
-
-    // calculate bias (based on depth map resolution and slope)
-    vec3 normal = normalize(inNormal);
-    float bias = max(0.05 * (1.0 - dot(normal, sceneData.sunlightDirection.xyz)), 0.005);
-    const float biasModifier = 0.5f;
-
-    if (layer == CASCADE_COUNT)
-    {
-        bias *= 1 / (sceneData.cascadeConfigData.y * biasModifier);
-    }
-    else
-    {
-        bias *= 1 / (sceneData.cascadeDistances[layer] * biasModifier);
-    }
-
-    // PCF
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
-    for(int x = -1; x <= 1; ++x)
-    {
-        for(int y = -1; y <= 1; ++y)
-        {
-            float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r;
-            shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;        
-        }    
-    }
-    shadow /= 9.0;
-    
-    //float shadow = texture(shadowMap, vec3(projCoords.xy, layer)).r;
-    return shadow;
-}
-
 vec3 CalculateNormalFromMap()
 {
     vec3 tangentNormal = texture(normalTex,inUV).rgb * 2.0 - 1.0;
@@ -190,6 +125,47 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0 
+);
+
+float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
+{
+	float shadow = 1.0;
+	float bias = 0.005;
+
+	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
+		float dist = texture(shadowMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
+		if (shadowCoord.w > 0 && dist < shadowCoord.z - bias) {
+			shadow = 0.3;
+		}
+	}
+	return shadow;
+
+}
+
+float filterPCF(vec4 sc, int cascadeIndex)
+{
+	ivec2 texDim = textureSize(shadowMap, 0).xy;
+	float scale = 0.75;
+	float dx = scale * 1.0 / float(texDim.x);
+	float dy = scale * 1.0 / float(texDim.y);
+
+	float shadowFactor = 0.0;
+	int count = 0;
+	int range = 1;
+	
+	for (int x = -range; x <= range; x++) {
+		for (int y = -range; y <= range; y++) {
+			shadowFactor += textureProj(sc, vec2(dx*x, dy*y), cascadeIndex);
+			count++;
+		}
+	}
+	return shadowFactor / count;
+}
 
 void main() 
 {
@@ -234,27 +210,21 @@ void main()
     vec3 ambient = vec3(0.03) * albedo;
     
     vec3 color = ambient + Lo;
-
-    float depthValue = inViewPos.z;
+    
+    vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
+    //float depthValue = inViewPos.z;
+    float depthValue = fragPosViewSpace.z;
     int layer = 0;
 	for(int i = 0; i < 4 - 1; ++i) {
-		if(inViewPos.z < sceneData.cascadeDistances[i]) {	
+		if(depthValue < sceneData.distances[i]) {	
 			layer = i + 1;
 		}
 	}
-    //if(layer == -1)
-    //{
-      //  layer = CASCADE_COUNT;
-    //}
-   
-    //vec4 shadowCoord = (biasMat * sceneData.lightMatrices[3]) * vec4(inPos,1.0f);
-    //float shadow = ShadowCalculation(inFragPos);
-    //float shadow = filterPCF(shadowCoord/shadowCoord.w, layer);
-    //float shadow = textureProj(shadowCoord / shadowCoord.w, vec2(0.0), layer);
 
-    vec4 shadowCoord = (biasMat * sceneData.lightMatrices[layer]) * vec4(inPos,1.0f);
-    float shadow = TestShadow(shadowCoord, layer);
-    //float shadow = 1.0f;
+    vec4 shadowCoord = (biasMat * sceneData.lightMatrices[layer]) * vec4(inFragPos, 1.0);	
+
+    float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
+    color *= shadow;
     color = neutral(color);
     color *= (shadow);
     
@@ -280,7 +250,6 @@ void main()
         }
 
     }
-
     outFragColor = vec4(color, 1.0);  
 }
 
