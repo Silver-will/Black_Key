@@ -17,27 +17,22 @@ void Camera::processKeyInput(GLFWwindow* window, int key, int action)
 		{
 			keys.left = true;
 			velocity.x = -1.0f;
-			keys.left = true;
 		}
 		if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT)
 		{
 			keys.right = true;
 			velocity.x = 1.0f;
-			keys.right = true;
 		}
 		if (key == GLFW_KEY_W || key == GLFW_KEY_UP)
 		{
 			keys.up = true;
 			velocity.z = -1.0f;
-			keys.up = true;
 		}
 		if (key == GLFW_KEY_S || key == GLFW_KEY_DOWN)
 		{
 			keys.down = true;
 			velocity.z = 1.0f;
-			keys.down = true;
 		}
-		updated = true;
 	}
 	if (action == GLFW_RELEASE)
 	{
@@ -45,26 +40,21 @@ void Camera::processKeyInput(GLFWwindow* window, int key, int action)
 		{
 			keys.left = false;
 			velocity.x = 0.0f;
-			keys.left = false;
 		}
 		if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT)
 		{
 			keys.right = false;
 			velocity.x = 0.0f;
-			keys.right = false;
 		}
-
 		if (key == GLFW_KEY_W || key == GLFW_KEY_UP)
 		{
 			keys.up = false;
 			velocity.z = 0.0f;
-			keys.up = false;
 		}
 		if (key == GLFW_KEY_S || key == GLFW_KEY_DOWN)
 		{
 			keys.down = false;
 			velocity.z = 0.0f;
-			keys.down = false;
 		}
 		if (key == GLFW_KEY_C && cursor_locked)
 		{
