@@ -591,6 +591,10 @@ void VulkanEngine::run()
 		ImGui::Text("Update time %f ms", stats.update_time);
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
 		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
+		ImGui::SeparatorText("light options");
+		float direction[] = { directLight.direction.x,directLight.direction.y, directLight.direction.z};
+		ImGui::SliderFloat3("lightDirection", direction, -5.0f, 5.0f, "%.05f");
+		directLight.direction = glm::vec4(direction[0], direction[1], direction[2], directLight.direction.w);
 		//ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::End();
 

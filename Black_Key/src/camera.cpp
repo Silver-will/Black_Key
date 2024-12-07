@@ -274,10 +274,13 @@ void Camera::setMovementSpeed(float movementSpeed)
 
 void Camera::processMouseMovement(GLFWwindow* window, double xPos, double yPos)
 {
-	int32_t dx = (int32_t)last_x - xPos;
-	int32_t dy = (int32_t)yPos - last_y;
+	if (cursor_locked)
+	{
+		int32_t dx = (int32_t)last_x - xPos;
+		int32_t dy = (int32_t)yPos - last_y;
 
-	rotate(glm::vec3(dy * rotationSpeed, -dx * rotationSpeed, 0.0f));
+		rotate(glm::vec3(dy * rotationSpeed, -dx * rotationSpeed, 0.0f));
+	}
 	last_x = xPos;
 	last_y = yPos;
 }
