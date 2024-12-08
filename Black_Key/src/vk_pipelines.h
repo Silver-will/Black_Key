@@ -33,6 +33,7 @@ public:
     void set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void disable_blending();
     void set_multisampling_none();
+    void set_multisampling_level(VkSampleCountFlagBits& samples);
     void disable_depthtest();
     void set_depth_format(VkFormat format);
     void set_color_attachment_format(VkFormat format);

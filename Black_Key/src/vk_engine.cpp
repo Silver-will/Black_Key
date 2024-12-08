@@ -75,7 +75,7 @@ void VulkanEngine::init()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(75.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 500.0f);
+	mainCamera.setPerspective(75.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -632,8 +632,6 @@ void VulkanEngine::run()
     }
 }
 
-
-
 void VulkanEngine::init_vulkan()
 {
 	vkb::InstanceBuilder builder;
@@ -667,6 +665,9 @@ void VulkanEngine::init_vulkan()
 	
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
+	baseFeatures.samplerAnisotropy = true;
+	baseFeatures.sampleRateShading = true;
+
 
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
@@ -680,7 +681,8 @@ void VulkanEngine::init_vulkan()
 		.select()
 		.value();
 
-
+	
+	msaa_samples = vkinit::getMaxAvailableSampleCount(physicalDevice.properties);
 	//create the final vulkan device
 	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
 
@@ -743,13 +745,15 @@ void VulkanEngine::init_swapchain()
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
 
+	_resolveImage = _drawImage;
+
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent);
+	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent,1,msaa_samples);
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo rimg_allocinfo = {};
@@ -759,17 +763,24 @@ void VulkanEngine::init_swapchain()
 	//allocate and create the image
 	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
 	vmaSetAllocationName(_allocator, _drawImage.allocation,"Draw image");
+
+	//Create resolve image for multisampling
+	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, drawImageUsages, drawImageExtent, 1);
+	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _resolveImage.allocation, "resolve image");
+
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_resolveImage.imageView));
 
 	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 	_depthImage.imageExtent = drawImageExtent;
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
 
 	//allocate and create the image
 	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
@@ -786,6 +797,10 @@ void VulkanEngine::init_swapchain()
 
 	vkDestroyImageView(_device, _depthImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
+
+	vkDestroyImageView(_device, _resolveImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _resolveImage.image, _resolveImage.allocation);
+
 	});
 }
 
@@ -1159,7 +1174,7 @@ void VulkanEngine::init_default_data() {
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//
 
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
 	
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,

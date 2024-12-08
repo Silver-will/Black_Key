@@ -133,6 +133,7 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
     colorAttachment.imageView = view;
     colorAttachment.imageLayout = layout;
     colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+   
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     if (clear) {
         colorAttachment.clearValue = *clear;
@@ -154,6 +155,23 @@ VkRenderingAttachmentInfo vkinit::depth_attachment_info(
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.clearValue.depthStencil.depth = 1.f;
+   
+
+    return depthAttachment;
+}
+
+VkRenderingAttachmentInfo vkinit::resolve_attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout)
+{
+    VkRenderingAttachmentInfo resolveAttachment{};
+    resolveAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    resolveAttachment.pNext = nullptr;
+
+    resolveAttachment.imageView = view;
+    resolveAttachment.imageLayout = layout;
+    resolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    resolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    resolveAttachment.clearValue.depthStencil.depth = 1.f;
+
 
     return depthAttachment;
 }
@@ -261,7 +279,7 @@ VkDescriptorBufferInfo vkinit::buffer_info(VkBuffer buffer, VkDeviceSize offset,
 }
 
 //> image_set
-VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers)
+VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers, VkSampleCountFlagBits samples)
 {
     VkImageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -277,7 +295,7 @@ VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags u
     info.arrayLayers = layers;
 
     //for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
-    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.samples = samples;
 
     //optimal tiling, which means the image is stored on the best gpu format
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -435,4 +453,18 @@ VkPipelineVertexInputStateCreateInfo vkinit::pipeline_vertex_input_create_info(s
     vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
     vertexInput.pVertexAttributeDescriptions = attributes.data();
     return vertexInput;
+}
+
+VkSampleCountFlagBits vkinit::getMaxAvailableSampleCount(VkPhysicalDeviceProperties& deviceProperties)
+{
+    VkSampleCountFlags supportedSampleCount = std::min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+    std::vector< VkSampleCountFlagBits> possibleSampleCounts{
+        VK_SAMPLE_COUNT_64_BIT, VK_SAMPLE_COUNT_32_BIT, VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_8_BIT, VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_2_BIT
+    };
+    for (auto& possibleSampleCount : possibleSampleCounts) {
+        if (supportedSampleCount & possibleSampleCount) {
+            return possibleSampleCount;
+        }
+    }
+    return VK_SAMPLE_COUNT_1_BIT;
 }
