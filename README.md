@@ -21,6 +21,7 @@ A modern rendering engine in vulkan
 * [ ] Volumetric lighting
 * [ ] HBAO/GTAO/SSAO
 * [ ] SSR
+* [ ] Image based lighting
 * [ ] Bindless rendering
 * [ ] Async compute
 * [ ] Task graph
