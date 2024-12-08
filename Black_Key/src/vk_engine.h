@@ -97,6 +97,7 @@ public:
 	VmaAllocator _allocator;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+	AllocatedImage _resolveImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _testImage;
 	VkExtent2D _drawExtent;
@@ -142,6 +143,7 @@ public:
 	ShadowCascades shadows;
 
 	EngineStats stats;
+	VkSampleCountFlagBits msaa_samples;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 

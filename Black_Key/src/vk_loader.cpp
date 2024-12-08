@@ -550,7 +550,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
     pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    pipelineBuilder.set_multisampling_none();
+    pipelineBuilder.set_multisampling_level(engine->msaa_samples);
     pipelineBuilder.disable_blending();
     pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_LESS_OR_EQUAL);
 

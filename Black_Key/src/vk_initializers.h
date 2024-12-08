@@ -22,10 +22,11 @@ VkSubmitInfo2 submit_info(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo*
     VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 VkPresentInfoKHR present_info();
 
-VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
+VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout);
 
-VkRenderingAttachmentInfo depth_attachment_info(VkImageView view,
-    VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
+VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout);
+
+VkRenderingAttachmentInfo resolve_attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout);
 
 VkRenderingInfo rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment,
     VkRenderingAttachmentInfo* depthAttachment, int renderLayers = 1);
@@ -44,7 +45,7 @@ VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptor
 VkDescriptorBufferInfo buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range);
 VkSamplerCreateInfo create_sampler(VkFilter filter, VkSamplerMipmapMode mipMode, VkSamplerAddressMode addressMode, int mipCount);
 
-VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers = 1);
+VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers = 1,VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 VkImageCreateInfo image_cubemap_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, uint32_t mipCount);
 VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags, VkImageViewType viewType, int layerCount = 1);
 VkImageViewCreateInfo imageview_cubemap_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
@@ -55,4 +56,5 @@ VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageF
 VkVertexInputBindingDescription vertex_binding_description(uint32_t binding, uint32_t stride, VkVertexInputRate input);
 VkVertexInputAttributeDescription vertex_attribute_description(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset);
 VkPipelineVertexInputStateCreateInfo pipeline_vertex_input_create_info(std::vector<VkVertexInputBindingDescription>& bindings, std::vector<VkVertexInputAttributeDescription>& attributes);
+VkSampleCountFlagBits getMaxAvailableSampleCount(VkPhysicalDeviceProperties& deviceProperties);
 } // namespace vkinit
