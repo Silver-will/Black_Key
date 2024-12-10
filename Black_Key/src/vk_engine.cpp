@@ -79,11 +79,14 @@ void VulkanEngine::init()
 	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
-	std::string structurePath = { "assets/sponza/sponza.gltf" };
-	auto structureFile = loadGltf(this, structurePath);
+	std::string structurePath{ "assets/sponza/sponza.gltf" };
+	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
+	std::string cubePath{ "assets/cube.gltf" };
+	auto cubeFile = loadGltf(this, cubePath);
 
 	loadedScenes["sponza"] = *structureFile;
+	loadedScenes["cube"] = *cubeFile;
 }
 
 void VulkanEngine::cleanup()
@@ -164,11 +167,12 @@ void VulkanEngine::draw()
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	draw_main(cmd);
 	
 	//transtion the draw image and the swapchain image into their correct transfer layouts
-	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	VkExtent2D extent;
@@ -177,7 +181,7 @@ void VulkanEngine::draw()
 	//< draw_first
 	//> imgui_draw
 	// execute a copy from the draw image into the swapchain
-	vkutil::copy_image_to_image(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
+	vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 
 	// set swapchain image layout to Attachment Optimal so we can draw it
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -231,26 +235,31 @@ void VulkanEngine::draw()
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
-	VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	VkExtent2D shadowExtent{};
-	shadowExtent.width = _shadowDepthImage.imageExtent.width;
-	shadowExtent.height = _shadowDepthImage.imageExtent.height;
-	VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels());
-	auto startShadow = std::chrono::system_clock::now();
-	vkCmdBeginRendering(cmd,&shadowRenderInfo);
-	
-	draw_shadows(cmd);
-	
-	vkCmdEndRendering(cmd);
-	auto endShadow = std::chrono::system_clock::now();
+	if (render_shadowMap)
+	{
+		VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+		VkExtent2D shadowExtent{};
+		shadowExtent.width = _shadowDepthImage.imageExtent.width;
+		shadowExtent.height = _shadowDepthImage.imageExtent.height;
+		VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels());
+		auto startShadow = std::chrono::system_clock::now();
+		vkCmdBeginRendering(cmd, &shadowRenderInfo);
 
-	auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
-	stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
+		draw_shadows(cmd);
 
-	draw_background(cmd);
+		vkCmdEndRendering(cmd);
+		auto endShadow = std::chrono::system_clock::now();
+		auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
+		stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
+		render_shadowMap = false;
+	}
+
+	
+	//draw_background(cmd);
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkClearValue geometryClear{ 0.5,0.5,0.0,0.0f };
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
@@ -266,24 +275,100 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
 }
 
-void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
+
+void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 {
-	auto start_imgui = std::chrono::system_clock::now();
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
+	std::vector<uint32_t> draws;
+	draws.reserve(drawCommands.OpaqueSurfaces.size());
 
-	vkCmdBeginRendering(cmd, &renderInfo);
+	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
+		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
+			draws.push_back(i);
+		}
+	}
 
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+	// sort the opaque surfaces by material and mesh
+	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+		if (A.material == B.material) {
+			return A.indexBuffer < B.indexBuffer;
+		}
+		else {
+			return A.material < B.material;
+		}
+		});
 
-	vkCmdEndRendering(cmd);
-	auto end_imgui = std::chrono::system_clock::now();
-	auto elapsed_imgui = std::chrono::duration_cast<std::chrono::microseconds>(end_imgui - start_imgui);
-	stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+
+	MaterialPipeline* lastPipeline = nullptr;
+	MaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	auto draw = [&](const RenderObject& r) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_shadowDepthImage.imageExtent.width;
+		viewport.height = (float)_shadowDepthImage.imageExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _shadowDepthImage.imageExtent.width;
+		scissor.extent.height = _shadowDepthImage.imageExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
+			//&cascadedShadows.matData.materialSet, 0, nullptr);
+		if (r.indexBuffer != lastIndexBuffer)
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		stats.shadow_drawcall_count++;
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		};
+	for (auto& r : draws) {
+		draw(drawCommands.OpaqueSurfaces[r]);
+	}
 }
+
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
 {
+	/*
 	//make a clear-color from frame number. This will flash with a 120 frame period.
 	ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
 
@@ -296,62 +381,85 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 	vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
+	*/
+
+	std::vector<uint32_t> draws;
+	draws.reserve(skyDrawCommands.OpaqueSurfaces.size());
+
+
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(2, _shadowDepthImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(_device, globalDescriptor);
+
+	MaterialPipeline* lastPipeline = nullptr;
+	MaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	auto draw = [&](const RenderObject& r) {
+		if (r.material != lastMaterial) {
+			lastMaterial = r.material;
+			if (r.material->pipeline != lastPipeline) {
+
+				lastPipeline = r.material->pipeline;
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1,
+					&globalDescriptor, 0, nullptr);
+
+				VkViewport viewport = {};
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = (float)_windowExtent.width;
+				viewport.height = (float)_windowExtent.height;
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
+
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _windowExtent.width;
+				scissor.extent.height = _windowExtent.height;
+
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+			}
+
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
+				&r.material->materialSet, 0, nullptr);
+		}
+		if (r.indexBuffer != lastIndexBuffer) {
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		stats.drawcall_count++;
+		stats.triangle_count += r.indexCount / 3;
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		};
 }
 
-void VulkanEngine::resize_swapchain()
-{
-	vkDeviceWaitIdle(_device);
-
-	destroy_swapchain();
-
-	int w, h;
-	glfwGetWindowSize(window, &w, &h);
-	_windowExtent.width = w;
-	_windowExtent.height = h;
-
-	create_swapchain(_windowExtent.width, _windowExtent.height);
-
-	resize_requested = false;
-}
-
-bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-	std::array<glm::vec3, 8> corners{
-		glm::vec3 { 1, 1, 1 },
-		glm::vec3 { 1, 1, -1 },
-		glm::vec3 { 1, -1, 1 },
-		glm::vec3 { 1, -1, -1 },
-		glm::vec3 { -1, 1, 1 },
-		glm::vec3 { -1, 1, -1 },
-		glm::vec3 { -1, -1, 1 },
-		glm::vec3 { -1, -1, -1 },
-	};
-
-	glm::mat4 matrix = viewproj * obj.transform;
-
-	glm::vec3 min = { 1.5, 1.5, 1.5 };
-	glm::vec3 max = { -1.5, -1.5, -1.5 };
-
-	for (int c = 0; c < 8; c++) {
-		// project each corner into clip space
-		glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-
-		// perspective correction
-		v.x = v.x / v.w;
-		v.y = v.y / v.w;
-		v.z = v.z / v.w;
-
-		min = glm::min(glm::vec3{ v.x, v.y, v.z }, min);
-		max = glm::max(glm::vec3{ v.x, v.y, v.z }, max);
-	}
-
-	// check the clip space box is within the view
-	if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
-		return false;
-	}
-	else {
-		return true;
-	}
-}
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
@@ -366,14 +474,14 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	// sort the opaque surfaces by material and mesh
 	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-	if (A.material == B.material) {
-		return A.indexBuffer < B.indexBuffer;
-	}
-	else {
-		return A.material < B.material;
-	}
+		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
+		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
+		if (A.material == B.material) {
+			return A.indexBuffer < B.indexBuffer;
+		}
+		else {
+			return A.material < B.material;
+		}
 		});
 
 	//allocate a new uniform buffer for the scene data
@@ -446,7 +554,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 		stats.drawcall_count++;
 		stats.triangle_count += r.indexCount / 3;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-	};
+		};
 
 	stats.drawcall_count = 0;
 	stats.triangle_count = 0;
@@ -464,93 +572,74 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	drawCommands.TransparentSurfaces.clear();
 }
 
-
-void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
+void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
-	std::vector<uint32_t> draws;
-	draws.reserve(drawCommands.OpaqueSurfaces.size());
+	auto start_imgui = std::chrono::system_clock::now();
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr,nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
 
-	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
-			draws.push_back(i);
-		}
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+	vkCmdEndRendering(cmd);
+	auto end_imgui = std::chrono::system_clock::now();
+	auto elapsed_imgui = std::chrono::duration_cast<std::chrono::microseconds>(end_imgui - start_imgui);
+	stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
+}
+
+void VulkanEngine::resize_swapchain()
+{
+	vkDeviceWaitIdle(_device);
+
+	destroy_swapchain();
+
+	int w, h;
+	glfwGetWindowSize(window, &w, &h);
+	_windowExtent.width = w;
+	_windowExtent.height = h;
+
+	create_swapchain(_windowExtent.width, _windowExtent.height);
+
+	resize_requested = false;
+}
+
+bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
+	std::array<glm::vec3, 8> corners{
+		glm::vec3 { 1, 1, 1 },
+		glm::vec3 { 1, 1, -1 },
+		glm::vec3 { 1, -1, 1 },
+		glm::vec3 { 1, -1, -1 },
+		glm::vec3 { -1, 1, 1 },
+		glm::vec3 { -1, 1, -1 },
+		glm::vec3 { -1, -1, 1 },
+		glm::vec3 { -1, -1, -1 },
+	};
+
+	glm::mat4 matrix = viewproj * obj.transform;
+
+	glm::vec3 min = { 1.5, 1.5, 1.5 };
+	glm::vec3 max = { -1.5, -1.5, -1.5 };
+
+	for (int c = 0; c < 8; c++) {
+		// project each corner into clip space
+		glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+
+		// perspective correction
+		v.x = v.x / v.w;
+		v.y = v.y / v.w;
+		v.z = v.z / v.w;
+
+		min = glm::min(glm::vec3{ v.x, v.y, v.z }, min);
+		max = glm::max(glm::vec3{ v.x, v.y, v.z }, max);
 	}
 
-	// sort the opaque surfaces by material and mesh
-	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
-	const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-	const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-	if (A.material == B.material) {
-		return A.indexBuffer < B.indexBuffer;
+	// check the clip space box is within the view
+	if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+		return false;
 	}
 	else {
-		return A.material < B.material;
-	}
-		});
-
-	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-	//add it to the deletion queue of this frame so it gets deleted once its been used
-	get_current_frame()._deletionQueue.push_function([=, this]() {
-		destroy_buffer(gpuSceneDataBuffer);
-		});
-
-	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	*sceneUniformData = sceneData;
-
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
-
-	DescriptorWriter writer;
-	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.update_set(_device, globalDescriptor);
-	
-	MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-	auto draw = [&](const RenderObject& r) {
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
-					&globalDescriptor, 0, nullptr);
-
-				VkViewport viewport = {};
-				viewport.x = 0;
-				viewport.y = 0;
-				viewport.width = (float)_shadowDepthImage.imageExtent.width;
-				viewport.height = (float)_shadowDepthImage.imageExtent.height;
-				viewport.minDepth = 0.f;
-				viewport.maxDepth = 1.f;
-
-				vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-				VkRect2D scissor = {};
-				scissor.offset.x = 0;
-				scissor.offset.y = 0;
-				scissor.extent.width = _shadowDepthImage.imageExtent.width;
-				scissor.extent.height = _shadowDepthImage.imageExtent.height;
-				vkCmdSetScissor(cmd, 0, 1, &scissor);
-			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
-				//&cascadedShadows.matData.materialSet, 0, nullptr);
-		if (r.indexBuffer != lastIndexBuffer) 
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-
-		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-
-		stats.shadow_drawcall_count++;
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-	};
-	for (auto& r : draws) {
-		draw(drawCommands.OpaqueSurfaces[r]);
+		return true;
 	}
 }
 
@@ -667,7 +756,7 @@ void VulkanEngine::init_vulkan()
 	baseFeatures.geometryShader = true;
 	baseFeatures.samplerAnisotropy = true;
 	baseFeatures.sampleRateShading = true;
-
+	baseFeatures.shaderStorageImageMultisample = true;
 
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
@@ -683,6 +772,9 @@ void VulkanEngine::init_vulkan()
 
 	
 	msaa_samples = vkinit::getMaxAvailableSampleCount(physicalDevice.properties);
+	if (msaa_samples > VK_SAMPLE_COUNT_4_BIT)
+		msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+	
 	//create the final vulkan device
 	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
 
@@ -771,9 +863,10 @@ void VulkanEngine::init_swapchain()
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VkImageViewCreateInfo resolve_view_info = vkinit::imageview_create_info(_resolveImage.imageFormat, _resolveImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_resolveImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
 
 	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 	_depthImage.imageExtent = drawImageExtent;
@@ -887,7 +980,8 @@ void VulkanEngine::init_descriptors()
 	}
 	{
 		DescriptorLayoutBuilder builder;
-		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
@@ -951,11 +1045,12 @@ void VulkanEngine::init_pipelines()
 	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	cascadedShadows.build_pipelines(this);
-	//skyBoxPSO.build_pipelines(this);
+	skyBoxPSO.build_pipelines(this);
 	//postProcessPSO.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() {
 	metalRoughMaterial.clear_resources(_device);
 	cascadedShadows.clear_resources(_device);
+	skyBoxPSO.clear_resources(_device);
 	//skyMaterial.clear_resources(_device);
 		});
 
@@ -1124,7 +1219,7 @@ void VulkanEngine::init_background_pipelines()
 	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	stageinfo.module = gradientShader;
 	stageinfo.pName = "main";
-
+	
 	VkComputePipelineCreateInfo computePipelineCreateInfo{};
 	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 	computePipelineCreateInfo.pNext = nullptr;
@@ -1471,9 +1566,9 @@ void VulkanEngine::update_scene()
 	//sceneData.view = mainCamera.getViewMatrix();
 	sceneData.view = mainCamera.matrices.view;
 	auto camPos = mainCamera.position * -1.0f;
-	sceneData.cameraPos = glm::vec4(camPos,1.0f);
+	sceneData.cameraPos = glm::vec4(camPos, 1.0f);
 	// camera projection
-	mainCamera.updateAspectRatio(_windowExtent.width/_windowExtent.height);
+	mainCamera.updateAspectRatio(_windowExtent.width / _windowExtent.height);
 	sceneData.proj = mainCamera.matrices.perspective;
 
 	// invert the Y direction on projection matrix so that we are more similar
@@ -1485,22 +1580,29 @@ void VulkanEngine::update_scene()
 	sceneData.ambientColor = glm::vec4(.1f);
 	sceneData.sunlightColor = directLight.color;
 	sceneData.sunlightDirection = directLight.direction;
-	
-	auto cascadeData = shadows.getCascades(this);
-	memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
-	memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
-	sceneData.distances.x = cascadeData.cascadeDistances[0];
-	sceneData.distances.y = cascadeData.cascadeDistances[1];
-	sceneData.distances.z = cascadeData.cascadeDistances[2];
-	sceneData.distances.w = cascadeData.cascadeDistances[3];
+
+	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
+	{
+		auto cascadeData = shadows.getCascades(this);
+		memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
+		memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
+		sceneData.distances.x = cascadeData.cascadeDistances[0];
+		sceneData.distances.y = cascadeData.cascadeDistances[1];
+		sceneData.distances.z = cascadeData.cascadeDistances[2];
+		sceneData.distances.w = cascadeData.cascadeDistances[3];
+		directLight.lastDirection = directLight.direction;
+		render_shadowMap = true;
+		mainCamera.updated = false;
+	}
 
 	if (debugShadowMap)
 		sceneData.cascadeConfigData.z = 1.0f;
 	else
 		sceneData.cascadeConfigData.z = 0.0f;
-	
+
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
+	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
 }
 
 void VulkanEngine::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)

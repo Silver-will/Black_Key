@@ -139,7 +139,7 @@ VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter)
 }
 
 
-std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath)
+std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial)
 {
     std::string rootPath(filePath.begin(), filePath.end());
     rootPath = rootPath.substr(0, rootPath.find_last_of('/') + 1);

@@ -113,16 +113,10 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	DescriptorLayoutBuilder layoutBuilder;
-	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-		materialLayout };
+	VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout};
 
 	VkPipelineLayoutCreateInfo sky_layout_info = vkinit::pipeline_layout_create_info();
-	sky_layout_info.setLayoutCount = 2;
+	sky_layout_info.setLayoutCount = 1;
 	sky_layout_info.pSetLayouts = layouts;
 	sky_layout_info.pPushConstantRanges = &matrixRange;
 	sky_layout_info.pushConstantRangeCount = 1;
