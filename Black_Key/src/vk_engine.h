@@ -73,6 +73,7 @@ public:
 	bool resize_requested = false;
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
+	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
 	bool debugShadowMap = true;
 	
@@ -140,6 +141,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	DrawContext drawCommands;
+	DrawContext skyDrawCommands;
 	ShadowCascades shadows;
 
 	EngineStats stats;

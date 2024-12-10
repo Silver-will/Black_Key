@@ -124,7 +124,7 @@ VkPresentInfoKHR vkinit::present_info()
 
 //> color_info
 VkRenderingAttachmentInfo vkinit::attachment_info(
-    VkImageView view, VkClearValue* clear ,VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
+    VkImageView view, VkImageView* resolve, VkClearValue* clear ,VkImageLayout layout)
 {
     VkRenderingAttachmentInfo colorAttachment {};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -133,7 +133,15 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
     colorAttachment.imageView = view;
     colorAttachment.imageLayout = layout;
     colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-   
+    
+    //MSAA resolve settings
+    if (resolve)
+    {
+        colorAttachment.resolveImageLayout = layout;
+        colorAttachment.resolveImageView = *resolve;
+        colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        
+    }
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     if (clear) {
         colorAttachment.clearValue = *clear;
@@ -155,7 +163,6 @@ VkRenderingAttachmentInfo vkinit::depth_attachment_info(
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.clearValue.depthStencil.depth = 1.f;
-   
 
     return depthAttachment;
 }
@@ -173,7 +180,7 @@ VkRenderingAttachmentInfo vkinit::resolve_attachment_info(VkImageView view, VkCl
     resolveAttachment.clearValue.depthStencil.depth = 1.f;
 
 
-    return depthAttachment;
+    return resolveAttachment;
 }
 //< depth_info
 //> render_info

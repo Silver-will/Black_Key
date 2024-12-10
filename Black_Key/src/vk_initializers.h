@@ -22,7 +22,7 @@ VkSubmitInfo2 submit_info(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo*
     VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 VkPresentInfoKHR present_info();
 
-VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout);
+VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout);
 
 VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout);
 

@@ -166,7 +166,7 @@ bool Camera::updatePad(glm::vec2 axisLeft, glm::vec2 axisRight, float deltaTime)
 
 void Camera::update(float deltaTime)
 {
-	updated = false;
+	//updated = false;
 	if (type == CameraType::firstperson)
 	{
 		if (moving())
