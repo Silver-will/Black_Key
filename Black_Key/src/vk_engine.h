@@ -118,8 +118,6 @@ public:
 	VkPipeline _trianglePipeline;
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
-	VkPipelineLayout _skyboxPipelineLayout; 
-	VkPipeline _skyboxPipeline;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -140,6 +138,7 @@ public:
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
+	VkSampler _cubeMapSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	ShadowCascades shadows;

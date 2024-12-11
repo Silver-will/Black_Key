@@ -8,6 +8,7 @@
 #include "vk_pipelines.h"
 #include "vk_loader.h"
 #include "Lights.h"
+#include "graphics.h"
 
 #include <VkBootstrap.h>
 
@@ -165,7 +166,7 @@ void VulkanEngine::draw()
 
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
-	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -253,16 +254,25 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 		stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
 		render_shadowMap = false;
 	}
-
 	
-	//draw_background(cmd);
-	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-	VkClearValue geometryClear{ 0.5,0.5,0.0,0.0f };
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
+	vkCmdBeginRendering(cmd, &backRenderInfo);
+
+	draw_background(cmd);
+
+	vkCmdEndRendering(cmd);
+	
+
+	//VkClearValue geometryClear{ 0.5,0.5,0.0,0.0f };
+	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	//VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	//VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
 	auto start = std::chrono::system_clock::now();
 	vkCmdBeginRendering(cmd, &renderInfo);
 	
@@ -282,7 +292,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
+		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
 			draws.push_back(i);
 		}
 	}
@@ -388,23 +398,23 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 
 
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer skySceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		destroy_buffer(gpuSceneDataBuffer);
+		destroy_buffer(skySceneDataBuffer);
 		});
 
 	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	GPUSceneData* sceneUniformData = (GPUSceneData*)skySceneDataBuffer.allocation->GetMappedData();
 	*sceneUniformData = sceneData;
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _skyboxDescriptorLayout);
 
 	DescriptorWriter writer;
-	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(2, _shadowDepthImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_buffer(0, skySceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(1, _skyImage.imageView, _cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -412,38 +422,29 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
-		if (r.material != lastMaterial) {
-			lastMaterial = r.material;
-			if (r.material->pipeline != lastPipeline) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyBoxPSO.skyPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyBoxPSO.skyPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
 
-				lastPipeline = r.material->pipeline;
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1,
-					&globalDescriptor, 0, nullptr);
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
 
-				VkViewport viewport = {};
-				viewport.x = 0;
-				viewport.y = 0;
-				viewport.width = (float)_windowExtent.width;
-				viewport.height = (float)_windowExtent.height;
-				viewport.minDepth = 0.f;
-				viewport.maxDepth = 1.f;
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-				vkCmdSetViewport(cmd, 0, 1, &viewport);
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-				VkRect2D scissor = {};
-				scissor.offset.x = 0;
-				scissor.offset.y = 0;
-				scissor.extent.width = _windowExtent.width;
-				scissor.extent.height = _windowExtent.height;
-
-				vkCmdSetScissor(cmd, 0, 1, &scissor);
-			}
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
-				&r.material->materialSet, 0, nullptr);
-		}
-		if (r.indexBuffer != lastIndexBuffer) {
+		if (r.indexBuffer != lastIndexBuffer)
+		{
 			lastIndexBuffer = r.indexBuffer;
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
@@ -452,12 +453,14 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
 
-		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdPushConstants(cmd, skyBoxPSO.skyPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
-		stats.drawcall_count++;
-		stats.triangle_count += r.indexCount / 3;
+		stats.shadow_drawcall_count++;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 		};
+
+	draw(skyDrawCommands.OpaqueSurfaces[0]);
+	
 }
 
 
@@ -467,7 +470,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	opaque_draws.reserve(drawCommands.OpaqueSurfaces.size());
 
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
+		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
 			opaque_draws.push_back(i);
 		}
 	}
@@ -602,45 +605,6 @@ void VulkanEngine::resize_swapchain()
 	create_swapchain(_windowExtent.width, _windowExtent.height);
 
 	resize_requested = false;
-}
-
-bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-	std::array<glm::vec3, 8> corners{
-		glm::vec3 { 1, 1, 1 },
-		glm::vec3 { 1, 1, -1 },
-		glm::vec3 { 1, -1, 1 },
-		glm::vec3 { 1, -1, -1 },
-		glm::vec3 { -1, 1, 1 },
-		glm::vec3 { -1, 1, -1 },
-		glm::vec3 { -1, -1, 1 },
-		glm::vec3 { -1, -1, -1 },
-	};
-
-	glm::mat4 matrix = viewproj * obj.transform;
-
-	glm::vec3 min = { 1.5, 1.5, 1.5 };
-	glm::vec3 max = { -1.5, -1.5, -1.5 };
-
-	for (int c = 0; c < 8; c++) {
-		// project each corner into clip space
-		glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-
-		// perspective correction
-		v.x = v.x / v.w;
-		v.y = v.y / v.w;
-		v.z = v.z / v.w;
-
-		min = glm::min(glm::vec3{ v.x, v.y, v.z }, min);
-		max = glm::max(glm::vec3{ v.x, v.y, v.z }, max);
-	}
-
-	// check the clip space box is within the view
-	if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
-		return false;
-	}
-	else {
-		return true;
-	}
 }
 
 void VulkanEngine::run()
@@ -1283,7 +1247,7 @@ void VulkanEngine::init_default_data() {
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
 
-	_skyImage = vkutil::create_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+	_skyImage = vkutil::create_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT,true);
 	
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -1307,6 +1271,22 @@ void VulkanEngine::init_default_data() {
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+
+	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	cubeSampl.magFilter = VK_FILTER_LINEAR;
+	cubeSampl.minFilter = VK_FILTER_LINEAR;
+	cubeSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	cubeSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	cubeSampl.addressModeV = cubeSampl.addressModeU;
+	cubeSampl.addressModeW = cubeSampl.addressModeU;
+	cubeSampl.mipLodBias = 0.0f;
+	//cubeSampl.maxAnisotropy = device->enabledFeatures.samplerAnisotropy ? device->properties.limits.maxSamplerAnisotropy : 1.0f;
+	//samplerCreateInfo.anisotropyEnable = device->enabledFeatures.samplerAnisotropy;
+	cubeSampl.compareOp = VK_COMPARE_OP_NEVER;
+	cubeSampl.minLod = 0.0f;
+	cubeSampl.maxLod = (float)11;
+	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	vkCreateSampler(_device, &cubeSampl, nullptr, &_cubeMapSampler);
 	//< default_img
 
 	_mainDeletionQueue.push_function([=]() {
@@ -1318,6 +1298,7 @@ void VulkanEngine::init_default_data() {
 		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+		vkDestroySampler(_device, _cubeMapSampler, nullptr);
 		});
 	
 }
@@ -1575,6 +1556,11 @@ void VulkanEngine::update_scene()
 	// to opengl and gltf axis
 	sceneData.proj[1][1] *= -1;
 	sceneData.viewproj = sceneData.proj * sceneData.view;
+	glm::mat4 model(1.0f);
+	model = glm::translate(model, glm::vec3(0, 50, -500));
+	model = glm::scale(model,glm::vec3(10, 10, 10));
+	//sceneData.skyMat = model;
+	sceneData.skyMat = sceneData.proj * glm::mat4(glm::mat3(sceneData.view));
 
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
