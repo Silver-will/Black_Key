@@ -28,13 +28,14 @@ layout( push_constant ) uniform constants
 
 layout (location = 0) out vec3 outUVW;
 
+
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	vec3 position = v.position;
 	
 	outUVW = position.xyz;
-	outUVW.xy *= -1.0f;
+	//outUVW.xy *= -1.0f;
 
-	gl_Position = sceneData.viewproj *  vec4(position,1.0f);
+	gl_Position = sceneData.skyMat * vec4(position,1.0f);
 }
