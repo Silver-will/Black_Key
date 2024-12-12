@@ -11,4 +11,8 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe skybox.frag -o skybox.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.vert -o cascaded_shadows.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.frag -o cascaded_shadows.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cascaded_shadows.geom -o cascaded_shadows.geom.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe hdr.vert -o hdr.vert.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe hdr.frag -o hdr.frag.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe blur.vert -o blur.vert.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe blur.frag -o blur.frag.spv
 pause

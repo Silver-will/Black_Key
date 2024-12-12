@@ -197,12 +197,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="helper_functions.glsl" />
+    <None Include="shaders\blur.frag" />
+    <None Include="shaders\blur.vert" />
     <None Include="shaders\brdf.fs" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
     <None Include="shaders\cascaded_shadows.vert" />
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
+    <None Include="shaders\hdr.frag" />
+    <None Include="shaders\hdr.vert" />
     <None Include="shaders\input_structures.glsl" />
     <None Include="shaders\brdf.frag" />
     <None Include="shaders\brdf.vert" />

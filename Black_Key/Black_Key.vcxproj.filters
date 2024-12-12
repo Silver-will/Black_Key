@@ -208,5 +208,17 @@
     <None Include="helper_functions.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\blur.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\blur.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\hdr.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\hdr.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

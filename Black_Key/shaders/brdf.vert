@@ -43,7 +43,7 @@ void main()
 	gl_Position =  sceneData.viewproj * fragPos;	
 
 	//Note: Change this to transpose of inverse of render mat
-	mat3 normalMatrix = mat3(PushConstants.render_matrix);
+	mat3 normalMatrix = mat3(transpose(inverse(PushConstants.render_matrix)));
 	vec3 T = normalize(normalMatrix * vec3(v.tangent.xyz));
 	vec3 N = normalize(normalMatrix * v.normal);
 	T = normalize(T - dot(T, N) * N);

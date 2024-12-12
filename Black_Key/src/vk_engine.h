@@ -62,12 +62,13 @@ public:
 	GLTFMetallic_Roughness metalRoughMaterial;
 	ShadowPipelineResources cascadedShadows;
 	SkyBoxPipelineResources skyBoxPSO;
-	PostProcessingPipelineResources postProcessPSO;
+	BloomBlurPipelineObject postProcessPSO;
+	RenderImagePipelineObject HdrPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
-	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	bool resize_requested = false;
@@ -99,6 +100,7 @@ public:
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
 	AllocatedImage _resolveImage;
+	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _testImage;
 	VkExtent2D _drawExtent;
@@ -126,6 +128,7 @@ public:
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
+	VkDescriptorSetLayout _drawImageDescriptorLayout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
@@ -141,6 +144,7 @@ public:
 	VkSampler _cubeMapSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
+	DrawContext imageDrawCommands;
 	ShadowCascades shadows;
 
 	EngineStats stats;
@@ -169,8 +173,10 @@ public:
 private:
 	void draw_shadows(VkCommandBuffer cmd);
 	void draw_main(VkCommandBuffer cmd);
+	void draw_post_process(VkCommandBuffer cmd);
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
+	void draw_hdr(VkCommandBuffer cmd);
 	void resize_swapchain();
 	void init_vulkan();
 	void init_imgui();

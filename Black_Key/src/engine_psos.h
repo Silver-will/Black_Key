@@ -73,7 +73,7 @@ struct SkyBoxPipelineResources {
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
-struct PostProcessingPipelineResources {
+struct BloomBlurPipelineObject {
 	MaterialPipeline postProcesssingPipeline;
 
 	VkDescriptorSetLayout materialLayout;
@@ -93,8 +93,8 @@ struct PostProcessingPipelineResources {
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
-struct DebuggingImagePipelineResources {
-	MaterialPipeline debuggingImagePipeline;
+struct RenderImagePipelineObject {
+	MaterialPipeline renderImagePipeline;
 	VkDescriptorSetLayout materialLayout;
 
 	DescriptorWriter writer;
