@@ -158,18 +158,75 @@ MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, Materi
 }
 
 
-void PostProcessingPipelineResources::build_pipelines(VulkanEngine* engine)
+void BloomBlurPipelineObject::build_pipelines(VulkanEngine* engine)
 {
 
 }
 
-void PostProcessingPipelineResources::clear_resources(VkDevice device)
+void BloomBlurPipelineObject::clear_resources(VkDevice device)
 {
 
 }
 
-MaterialInstance PostProcessingPipelineResources::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance BloomBlurPipelineObject::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	MaterialInstance newmat;
 	return newmat;
+}
+
+
+void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine)
+{
+	VkShaderModule HDRVertexShader;
+	if (!vkutil::load_shader_module("shaders/hdr.vert.spv", engine->_device, &HDRVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule HDRFragmentShader;
+	if (!vkutil::load_shader_module("shaders/hdr.frag.spv", engine->_device, &HDRFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayout layouts[] = { engine->_drawImageDescriptorLayout };
+
+	VkPipelineLayoutCreateInfo image_layout_info = vkinit::pipeline_layout_create_info();
+	image_layout_info.setLayoutCount = 1;
+	image_layout_info.pSetLayouts = layouts;
+	image_layout_info.pPushConstantRanges = &matrixRange;
+	image_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &image_layout_info, nullptr, &renderImagePipeline.layout));
+
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(HDRVertexShader, HDRFragmentShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder._pipelineLayout = renderImagePipeline.layout;
+
+	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
+	//pipelineBuilder.set_depth_format(VK_NULL_HANDLE);
+
+	renderImagePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, HDRVertexShader, nullptr);
+	vkDestroyShaderModule(engine->_device, HDRFragmentShader, nullptr);
+
+}
+
+void RenderImagePipelineObject::clear_resources(VkDevice device)
+{
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, renderImagePipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, renderImagePipeline.pipeline, nullptr);
 }
