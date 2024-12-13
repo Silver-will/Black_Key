@@ -16,7 +16,7 @@ A modern rendering engine in vulkan
 * [x] frustum culling
 * [x] Cascaded shadow maps + PCF filtering
 * [x] Skybox 
-* [ ] HDR and bloom
+* [] HDR and bloom
 * [x] MSAA
 * [ ] Volumetric lighting
 * [ ] HBAO/GTAO/SSAO

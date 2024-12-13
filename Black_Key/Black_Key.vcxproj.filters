@@ -205,9 +205,6 @@
     <None Include="shaders\skybox.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="helper_functions.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="shaders\blur.frag">
       <Filter>Shaders</Filter>
     </None>
@@ -218,6 +215,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\hdr.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\helper_functions.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

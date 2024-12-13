@@ -26,7 +26,13 @@ layout( push_constant ) uniform constants
 
 void main()
 {	
-	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	/*Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	vec4 position = vec4(v.position,1.0f);
+	position.y *= -1;
 	TexCoords = vec2(v.uv_x,v.uv_y);
-	gl_Position = vec4(v.position,1.0f);
+	gl_Position = position;
+	*/
+
+	TexCoords = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(TexCoords * 2.0f + -1.0f, 0.0f, 1.0f);
 }
