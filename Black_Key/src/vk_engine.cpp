@@ -85,7 +85,7 @@ void VulkanEngine::init()
 	assert(structureFile.has_value());
 	std::string cubePath{ "assets/cube.gltf" };
 	auto cubeFile = loadGltf(this, cubePath);
-	std::string planePath{"assets/textures/plane.glb"};
+	std::string planePath{"assets/textures/plane2.glb"};
 	auto planeFile = loadGltf(this, planePath);
 
 	loadedScenes["sponza"] = *structureFile;
@@ -177,8 +177,9 @@ void VulkanEngine::draw()
 	
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	draw_post_process(cmd);
+
 	//transtion the draw image and the swapchain image into their correct transfer layouts
-	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	VkExtent2D extent;
@@ -187,7 +188,7 @@ void VulkanEngine::draw()
 	//< draw_first
 	//> imgui_draw
 	// execute a copy from the draw image into the swapchain
-	vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
+	vkutil::copy_image_to_image(cmd, _hdrImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 
 	// set swapchain image layout to Attachment Optimal so we can draw it
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -245,8 +246,6 @@ void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView,nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
 	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
 	vkCmdBeginRendering(cmd, &hdrRenderInfo);
 	draw_hdr(cmd);
@@ -594,7 +593,7 @@ void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)_windowExtent.width;
+		viewport.width = (float)_hdrImage.imageExtent.width;
 		viewport.height = (float)_windowExtent.height;
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
@@ -604,7 +603,7 @@ void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
 		VkRect2D scissor = {};
 		scissor.offset.x = 0;
 		scissor.offset.y = 0;
-		scissor.extent.width = _windowExtent.width;
+		scissor.extent.width = _hdrImage.imageExtent.width;
 		scissor.extent.height = _windowExtent.height;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
@@ -619,10 +618,9 @@ void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
 		push_constants.vertexBuffer = r.vertexBufferAddress;
 
 		vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		vkCmdDraw(cmd, 3, 1, 0, 0);
 		};
 	draw(imageDrawCommands.OpaqueSurfaces[0]);
-
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

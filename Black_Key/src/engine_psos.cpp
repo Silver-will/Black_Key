@@ -207,14 +207,13 @@ void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_shaders(HDRVertexShader, HDRFragmentShader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = renderImagePipeline.layout;
 
 	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
-	//pipelineBuilder.set_depth_format(VK_NULL_HANDLE);
 
 	renderImagePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
