@@ -27,11 +27,6 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	//DescriptorLayoutBuilder layoutBuilder;
-	//layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-	//materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
-
 	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout/*,
 		materialLayout*/};
 
@@ -50,7 +45,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_shaders(shadowVertexShader, shadowFragmentShader, shadowGeometryShader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_none();
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -131,7 +126,7 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
 	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = skyPipeline.layout;
 
 	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
@@ -228,4 +223,63 @@ void RenderImagePipelineObject::clear_resources(VkDevice device)
 	vkDestroyPipelineLayout(device, renderImagePipeline.layout, nullptr);
 
 	vkDestroyPipeline(device, renderImagePipeline.pipeline, nullptr);
+}
+
+
+void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
+{
+	VkShaderModule depthVertexShader;
+	if (!vkutil::load_shader_module("shaders/depth_pass.vert.spv", engine->_device, &depthVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule depthFragmentShader;
+	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &depthFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout};
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 1;
+	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	earlyDepthPipeline.layout = newLayout;
+
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(depthVertexShader, depthFragmentShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
+
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	earlyDepthPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, depthVertexShader, nullptr);
+	vkDestroyShaderModule(engine->_device, depthFragmentShader, nullptr);
+}
+
+void EarlyDepthPipelineObject::clear_resources(VkDevice device)
+{
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, earlyDepthPipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, earlyDepthPipeline.pipeline, nullptr);
 }

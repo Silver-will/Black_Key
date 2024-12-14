@@ -202,6 +202,7 @@
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
     <None Include="shaders\cascaded_shadows.vert" />
+    <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
     <None Include="shaders\hdr.frag" />

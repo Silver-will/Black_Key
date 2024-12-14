@@ -254,6 +254,14 @@ void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
+	vkCmdBeginRendering(cmd, &earlyDepthRenderInfo);
+	
+	draw_early_depth(cmd);
+	
+	vkCmdEndRendering(cmd);
+
 	if (render_shadowMap)
 	{
 		VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -275,47 +283,41 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depthAttachment2 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,VK_ATTACHMENT_LOAD_OP_LOAD);
 
-	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment);
+	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
+	
+	auto start = std::chrono::system_clock::now();
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	draw_geometry(cmd);
+
+	vkCmdEndRendering(cmd);
+	auto end = std::chrono::system_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	stats.mesh_draw_time = elapsed.count() / 1000.f;
+	
+	/*VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment2);
+	
 	vkCmdBeginRendering(cmd, &backRenderInfo);
 
 	draw_background(cmd);
 
-	vkCmdEndRendering(cmd);
-	
-
-	//VkClearValue geometryClear{ 0.5,0.5,0.0,0.0f };
-	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	//VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	//VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment);
-	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	auto start = std::chrono::system_clock::now();
-	vkCmdBeginRendering(cmd, &renderInfo);
-	
-	draw_geometry(cmd);
-
-	vkCmdEndRendering(cmd);
-
-	auto end = std::chrono::system_clock::now();
-	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-	stats.mesh_draw_time = elapsed.count() / 1000.f;
+	vkCmdEndRendering(cmd);*/
 }
 
-
-void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
+void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 {
-	std::vector<uint32_t> draws;
+	//Quick frustum culling pass
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
-
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
 		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
 			draws.push_back(i);
 		}
 	}
 
-	// sort the opaque surfaces by material and mesh
 	std::sort(draws.begin(), draws.end(), [&](const auto& iA, const auto& iB) {
 		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
 		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
@@ -327,6 +329,72 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		}
 		});
 
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+	
+	MaterialPipeline* lastPipeline = nullptr;
+	MaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	auto draw = [&](const RenderObject& r) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		if (r.indexBuffer != lastIndexBuffer)
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		};
+
+	for (auto& r : draws) {
+		draw(drawCommands.OpaqueSurfaces[r]);
+	}
+}
+
+
+void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
+{
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -396,10 +464,8 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
 {
-	std::vector<uint32_t> draws;
-	draws.reserve(skyDrawCommands.OpaqueSurfaces.size());
-
-
+	std::vector<uint32_t> b_draws;
+	b_draws.reserve(skyDrawCommands.OpaqueSurfaces.size());
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer skySceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -421,7 +487,7 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 	writer.update_set(_device, globalDescriptor);
 
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-	auto draw = [&](const RenderObject& r) {
+	auto b_draw = [&](const RenderObject& r) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyBoxPSO.skyPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyBoxPSO.skyPipeline.layout, 0, 1,
 			&globalDescriptor, 0, nullptr);
@@ -456,34 +522,13 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 		vkCmdPushConstants(cmd, skyBoxPSO.skyPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 		};
-	draw(skyDrawCommands.OpaqueSurfaces[0]);
-	
+	b_draw(skyDrawCommands.OpaqueSurfaces[0]);
+	//skyDrawCommands.OpaqueSurfaces.clear();
 }
 
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
-	std::vector<uint32_t> opaque_draws;
-	opaque_draws.reserve(drawCommands.OpaqueSurfaces.size());
-
-	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
-			opaque_draws.push_back(i);
-		}
-	}
-
-	// sort the opaque surfaces by material and mesh
-	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = drawCommands.OpaqueSurfaces[iA];
-		const RenderObject& B = drawCommands.OpaqueSurfaces[iB];
-		if (A.material == B.material) {
-			return A.indexBuffer < B.indexBuffer;
-		}
-		else {
-			return A.material < B.material;
-		}
-		});
-
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -559,7 +604,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	stats.drawcall_count = 0;
 	stats.triangle_count = 0;
 
-	for (auto& r : opaque_draws) {
+	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
 
@@ -570,6 +615,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	// we delete the draw commands now that we processed them
 	drawCommands.OpaqueSurfaces.clear();
 	drawCommands.TransparentSurfaces.clear();
+	draws.clear();
 }
 
 void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
@@ -1065,8 +1111,10 @@ void VulkanEngine::init_pipelines()
 	cascadedShadows.build_pipelines(this);
 	skyBoxPSO.build_pipelines(this);
 	HdrPSO.build_pipelines(this);
+	depthPrePassPSO.build_pipelines(this);
 	_mainDeletionQueue.push_function([&]() 
 	{
+	depthPrePassPSO.clear_resources(_device);
 	metalRoughMaterial.clear_resources(_device);
 	cascadedShadows.clear_resources(_device);
 	skyBoxPSO.clear_resources(_device);

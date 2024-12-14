@@ -24,7 +24,7 @@ VkPresentInfoKHR present_info();
 
 VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout);
 
-VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout);
+VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout, VkAttachmentLoadOp loadMode = VK_ATTACHMENT_LOAD_OP_CLEAR);
 
 VkRenderingAttachmentInfo resolve_attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout);
 
