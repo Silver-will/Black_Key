@@ -16,12 +16,13 @@ A modern rendering engine in vulkan
 * [x] frustum culling
 * [x] Cascaded shadow maps + PCF filtering
 * [x] Skybox 
-* [] HDR and bloom
+* [ ] HDR and bloom
 * [x] MSAA
-* [ ] Volumetric lighting
 * [ ] HBAO/GTAO/SSAO
-* [ ] SSR
 * [ ] Image based lighting
+* [ ] Volumetric lighting
+* [ ] Adjustments based on filament PBR documentation
+* [ ] SSR
 * [ ] Bindless rendering
 * [ ] Async compute
 * [ ] Task graph
