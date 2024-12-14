@@ -552,7 +552,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     pipelineBuilder.set_multisampling_level(engine->msaa_samples);
     pipelineBuilder.disable_blending();
-    pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    pipelineBuilder.enable_depthtest(false,true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
     //render format
     pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);

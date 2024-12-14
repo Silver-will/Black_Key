@@ -31,7 +31,7 @@ struct ShadowPipelineResources {
 	void write_material(VkDevice device, MaterialPass pass,VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
-struct EarlyDepthPipelineResources {
+struct EarlyDepthPipelineObject {
 	MaterialPipeline earlyDepthPipeline;
 
 	VkDescriptorSetLayout materialLayout;
@@ -39,8 +39,6 @@ struct EarlyDepthPipelineResources {
 	DescriptorWriter writer;
 
 	struct MaterialResources {
-		AllocatedImage depthImage;
-		VkSampler depthSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
 	};

@@ -220,5 +220,8 @@
     <None Include="shaders\helper_functions.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\depth_pass.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

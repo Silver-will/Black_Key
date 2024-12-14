@@ -1,9 +1,7 @@
-#version 450
+#version 450 core
 
-
-#extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
-
+#extension GL_GOOGLE_include_directive : require
 #include "input_structures.glsl"
 
 
@@ -20,21 +18,17 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
+//push constants block
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
 } PushConstants;
 
-layout (location = 0) out vec3 outUVW;
-
-
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-	outUVW = v.position.xyz;
-	//outUVW.xy *= -1.0f;
-	
-	vec4 position = sceneData.skyMat * vec4(v.position.xyz,1.0f);
-	gl_Position = position.xyww;
+	vec4 position = vec4(v.position, 1.0f);
+	gl_Position = sceneData.viewproj * PushConstants.render_matrix * position;
+	gl_Position.z += 0.001;
 }

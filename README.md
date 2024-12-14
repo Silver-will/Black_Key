@@ -27,6 +27,7 @@ A modern rendering engine in vulkan
 * [ ] Task graph
 * [ ] Clustered forward shading
 * [ ] occlusion culling
+* [ ] shader hot reloading
 * [ ] Global illumination(Screen space ray tracing/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
 * [ ] editor
 * [ ] GPU driven rendering

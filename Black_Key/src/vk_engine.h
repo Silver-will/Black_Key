@@ -64,6 +64,7 @@ public:
 	SkyBoxPipelineResources skyBoxPSO;
 	BloomBlurPipelineObject postProcessPSO;
 	RenderImagePipelineObject HdrPSO;
+	EarlyDepthPipelineObject depthPrePassPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 
@@ -150,6 +151,7 @@ public:
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
+	std::vector<uint32_t> draws;
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	//lights
@@ -177,6 +179,7 @@ private:
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
 	void draw_hdr(VkCommandBuffer cmd);
+	void draw_early_depth(VkCommandBuffer cmd);
 	void resize_swapchain();
 	void init_vulkan();
 	void init_imgui();
