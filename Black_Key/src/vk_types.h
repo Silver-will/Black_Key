@@ -113,15 +113,17 @@ struct GPUSceneData {
     glm::mat4 lightSpaceMatrices[8];
     float cascadePlaneDistances[8];
   };
-struct tessellationShader {
-    VkShaderModule controlShader;
-    VkShaderModule evaluationShader;
-};
 
 // push constants for our mesh object draws
 struct GPUDrawPushConstants {
     glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;
+};
+
+struct HDRDrawPushConstants {
+    glm::mat4 worldMatrix;
+    VkDeviceAddress vertexBuffer;
+    glm::vec4 TexCoordScale;
 };
 
 struct EngineStats {

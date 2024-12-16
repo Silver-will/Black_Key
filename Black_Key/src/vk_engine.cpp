@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <thread>
+#include <iostream>
 
 #ifdef _DEBUG
 constexpr bool bUseValidationLayers = true;
@@ -76,7 +77,7 @@ void VulkanEngine::init()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(75.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
+	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -132,6 +133,7 @@ void VulkanEngine::draw()
 	auto start_update = std::chrono::system_clock::now();
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
+	_presentImage = vkutil::create_image_empty(VkExtent3D{ _windowExtent.width,_windowExtent.height,1 }, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT| VK_IMAGE_USAGE_STORAGE_BIT|VK_IMAGE_USAGE_SAMPLED_BIT , this);
 	
 	auto end_update = std::chrono::system_clock::now();
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
@@ -142,7 +144,6 @@ void VulkanEngine::draw()
 	
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
-	
 	VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
 
 	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -150,8 +151,8 @@ void VulkanEngine::draw()
 		return;
 	}
 
-	_drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height) * renderScale;
-	_drawExtent.width = std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * renderScale;
+	_drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height);
+	_drawExtent.width = std::min(_swapchainExtent.width, _drawImage.imageExtent.width);
 
 	VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._renderFence));
 
@@ -173,22 +174,25 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-	draw_main(cmd);
-	
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	draw_main(cmd);
+
+	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _presentImage.image, _windowExtent, _windowExtent);
+
 	draw_post_process(cmd);
 
 	//transtion the draw image and the swapchain image into their correct transfer layouts
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-	VkExtent2D extent;
-	extent.height = _windowExtent.height;
-	extent.width = _windowExtent.width;
 	//< draw_first
 	//> imgui_draw
 	// execute a copy from the draw image into the swapchain
 	vkutil::copy_image_to_image(cmd, _hdrImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
+	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 
 	// set swapchain image layout to Attachment Optimal so we can draw it
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -238,12 +242,14 @@ void VulkanEngine::draw()
 	}
 	//increase the number of frames drawn
 	_frameNumber++;
+	
 }
 
 
 void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 {
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView,nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
@@ -298,14 +304,14 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
 	
-	/*VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment2);
 	
 	vkCmdBeginRendering(cmd, &backRenderInfo);
 
 	draw_background(cmd);
 
-	vkCmdEndRendering(cmd);*/
+	vkCmdEndRendering(cmd);
 }
 
 void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
@@ -570,7 +576,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 				viewport.height = (float)_windowExtent.height;
 				viewport.minDepth = 0.f;
 				viewport.maxDepth = 1.f;
-
 				vkCmdSetViewport(cmd, 0, 1, &viewport);
 
 				VkRect2D scissor = {};
@@ -639,17 +644,16 @@ void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)_hdrImage.imageExtent.width;
+		viewport.width = (float)_windowExtent.width;
 		viewport.height = (float)_windowExtent.height;
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
-
 		vkCmdSetViewport(cmd, 0, 1, &viewport);
 
 		VkRect2D scissor = {};
 		scissor.offset.x = 0;
 		scissor.offset.y = 0;
-		scissor.extent.width = _hdrImage.imageExtent.width;
+		scissor.extent.width = _windowExtent.width;
 		scissor.extent.height = _windowExtent.height;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
@@ -695,9 +699,10 @@ void VulkanEngine::resize_swapchain()
 	glfwGetWindowSize(window, &w, &h);
 	_windowExtent.width = w;
 	_windowExtent.height = h;
-
+	
+	_aspect_width = w;
+	_aspect_height = h;
 	create_swapchain(_windowExtent.width, _windowExtent.height);
-
 	resize_requested = false;
 }
 
@@ -718,7 +723,6 @@ void VulkanEngine::run()
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
-
 		
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -744,23 +748,6 @@ void VulkanEngine::run()
 		//ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
 		ImGui::End();
 
-		/*if (ImGui::Begin("background")) {
-			ImGui::SliderFloat("Render Scale", &renderScale, 0.3f, 1.f);
-
-			ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
-
-			ImGui::Text("Selected effect: ", selected.name);
-
-			ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
-
-			ImGui::InputFloat4("data1", (float*)&selected.data.data1);
-			ImGui::InputFloat4("data2", (float*)&selected.data.data2);
-			ImGui::InputFloat4("data3", (float*)&selected.data.data3);
-			ImGui::InputFloat4("data4", (float*)&selected.data.data4);
-		}
-		
-		ImGui::End();
-		*/
 		ImGui::Render();
 		
 
@@ -772,7 +759,6 @@ void VulkanEngine::run()
         draw();
 
         glfwPollEvents();
-
 		auto end = std::chrono::system_clock::now();
 
 		//convert to microseconds (integer), and then come back to miliseconds
@@ -892,7 +878,17 @@ void VulkanEngine::init_swapchain()
 		_windowExtent.height,
 		1
 	};
+	
 
+	//Allocate images larger than swapchain to avoid 
+	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+	/*VkExtent3D drawImageExtent = {
+		mode->width,
+		mode->height,
+		1
+	};*/
+	
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
@@ -906,6 +902,9 @@ void VulkanEngine::init_swapchain()
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
+
+	_presentImage = vkutil::create_image_empty(VkExtent3D{ _windowExtent.width,_windowExtent.height,1 }, VK_FORMAT_B8G8R8A8_UNORM, drawImageUsages, this);
 
 	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent,1,msaa_samples);
 
@@ -964,6 +963,10 @@ void VulkanEngine::init_swapchain()
 
 	vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
+
+	vkDestroyImageView(_device, _presentImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _presentImage.image, _presentImage.allocation);
+
 		});
 }
 
@@ -1654,7 +1657,7 @@ void VulkanEngine::update_scene()
 	auto camPos = mainCamera.position * -1.0f;
 	sceneData.cameraPos = glm::vec4(camPos, 1.0f);
 	// camera projection
-	mainCamera.updateAspectRatio(_windowExtent.width / _windowExtent.height);
+	mainCamera.updateAspectRatio(_aspect_width / _aspect_height);
 	sceneData.proj = mainCamera.matrices.perspective;
 
 	// invert the Y direction on projection matrix so that we are more similar

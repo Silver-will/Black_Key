@@ -5,10 +5,9 @@ layout(early_fragment_tests) in;
 
 layout (location = 0) in vec3 inUVW;
 
-layout (location = 0) out vec4 outFragColor;
+layout (location = 0) out vec4 FragColor;
 
 void main() 
 {
-	outFragColor = texture(samplerCubeMap, inUVW);
-	//outFragColor = vec4(1,0,0,0);
+	FragColor = texture(samplerCubeMap, inUVW);
 }
