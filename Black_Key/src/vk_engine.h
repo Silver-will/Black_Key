@@ -82,7 +82,9 @@ public:
 	struct {
 		float lastFrame;
 	} delta;
-	VkExtent2D _windowExtent{ 1440 , 1080 };
+	VkExtent2D _windowExtent{ 1920,1080};
+	float _aspect_width = 1920;
+	float _aspect_height = 1080;
 
 	GLFWwindow* window{ nullptr };
 
@@ -103,7 +105,7 @@ public:
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
-	AllocatedImage _testImage;
+	AllocatedImage _presentImage;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 

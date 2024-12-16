@@ -32,7 +32,6 @@ void main()
 	TexCoords = vec2(v.uv_x,v.uv_y);
 	gl_Position = position;
 	*/
-
 	TexCoords = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(TexCoords * 2.0f + -1.0f, 0.0f, 1.0f);
 }
