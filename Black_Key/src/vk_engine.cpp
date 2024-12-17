@@ -133,7 +133,6 @@ void VulkanEngine::draw()
 	auto start_update = std::chrono::system_clock::now();
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
-	_presentImage = vkutil::create_image_empty(VkExtent3D{ _windowExtent.width,_windowExtent.height,1 }, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT| VK_IMAGE_USAGE_STORAGE_BIT|VK_IMAGE_USAGE_SAMPLED_BIT , this);
 	
 	auto end_update = std::chrono::system_clock::now();
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
@@ -176,10 +175,6 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	draw_main(cmd);
-
-	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _presentImage.image, _windowExtent, _windowExtent);
 
 	draw_post_process(cmd);
 
@@ -260,6 +255,8 @@ void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	auto main_start = std::chrono::system_clock::now();
+
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
 	vkCmdBeginRendering(cmd, &earlyDepthRenderInfo);
@@ -304,9 +301,12 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
 	
+	auto main_end = std::chrono::system_clock::now();
+	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
+	//stats.frametime = main_elapsed.count() / 1000.f;
 	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment2);
-	
+	VkRenderingAttachmentInfo depthAttachment3 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD,VK_ATTACHMENT_STORE_OP_DONT_CARE);
+	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment3);
 	vkCmdBeginRendering(cmd, &backRenderInfo);
 
 	draw_background(cmd);
@@ -529,7 +529,7 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 		};
 	b_draw(skyDrawCommands.OpaqueSurfaces[0]);
-	//skyDrawCommands.OpaqueSurfaces.clear();
+	skyDrawCommands.OpaqueSurfaces.clear();
 }
 
 
@@ -802,8 +802,6 @@ void VulkanEngine::init_vulkan()
 	baseFeatures.geometryShader = true;
 	baseFeatures.samplerAnisotropy = true;
 	baseFeatures.sampleRateShading = true;
-	baseFeatures.shaderStorageImageMultisample = true;
-
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
@@ -897,14 +895,15 @@ void VulkanEngine::init_swapchain()
 	_hdrImage = _drawImage;
 
 	VkImageUsageFlags drawImageUsages{};
-	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	drawImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 
+	VkImageUsageFlags resolveImageUsages{};
+	resolveImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-	_presentImage = vkutil::create_image_empty(VkExtent3D{ _windowExtent.width,_windowExtent.height,1 }, VK_FORMAT_B8G8R8A8_UNORM, drawImageUsages, this);
 
 	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent,1,msaa_samples);
 
@@ -918,7 +917,7 @@ void VulkanEngine::init_swapchain()
 	vmaSetAllocationName(_allocator, _drawImage.allocation,"Draw image");
 
 	//Create resolve image for multisampling
-	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, drawImageUsages, drawImageExtent, 1);
+	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, resolveImageUsages, drawImageExtent, 1);
 	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
 	vmaSetAllocationName(_allocator, _resolveImage.allocation, "resolve image");
 
@@ -939,6 +938,7 @@ void VulkanEngine::init_swapchain()
 	_depthImage.imageExtent = drawImageExtent;
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	depthImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 
 	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
 
@@ -963,10 +963,6 @@ void VulkanEngine::init_swapchain()
 
 	vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
-
-	vkDestroyImageView(_device, _presentImage.imageView, nullptr);
-	vmaDestroyImage(_allocator, _presentImage.image, _presentImage.allocation);
-
 		});
 }
 
@@ -1355,7 +1351,7 @@ void VulkanEngine::init_default_data() {
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
 
-	_skyImage = vkutil::create_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT,true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT,true);
 	
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));

@@ -217,15 +217,12 @@ AllocatedImage vkutil::create_image(void* data, VkExtent3D size, VkFormat format
     return new_image;
 }
 
-void vkutil::destroy_image(const AllocatedImage& img, VulkanEngine* engine)
+AllocatedImage vkutil::create_cubemap_image(VkExtent3D size, VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false)
 {
-    vkDestroyImageView(engine->_device, img.imageView, nullptr);
-    vmaDestroyImage(engine->_allocator, img.image, img.allocation);
+
 }
 
-
-
-AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D size,VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+AllocatedImage vkutil::load_cubemap_image(std::string_view path, VkExtent3D size,VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
     ktxResult result;
     ktxTexture* texture;
@@ -246,25 +243,7 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
     newImage.imageFormat = format;
     newImage.imageExtent = size;
 
-    //Upload with ktx vulkan
-    /*
-    ktxVulkanDeviceInfo kvdi;
-    ktxVulkanDeviceInfo_Construct(&kvdi, engine->_chosenGPU, engine->_device, engine->_graphicsQueue, engine->_frames[engine->_frameNumber]._commandPool, nullptr);
-    */
-    
-   /* ktxVulkanTexture textureInfo;
-    auto vkResult = ktxTexture_VkUploadEx(ktxTexture,&kvdi, &engine->_skyBoxImage, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-
-    if (KTX_SUCCESS != vkResult) {
-        std::stringstream message;
-
-        message << "ktxTexture_VkUpload failed: " << ktxErrorString(vkResult);
-        throw std::runtime_error(message.str());
-    }
-    */
-
+ 
     //uint32_t mipCount = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
     VkImageCreateInfo img_info = vkinit::image_cubemap_create_info(format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, size, mipCount);
 
@@ -333,6 +312,13 @@ AllocatedImage vkutil::create_cubemap_image(std::string_view path, VkExtent3D si
     destroy_buffer(uploadbuffer, engine);
     
     return newImage;
+}
+
+
+void vkutil::destroy_image(const AllocatedImage& img, VulkanEngine* engine)
+{
+    vkDestroyImageView(engine->_device, img.imageView, nullptr);
+    vmaDestroyImage(engine->_allocator, img.image, img.allocation);
 }
 
 AllocatedImage vkutil::create_array_image(VkExtent3D size, VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)

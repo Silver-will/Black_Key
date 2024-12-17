@@ -1,5 +1,7 @@
 #include "graphics.h"
 #include "camera.h"
+#include "vk_initializers.h"
+#include "vk_engine.h"
 
 bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
@@ -38,4 +40,9 @@ bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	else {
 		return true;
 	}
+}
+
+void black_key::generate_irradiance_cube(VulkanEngine* engine)
+{
+	engine->IBL._irradianceCube = ;
 }

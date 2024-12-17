@@ -126,6 +126,7 @@ VkPresentInfoKHR vkinit::present_info()
 VkRenderingAttachmentInfo vkinit::attachment_info(
     VkImageView view, VkImageView* resolve, VkClearValue* clear ,VkImageLayout layout)
 {
+
     VkRenderingAttachmentInfo colorAttachment {};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAttachment.pNext = nullptr;
@@ -135,14 +136,15 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
     colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     
     //MSAA resolve settings
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     if (resolve)
     {
         colorAttachment.resolveImageLayout = layout;
         colorAttachment.resolveImageView = *resolve;
         colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
     }
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     if (clear) {
         colorAttachment.clearValue = *clear;
     }
@@ -152,7 +154,7 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
 //< color_info
 //> depth_info
 VkRenderingAttachmentInfo vkinit::depth_attachment_info(
-    VkImageView view, VkImageLayout layout, VkAttachmentLoadOp loadMode)
+    VkImageView view, VkImageLayout layout, VkAttachmentLoadOp loadMode, VkAttachmentStoreOp storeMode)
 {
     VkRenderingAttachmentInfo depthAttachment {};
     depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -161,7 +163,7 @@ VkRenderingAttachmentInfo vkinit::depth_attachment_info(
     depthAttachment.imageView = view;
     depthAttachment.imageLayout = layout;
     depthAttachment.loadOp = loadMode;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.storeOp = storeMode;
     depthAttachment.clearValue.depthStencil.depth = 1.f;
 
     return depthAttachment;
@@ -301,7 +303,6 @@ VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags u
     info.mipLevels = 1;
     info.arrayLayers = layers;
 
-    //for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
     info.samples = samples;
 
     //optimal tiling, which means the image is stored on the best gpu format
