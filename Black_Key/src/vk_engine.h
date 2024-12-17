@@ -106,6 +106,12 @@ public:
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
+
+	struct {
+		AllocatedImage _lutBRDF;
+		AllocatedImage _irradianceCube;
+		AllocatedImage _preFilteredCube;
+	}IBL;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 

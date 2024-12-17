@@ -223,5 +223,20 @@
     <None Include="shaders\depth_pass.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\filter_cube.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\genbrdflut.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\genbrdflut.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\irradiance_cube.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pre_filter_envmap.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
