@@ -21,7 +21,6 @@ A modern rendering engine in vulkan
 * [ ] HBAO/GTAO/SSAO
 * [ ] Image based lighting
 * [ ] Adjustments based on filament PBR documentation
-* [ ] SSR
 * [ ] Bindless rendering
 * [ ] Async compute
 * [ ] Task graph
