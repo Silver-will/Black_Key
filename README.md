@@ -20,16 +20,16 @@ A modern rendering engine in vulkan
 * [x] MSAA
 * [ ] HBAO/GTAO/SSAO
 * [ ] Image based lighting
+* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
 * [ ] Adjustments based on filament PBR documentation
+* [ ] Bloom
 * [ ] Bindless rendering
 * [ ] Async compute
 * [ ] Task graph
-* [ ] Clustered forward shading
 * [ ] GPU driven rendering
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
-* [ ] Bloom
+* [ ] Clustered forward shading
 * [ ] shader hot reloading
-* [ ] Global illumination(Screen space ray tracing/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
 * [ ] editor
 * [ ] Compare Doing TBN matrix calculation in vertex vs fragment
