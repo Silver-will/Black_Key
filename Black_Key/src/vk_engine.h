@@ -111,6 +111,10 @@ public:
 		AllocatedImage _lutBRDF;
 		AllocatedImage _irradianceCube;
 		AllocatedImage _preFilteredCube;
+		VkSampler _irradianceCubeSampler;
+		VkSampler _preFilteredCubeSampler;
+		VkSampler _lutBRDFSampler;
+
 	}IBL;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
