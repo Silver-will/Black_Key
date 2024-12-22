@@ -4,6 +4,7 @@
 #include "vk_images.h"
 #include "vk_engine.h"
 #include "vk_pipelines.h"
+#include "vk_device.h"
 
 bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
@@ -140,7 +141,6 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_LESS_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = irradianceLayout;
-
 	pipelineBuilder.set_color_attachment_format(drawImage.imageFormat);
 
 	auto irradiancePipeline = pipelineBuilder.build_pipeline(engine->_device);
@@ -159,6 +159,57 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 		// NEGATIVE_Z
 		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
 	};
+
+	//begin drawing
+
+	VkDescriptorSet globalDescriptor = engine->get_current_frame()._frameDescriptors.allocate(engine->_device, irradianceSetLayout);
+
+	DescriptorWriter writer;
+	writer.write_image(0, engine->_skyImage.imageView, engine->_cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(engine->_device, globalDescriptor);
+
+	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY,engine->_frames[0]._commandPool,engine);
+	vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(drawImage.imageView,nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{ dim,dim }, &colorAttachment,nullptr);
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+	{
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)dim;
+		viewport.height = (float)dim;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = dim;
+		scissor.extent.height = dim;
+
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		for (uint32_t m = 0; m < numMips; m++) {
+			for (uint32_t f = 0; f < 6; f++)
+			{
+				viewport.width = static_cast<float>(dim * std::pow(0.5f, m));
+				viewport.height = static_cast<float>(dim * std::pow(0.5f, m));
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				// Update shader push constant block
+				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+
+				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
+
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradiancePipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradianceLayout, 0, 1, &globalDescriptor, 0, NULL);
+			}
+		}
+
+	}
 }
 
 void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
