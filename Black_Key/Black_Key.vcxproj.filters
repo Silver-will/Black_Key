@@ -93,6 +93,9 @@
     <ClCompile Include="..\tracy\public\TracyClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\vk_device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -166,6 +169,9 @@
     </ClInclude>
     <ClInclude Include="src\Lights.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_device.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

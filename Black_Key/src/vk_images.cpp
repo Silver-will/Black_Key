@@ -217,7 +217,7 @@ AllocatedImage vkutil::create_image(void* data, VkExtent3D size, VkFormat format
     return new_image;
 }
 
-AllocatedImage vkutil::create_cubemap_image(VkExtent3D size, VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false)
+AllocatedImage vkutil::create_cubemap_image(VkExtent3D size, VulkanEngine* engine, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
     AllocatedImage newImage;
     newImage.imageFormat = format;
