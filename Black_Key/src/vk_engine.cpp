@@ -1,5 +1,4 @@
-﻿//> includes
-#include "vk_engine.h"
+﻿#include "vk_engine.h"
 
 #include "vk_initializers.h"
 #include "vk_types.h"
@@ -92,6 +91,8 @@ void VulkanEngine::init()
 	loadedScenes["sponza"] = *structureFile;
 	loadedScenes["cube"] = *cubeFile;
 	loadedScenes["plane"] = *planeFile;
+
+	//black_key::generate_irradiance_cube(this);
 }
 
 void VulkanEngine::cleanup()

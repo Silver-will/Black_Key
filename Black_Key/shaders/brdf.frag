@@ -3,6 +3,8 @@
 #extension GL_GOOGLE_include_directive : require
 #include "input_structures.glsl"
 
+layout(early_fragment_tests) in;
+
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec3 inFragPos;
@@ -11,9 +13,11 @@ layout (location = 4) in vec3 inPos;
 layout (location = 5) in vec2 inUV;
 layout (location = 6) in mat3 inTBN;
 
-layout(early_fragment_tests) in;
-
 layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
+layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
+layout(set = 0, binding = 4) uniform samplerCube BRDFLUT;
+layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
+
 layout (location = 0) out vec4 outFragColor;
 
 const float PI = 3.14159265359;

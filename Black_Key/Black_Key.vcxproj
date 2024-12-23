@@ -201,6 +201,7 @@
     <None Include="shaders\blur.frag" />
     <None Include="shaders\blur.vert" />
     <None Include="shaders\brdf.fs" />
+    <None Include="shaders\brdf_lut.comp" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
     <None Include="shaders\cascaded_shadows.vert" />
@@ -213,10 +214,13 @@
     <None Include="shaders\hdr.frag" />
     <None Include="shaders\hdr.vert" />
     <None Include="shaders\helper_functions.glsl" />
+    <None Include="shaders\ibl_helpers.glsl" />
     <None Include="shaders\input_structures.glsl" />
     <None Include="shaders\brdf.frag" />
     <None Include="shaders\brdf.vert" />
+    <None Include="shaders\irradiance_cube.comp" />
     <None Include="shaders\irradiance_cube.frag" />
+    <None Include="shaders\pre_filter.comp" />
     <None Include="shaders\pre_filter_envmap.frag" />
     <None Include="shaders\sky.comp" />
     <None Include="shaders\skybox.frag" />
