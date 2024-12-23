@@ -3,20 +3,17 @@
 
 A modern rendering engine in vulkan
 
-## Features
-* GLTF loading
-* Frustum culling
-* Opaque and transparent object rendering
-
 ##  Upcoming work list
+* [x] Opaque and transparent object rendering
 * [x] GLTF Loading
-* [x] PBR
+* [x] Physically based rendering using a cook-torrence brdf
 * [x] normal mapping
-* [x] gamma correction
 * [x] frustum culling
 * [x] Cascaded shadow maps + PCF filtering
 * [x] Skybox 
 * [x] HDR
+* [x] gamma correction
+* [x] Filmic/Uncharted/unreal tonemapping
 * [x] MSAA
 * [ ] HBAO/GTAO/SSAO
 * [ ] Image based lighting
@@ -30,6 +27,7 @@ A modern rendering engine in vulkan
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
 * [ ] Clustered forward shading
+* [x] Early depth testing
 * [ ] shader hot reloading
 * [ ] editor
 * [ ] Compare Doing TBN matrix calculation in vertex vs fragment

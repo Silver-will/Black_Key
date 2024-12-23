@@ -176,7 +176,7 @@ void PipelineBuilder::set_multisampling_none()
 }
 
 
-void PipelineBuilder::set_multisampling_level(VkSampleCountFlagBits& samples)
+void PipelineBuilder::set_multisampling_level(VkSampleCountFlagBits samples)
 {
     _multisampling.sampleShadingEnable = VK_FALSE;
     // multisampling defaulted to no multisampling (1 sample per pixel)

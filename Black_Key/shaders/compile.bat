@@ -16,5 +16,6 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe hdr.frag -o hdr.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe blur.vert -o blur.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe blur.frag -o blur.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe depth_pass.vert -o depth_pass.vert.spv
-
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe filter_cube.vert -o filter_cube.vert.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe irradiance_cube.frag -o irradiance_cube.frag.spv
 pause

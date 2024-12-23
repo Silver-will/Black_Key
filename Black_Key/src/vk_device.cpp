@@ -10,6 +10,7 @@ VkCommandBuffer vk_device::create_command_buffer(VkCommandBufferLevel level, VkC
 	return cmd;
 }
 
+#define VK_FLAGS_NONE 0
 void vk_device::flush_command_buffer(VkCommandBuffer cmd, VkQueue queue, VkCommandPool pool, VulkanEngine* engine)
 {
 	if (cmd == VK_NULL_HANDLE)
@@ -20,7 +21,7 @@ void vk_device::flush_command_buffer(VkCommandBuffer cmd, VkQueue queue, VkComma
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
 	auto cmdInfo = vkinit::command_buffer_submit_info(cmd);
-	auto fenceInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+	auto fenceInfo = vkinit::fence_create_info(VK_FLAGS_NONE);
 	VkFence fence;
 	VK_CHECK(vkCreateFence(engine->_device, &fenceInfo, nullptr, &fence));
 	VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);

@@ -244,5 +244,17 @@
     <None Include="shaders\pre_filter_envmap.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\irradiance_cube.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pre_filter.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\brdf_lut.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\ibl_helpers.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

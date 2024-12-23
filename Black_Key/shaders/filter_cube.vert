@@ -1,10 +1,24 @@
 #version 450
 
-layout (location = 0) in vec3 inPos;
+#extension GL_EXT_buffer_reference : require
 
-layout(push_constant) uniform PushConsts {
+struct Vertex {
+	vec3 position;
+	float uv_x;
+	vec3 normal;
+	float uv_y;
+	vec4 color;
+	vec4 tangent;
+}; 
+
+layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
+	Vertex vertices[];
+};
+
+layout(push_constant) uniform constants {
 	layout (offset = 0) mat4 mvp;
-} pushConsts;
+	VertexBuffer vertexBuffer;
+} PushConstants;
 
 layout (location = 0) out vec3 outUVW;
 
@@ -14,6 +28,7 @@ out gl_PerVertex {
 
 void main() 
 {
-	outUVW = inPos;
-	gl_Position = pushConsts.mvp * vec4(inPos.xyz, 1.0);
+	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	outUVW = v.position.xyz;
+	gl_Position = PushConstants.mvp * vec4(outUVW, 1.0);
 }

@@ -6,6 +6,13 @@
 #include "vk_pipelines.h"
 #include "vk_device.h"
 
+#define M_PI       3.14159265358979323846
+struct PushBlock {
+	glm::mat4 mvp;
+	VkDeviceAddress vertexBuffer;
+};
+
+
 bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
 		glm::vec3 { 1, 1, 1 },
@@ -92,18 +99,13 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	vmaCreateImage(engine->_allocator, &rimg_info, &rimg_allocinfo, &drawImage.image, &drawImage.allocation, nullptr);
 	vmaSetAllocationName(engine->_allocator, drawImage.allocation, "irradiance pass image");
 
+	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(drawImage.imageFormat, drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &drawImage.imageView));
+
 	VkDescriptorSetLayout irradianceSetLayout;
 	DescriptorLayoutBuilder builder;
 	builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	irradianceSetLayout = builder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	#define M_PI       3.14159265358979323846
-	struct PushBlock {
-		glm::mat4 mvp;
-		// Sampling deltas
-		float deltaPhi = (2.0f * float(M_PI)) / 180.0f;
-		float deltaTheta = (0.5f * float(M_PI)) / 64.0f;
-	} pushBlock;
 
 	//Pipeline setup
 	VkShaderModule irradianceVertexShader;
@@ -119,7 +121,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
 	matrixRange.size = sizeof(PushBlock);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkDescriptorSetLayout layouts[] = {irradianceSetLayout};
 
@@ -159,6 +161,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 		// NEGATIVE_Z
 		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
 	};
+	engine->loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, engine->skyDrawCommands);
 
 	//begin drawing
 
@@ -169,52 +172,109 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	writer.update_set(engine->_device, globalDescriptor);
 
 	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY,engine->_frames[0]._commandPool,engine);
+
+	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	//> draw_first
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
 	vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(drawImage.imageView,nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{ dim,dim }, &colorAttachment,nullptr);
 
-	vkCmdBeginRendering(cmd, &renderInfo);
+	auto r = engine->skyDrawCommands.OpaqueSurfaces[0];
+	
 	{
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)dim;
-		viewport.height = (float)dim;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = dim;
-		scissor.extent.height = dim;
-
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+		
 		for (uint32_t m = 0; m < numMips; m++) {
 			for (uint32_t f = 0; f < 6; f++)
 			{
+				vkCmdBeginRendering(cmd, &renderInfo);
+
+				VkViewport viewport = {};
 				viewport.width = static_cast<float>(dim * std::pow(0.5f, m));
 				viewport.height = static_cast<float>(dim * std::pow(0.5f, m));
 				vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-				// Update shader push constant block
-				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
-
-				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = dim;
+				scissor.extent.height = dim;
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradiancePipeline);
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradianceLayout, 0, 1, &globalDescriptor, 0, NULL);
+
+				if (r.indexBuffer != lastIndexBuffer)
+				{
+					lastIndexBuffer = r.indexBuffer;
+					vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+				}
+				
+				PushBlock pushBlock;
+
+				// Update shader push constant block
+				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+				pushBlock.vertexBuffer = r.vertexBufferAddress;
+				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushBlock), &pushBlock);
+				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+
+				vkCmdEndRendering(cmd);
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+				VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+				blitRegion.srcOffsets[1].x = viewport.width;
+				blitRegion.srcOffsets[1].y = viewport.height;
+				blitRegion.srcOffsets[1].z = 1;
+
+				blitRegion.dstOffsets[1].x = viewport.width;
+				blitRegion.dstOffsets[1].y = viewport.height;
+				blitRegion.dstOffsets[1].z = 1;
+
+				blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.srcSubresource.baseArrayLayer = 0;
+				blitRegion.srcSubresource.layerCount = 1;
+				blitRegion.srcSubresource.mipLevel = 0;
+
+				blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.dstSubresource.baseArrayLayer = f;
+				blitRegion.dstSubresource.layerCount = 1;
+				blitRegion.dstSubresource.mipLevel = m;
+				VkExtent2D copyExtent{
+					dim,
+					dim
+				};
+				vkutil::copy_image_to_image(cmd, drawImage.image, engine->IBL._irradianceCube.image,copyExtent,copyExtent,&blitRegion);
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 			}
 		}
+		engine->skyDrawCommands.OpaqueSurfaces.clear();
 
 	}
+	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
+}
+
+void black_key::generate_brdf_flut(VulkanEngine* engine)
+{
+	VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	uint32_t dim = 64;
+	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
+	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
 }
 
 void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 {
-	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	uint32_t dim = 64;
+	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
+	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
+
+	/*VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 512;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
 	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
@@ -295,4 +355,6 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	pipelineBuilder._pipelineLayout = preFilterLayout;
 
 	auto preFilterPipeline = pipelineBuilder.build_pipeline(engine->_device);
+	*/
+
 }

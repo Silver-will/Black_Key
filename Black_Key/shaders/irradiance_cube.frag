@@ -1,17 +1,13 @@
-// Generates an irradiance cube from an environment map using convolution
-
 #version 450
 
 layout (location = 0) in vec3 inPos;
 layout (location = 0) out vec4 outColor;
 layout (binding = 0) uniform samplerCube samplerEnv;
 
-layout(push_constant) uniform PushConsts {
-	layout (offset = 64) float deltaPhi;
-	layout (offset = 68) float deltaTheta;
-} consts;
-
 #define PI 3.1415926535897932384626433832795
+
+const float deltaPhi = (2.0f * float(PI)) / 180.0f;
+const float deltaTheta = (0.5f * float(PI)) / 64.0f;
 
 void main()
 {
@@ -25,8 +21,8 @@ void main()
 
 	vec3 color = vec3(0.0);
 	uint sampleCount = 0u;
-	for (float phi = 0.0; phi < TWO_PI; phi += consts.deltaPhi) {
-		for (float theta = 0.0; theta < HALF_PI; theta += consts.deltaTheta) {
+	for (float phi = 0.0; phi < TWO_PI; phi += deltaPhi) {
+		for (float theta = 0.0; theta < HALF_PI; theta += deltaTheta) {
 			vec3 tempVec = cos(phi) * right + sin(phi) * up;
 			vec3 sampleVector = cos(theta) * N + sin(theta) * tempVec;
 			color += texture(samplerEnv, sampleVector).rgb * cos(theta) * sin(theta);

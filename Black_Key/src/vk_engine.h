@@ -155,6 +155,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	VkSampler _cubeMapSampler;
+	VkSampler _depthSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;
