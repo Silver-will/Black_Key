@@ -1,12 +1,13 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 
-#include "../../resources/shaders/pbr.glsl"
-#include "cubeSample.glsl"
-#include "importanceSampleGGX.glsl"
+#include "ibl_helpers.glsl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
-layout(binding = 0) uniform samplerCube environmentMap;
-layout(binding = 1, rgba16f) writeonly uniform imageCube prefilteredMap;
+
+layout(set = 0,binding = 0) uniform samplerCube environmentMap;
+layout(set = 0,binding = 1, rgba16f) writeonly uniform imageCube prefilteredMap;
+
 layout(push_constant) uniform Params {
     vec2 mipmapSize;
     float roughness;
