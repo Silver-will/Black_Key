@@ -15,8 +15,8 @@ layout (location = 6) in mat3 inTBN;
 
 layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
 layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
-layout(set = 0, binding = 4) uniform samplerCube BRDFLUT;
-layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
+//layout(set = 0, binding = 4) uniform samplerCube BRDFLUT;
+//layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -141,6 +141,8 @@ void main()
     vec3 numerator    = NDF * G * F; 
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
     vec3 specular = numerator / denominator;
+    //vec3 diffuse = texture(irradianceMap,N).rgb;
+    vec3 diffuse = vec3(0.03);
         
     // kS is equal to Fresnel
     vec3 kS = F;
@@ -154,7 +156,7 @@ void main()
     // add to outgoing radiance Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = vec3(0.03) * albedo;
+    vec3 ambient = kD * diffuse;
     
     vec3 color = ambient + Lo;
     

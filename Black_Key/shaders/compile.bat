@@ -18,4 +18,7 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe blur.frag -o blur.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe depth_pass.vert -o depth_pass.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe filter_cube.vert -o filter_cube.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe irradiance_cube.frag -o irradiance_cube.frag.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe irradiance_cube.comp -o irradiance_cube.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe brdf_lut.comp -o brdf_lut.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe pre_filter.comp -o pre_filter.spv
 pause
