@@ -141,13 +141,16 @@ void main()
     vec3 numerator    = NDF * G * F; 
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
     vec3 specular = numerator / denominator;
-    //vec3 diffuse = texture(irradianceMap,N).rgb;
-    vec3 diffuse = vec3(0.03);
+    vec3 diffuse = texture(irradianceMap,N).rgb;
+    //vec3 diffuse = vec3(0.03);
+    diffuse = vec3(1.0) - exp(-diffuse * 2.0f);
         
     // kS is equal to Fresnel
     vec3 kS = F;
     vec3 kD = vec3(1.0) - kS;
     kD *= 1.0 - metallic;	 
+
+    diffuse = diffuse * kD * albedo;
 
 	float lightValue = max(dot(inNormal, vec3(0.3f,1.f,0.3f)), 0.1f);
 
@@ -156,9 +159,9 @@ void main()
     // add to outgoing radiance Lo
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = kD * diffuse;
+    vec3 ambient = vec3(0.01) + diffuse;
     
-    vec3 color = ambient + Lo;
+    vec3 color = (ambient + Lo) * ao;
     
     vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     //float depthValue = inViewPos.z;

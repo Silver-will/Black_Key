@@ -348,8 +348,9 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	//vkCmdPushConstants(cmd, preFilterLayout,VK_SHADER_STAGE_COMPUTE_BIT,0,sizeof(PushParams),&)
 	vkCmdDispatch(cmd, dim / 16, dim / 16, 6);
 
-	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	vkutil::transition_image(cmd, engine->_skyImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::generate_mipmaps(cmd, engine->IBL._irradianceCube.image, VkExtent2D{ dim,dim },6);
 
 	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
 }
@@ -369,7 +370,7 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	uint32_t dim = 512;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
-	engine->IBL._irradianceCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -383,7 +384,7 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = numMips;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &engine->IBL._irradianceCubeSampler);
+	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &engine->IBL._preFilteredCubeSampler);
 
 	VkDescriptorSetLayout IBL_Layout;
 	DescriptorLayoutBuilder builder;
@@ -391,17 +392,17 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	IBL_Layout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
 
-	VkPipelineLayoutCreateInfo irradianceLayoutInfo = {};
-	irradianceLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	irradianceLayoutInfo.pNext = nullptr;
-	irradianceLayoutInfo.pSetLayouts = &IBL_Layout;
-	irradianceLayoutInfo.setLayoutCount = 1;
+	VkPipelineLayoutCreateInfo preFilterLayoutInfo = {};
+	preFilterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	preFilterLayoutInfo.pNext = nullptr;
+	preFilterLayoutInfo.pSetLayouts = &IBL_Layout;
+	preFilterLayoutInfo.setLayoutCount = 1;
 
-	VkPipelineLayout irradianceLayout;
-	VK_CHECK(vkCreatePipelineLayout(engine->_device, &irradianceLayoutInfo, nullptr, &irradianceLayout));
+	VkPipelineLayout preFilterLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &preFilterLayoutInfo, nullptr, &preFilterLayout));
 
-	VkShaderModule irradianceShader;
-	if (!vkutil::load_shader_module("shaders/irradiance_cube.spv", engine->_device, &irradianceShader)) {
+	VkShaderModule preFilterShader;
+	if (!vkutil::load_shader_module("shaders/pre_filter.spv", engine->_device, &preFilterShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -409,13 +410,13 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stageinfo.pNext = nullptr;
 	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageinfo.module = irradianceShader;
+	stageinfo.module = preFilterShader;
 	stageinfo.pName = "main";
 
 	VkComputePipelineCreateInfo computePipelineCreateInfo{};
 	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = irradianceLayout;
+	computePipelineCreateInfo.layout = preFilterLayout;
 	computePipelineCreateInfo.stage = stageinfo;
 
 	VkPipeline preFilterPipeline;
@@ -432,21 +433,21 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	//> draw_first
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	vkutil::transition_image(cmd, engine->_skyImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	vkutil::transition_image(cmd, engine->IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	DescriptorWriter writer;
 	writer.write_image(0, engine->_skyImage.imageView, engine->_cubeMapSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	writer.write_image(1, engine->IBL._irradianceCube.imageView, engine->IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.write_image(1, engine->IBL._preFilteredCube.imageView, engine->IBL._preFilteredCubeSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	writer.update_set(engine->_device, globalDescriptor);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, preFilterPipeline);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, irradianceLayout, 0, 1, &globalDescriptor, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, preFilterLayout, 0, 1, &globalDescriptor, 0, nullptr);
 
 	//vkCmdPushConstants(cmd, preFilterLayout,VK_SHADER_STAGE_COMPUTE_BIT,0,sizeof(PushParams),&)
 	vkCmdDispatch(cmd, dim / 16, dim / 16, 6);
 
-	vkutil::transition_image(cmd, engine->IBL._irradianceCube.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::transition_image(cmd, engine->IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkutil::transition_image(cmd, engine->_skyImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
