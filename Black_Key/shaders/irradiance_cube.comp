@@ -13,6 +13,9 @@ const float sampleDelta = 0.025;
 const float totalSamples = (TWO_PI / sampleDelta) * (HALF_PI / sampleDelta); 
 const float invTotalSamples = 1.0 / totalSamples;
 
+const float deltaPhi = (2.0f * float(PI)) / 180.0f;
+const float deltaTheta = (0.5f * float(PI)) / 64.0f;
+
 const vec2 cubemapSize = vec2(1024.0, 1024.0);
 
 void main()

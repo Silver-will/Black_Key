@@ -1353,7 +1353,7 @@ void VulkanEngine::init_default_data() {
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
 
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/pisa_cube.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
 	
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
