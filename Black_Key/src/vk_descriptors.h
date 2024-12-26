@@ -11,6 +11,16 @@ struct DescriptorLayoutBuilder {
     VkDescriptorSetLayout build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 };
 
+struct DescriptorAllocatorBindless {
+    VkDescriptorPool pool;
+
+    void init_bindless_pool(VkDevice device, uint32_t maxBindlessResources);
+    void clear_descriptors(VkDevice device);
+    void destroy_pool(VkDevice device);
+
+    VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
+
+};
 struct DescriptorAllocator {
 
     struct PoolSizeRatio {

@@ -25,10 +25,12 @@ layout( push_constant ) uniform constants
 	VertexBuffer vertexBuffer;
 } PushConstants;
 
+invariant gl_Position;
+
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = sceneData.viewproj * PushConstants.render_matrix * position;
-	gl_Position.z += 0.001;
+	vec4 fragPos = PushConstants.render_matrix * position;
+	gl_Position =  sceneData.viewproj * fragPos;
 }

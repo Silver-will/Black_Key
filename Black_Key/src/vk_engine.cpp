@@ -798,7 +798,9 @@ void VulkanEngine::init_vulkan()
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
-	//features12.descriptorIndexing = true;
+	features12.descriptorIndexing = true;
+	features12.runtimeDescriptorArray = true;
+	features12.descriptorBindingPartiallyBound = true;
 	
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
