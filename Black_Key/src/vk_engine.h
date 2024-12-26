@@ -142,6 +142,7 @@ public:
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	VkDescriptorSetLayout _bindlessDescriptorLayout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;

@@ -34,6 +34,34 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
     return set;
 }
 
+void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t maxBindlessResources)
+{
+    constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
+
+    std::vector<VkDescriptorPoolSize> pool_sizes_bindless = {
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES}
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
+    pool_info.maxSets = MAX_BINDLESS_RESOURCES * pool_sizes_bindless.size();
+    pool_info.poolSizeCount = (uint32_t)pool_sizes_bindless.size();
+    pool_info.pPoolSizes = pool_sizes_bindless.data();
+
+    vkCreateDescriptorPool(device, &pool_info, nullptr, &pool);
+}
+
+void DescriptorAllocatorBindless::clear_descriptors(VkDevice device)
+{
+    vkResetDescriptorPool(device, pool, 0);
+}
+
+void DescriptorAllocatorBindless::destroy_pool(VkDevice device)
+{
+    vkDestroyDescriptorPool(device, pool, nullptr);
+}
+
 void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios)
 {
     std::vector<VkDescriptorPoolSize> poolSizes;
