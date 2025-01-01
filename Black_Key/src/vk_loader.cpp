@@ -252,11 +252,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     //< load_buffer
         //
     //> load_material
+    std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
+    bindless_resources.reserve(gltf.materials.size());
     for (fastgltf::Material& mat : gltf.materials) {
         std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
         file.materials[mat.name.c_str()] = newMat;
-
         
 
         GLTFMetallic_Roughness::MaterialConstants constants;
@@ -283,6 +284,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
         materialResources.normalImage = engine->_whiteImage;
         materialResources.normalSampler = engine->_defaultSamplerLinear;
+        materialResources.occlusionImage = engine->_whiteImage;
+        materialResources.occlusionSampler = engine->_defaultSamplerLinear;
        
 
         // set the uniform buffer for the material data
@@ -326,10 +329,18 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             materialResources.separate_occ_texture = true;
         }
         // build material
+#if USE_BINDLESS
+        //Store each textures Materials
+        bindless_resources.push_back(materialResources);
+        newMat->obj_count = data_index;
+        newMat->data = engine->metalRoughMaterial.set_material_properties(passType);
+#else
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
-
+#endif
         data_index++;
     }
+
+
     //< load_material
 
         // use the same vectors for all meshes so that the memory doesnt reallocate as
@@ -520,14 +531,21 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     DescriptorLayoutBuilder layoutBuilder;
+#if USE_BINDLESS
+    constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
+    layoutBuilder.add_binding(10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,MAX_BINDLESS_RESOURCES);
+    layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES);
+    materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
+#else
     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+#endif
 
+   
     VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
         materialLayout };
 
@@ -575,6 +593,19 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
+MaterialInstance GLTFMetallic_Roughness::set_material_properties(const MaterialPass pass)
+{
+    MaterialInstance matData;
+    matData.passType = pass;
+    if (pass == MaterialPass::Transparent) {
+        matData.pipeline = &transparentPipeline;
+    }
+    else {
+        matData.pipeline = &opaquePipeline;
+    }
+    return matData;
+}
+
 MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
@@ -601,6 +632,12 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
     writer.update_set(device, matData.materialSet);
 
     return matData;
+}
+
+void GLTFMetallic_Roughness::write_material_array(VkDevice device, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+    writer.clear();
+    
 }
 
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)

@@ -15,6 +15,8 @@
 #include <chrono>
 #include <ktxvulkan.h>
 
+#define USE_BINDLESS 1
+
 struct FrameData {
 
 	VkCommandPool _commandPool;

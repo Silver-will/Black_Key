@@ -1,10 +1,10 @@
 ﻿#include "vk_descriptors.h"
 
-void DescriptorLayoutBuilder::add_binding(uint32_t binding, VkDescriptorType type)
+void DescriptorLayoutBuilder::add_binding(uint32_t binding, VkDescriptorType type, uint32_t count)
 {
     VkDescriptorSetLayoutBinding newbind{};
     newbind.binding = binding;
-    newbind.descriptorCount = 1;
+    newbind.descriptorCount = count;
     newbind.descriptorType = type;
 
     bindings.push_back(newbind);
@@ -28,10 +28,38 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
     info.bindingCount = (uint32_t)bindings.size();
     info.flags = flags;
 
+    if ((flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT) == VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT)
+    {
+        VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extended_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT };
+        extended_info.pNext = nullptr;
+        extended_info.bindingCount = (uint32_t)bindings.size();
+        VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+        
+        VkDescriptorBindingFlags binding_flags[4];
+        binding_flags[0] = bindless_flags;
+        binding_flags[1] = bindless_flags;
+
+        extended_info.pBindingFlags = binding_flags;
+        info.pNext = &extended_info;
+    }
     VkDescriptorSetLayout set;
     VK_CHECK(vkCreateDescriptorSetLayout(device, &info, nullptr, &set));
 
     return set;
+}
+
+VkDescriptorSet DescriptorAllocatorBindless::allocate(VkDevice device, VkDescriptorSetLayout layout)
+{
+    VkDescriptorSetAllocateInfo allocInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    allocInfo.pNext = nullptr;
+    allocInfo.descriptorPool = pool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &layout;
+
+    VkDescriptorSet ds;
+    VK_CHECK(vkAllocateDescriptorSets(device, &allocInfo, &ds));
+
+    return ds;
 }
 
 void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t maxBindlessResources)

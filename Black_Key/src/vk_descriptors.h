@@ -6,7 +6,7 @@ struct DescriptorLayoutBuilder {
 
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    void add_binding(uint32_t binding, VkDescriptorType type);
+    void add_binding(uint32_t binding, VkDescriptorType type, uint32_t count = 1);
     void clear();
     VkDescriptorSetLayout build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 };
@@ -19,7 +19,6 @@ struct DescriptorAllocatorBindless {
     void destroy_pool(VkDevice device);
 
     VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
-
 };
 struct DescriptorAllocator {
 

@@ -173,6 +173,9 @@
     <ClInclude Include="src\vk_device.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\tracy\public\tracy\Tracy.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\gradient.comp">
