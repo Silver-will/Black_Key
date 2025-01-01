@@ -17,13 +17,15 @@
 
 #ifdef _DEBUG
 constexpr bool bUseValidationLayers = true;
-//#define VMA_DEBUG_LOG
 #else
 constexpr bool bUseValidationLayers = false;
 #endif
 
+#include "../../tracy/public/tracy/Tracy.hpp"
 #define VMA_IMPLEMENTATION
+//#define TRACY_ENABLE
 #include <vma/vk_mem_alloc.h>
+
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -131,6 +133,7 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
+	ZoneScoped;
 	auto start_update = std::chrono::system_clock::now();
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
@@ -244,6 +247,7 @@ void VulkanEngine::draw()
 
 void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -256,6 +260,7 @@ void VulkanEngine::draw_post_process(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	auto main_start = std::chrono::system_clock::now();
 
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -402,6 +407,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -471,6 +477,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	std::vector<uint32_t> b_draws;
 	b_draws.reserve(skyDrawCommands.OpaqueSurfaces.size());
 	//allocate a new uniform buffer for the scene data
@@ -536,6 +543,7 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -627,6 +635,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_hdr(VkCommandBuffer cmd)
 {
+	ZoneScoped;
 	std::vector<uint32_t> draws;
 	draws.reserve(imageDrawCommands.OpaqueSurfaces.size());
 
@@ -767,6 +776,7 @@ void VulkanEngine::run()
 		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 		stats.frametime = elapsed.count() / 1000.f;
     }
+	FrameMark;
 }
 
 void VulkanEngine::init_vulkan()
@@ -1045,6 +1055,9 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+	{
+		DescriptorLayoutBuilder builder;
 	}
 	{
 		DescriptorLayoutBuilder builder;
