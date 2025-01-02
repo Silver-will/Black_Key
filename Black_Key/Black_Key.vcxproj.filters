@@ -259,5 +259,14 @@
     <None Include="shaders\ibl_helpers.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\indirect_cull.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\sparse_upload.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\depthReduce.comp">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
