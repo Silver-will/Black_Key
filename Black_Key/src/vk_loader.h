@@ -78,7 +78,7 @@ struct LoadedGLTF : public IRenderable {
     std::vector<VkSampler> samplers;
 
     DescriptorAllocatorGrowable descriptorPool;
-
+    VkDescriptorSet bindless_set;
     AllocatedBuffer materialDataBuffer;
 
     VulkanEngine* creator;
@@ -127,7 +127,7 @@ struct GLTFMetallic_Roughness {
 
     MaterialInstance set_material_properties(const MaterialPass pass);
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
-    void write_material_array(VkDevice device, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
+    void write_material_array(VkDevice device,LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial = false);

@@ -38,6 +38,7 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
         VkDescriptorBindingFlags binding_flags[4];
         binding_flags[0] = bindless_flags;
         binding_flags[1] = bindless_flags;
+        binding_flags[2] = bindless_flags;
 
         extended_info.pBindingFlags = binding_flags;
         info.pNext = &extended_info;
@@ -67,6 +68,7 @@ void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t m
     constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
 
     std::vector<VkDescriptorPoolSize> pool_sizes_bindless = {
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_BINDLESS_RESOURCES},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES},
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES}
     };
