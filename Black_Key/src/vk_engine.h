@@ -15,7 +15,7 @@
 #include <chrono>
 #include <ktxvulkan.h>
 
-#define USE_BINDLESS 1
+#define USE_BINDLESS 0
 
 struct FrameData {
 
