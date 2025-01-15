@@ -268,5 +268,11 @@
     <None Include="shaders\depthReduce.comp">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\cluster_shader.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\cluster_cull_light_shader.comp">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

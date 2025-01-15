@@ -640,10 +640,10 @@ void GLTFMetallic_Roughness::write_material_array(VkDevice device, LoadedGLTF& f
     for (int i = 0; i < bindless_resources.size(); i++)
     {
         int offset = i * 4;
-        writer.write_buffer(i + offset, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        writer.write_image(i + offset + 1, bindless_resources[i].colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writer.write_image(i + offset + 2, bindless_resources[i].metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writer.write_image(i + offset + 3, bindless_resources[i].normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        //writer.write_buffer(i + offset, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        //writer.write_image(i + offset + 1, bindless_resources[i].colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        //writer.write_image(i + offset + 2, bindless_resources[i].metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        //writer.write_image(i + offset + 3, bindless_resources[i].normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     }
 }
