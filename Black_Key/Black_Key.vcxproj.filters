@@ -196,9 +196,6 @@
     <None Include="shaders\input_structures.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\brdf.fs">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="shaders\cascaded_shadows.frag">
       <Filter>Shaders</Filter>
     </None>
@@ -272,6 +269,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\cluster_cull_light_shader.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\lights.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

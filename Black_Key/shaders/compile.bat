@@ -21,4 +21,6 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe irradiance_cube.frag -o irradiance_cube.fra
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe irradiance_cube.comp -o irradiance_cube.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe brdf_lut.comp -o brdf_lut.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe pre_filter.comp -o pre_filter.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cluster_shader.comp -o cluster_shader.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cluster_cull_light_shader.comp -o cluster_cull_light_shader.spv
 pause
