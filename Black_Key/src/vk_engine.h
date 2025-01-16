@@ -144,6 +144,8 @@ public:
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	VkDescriptorSetLayout _buildClusterDescriptorLayout;
+	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _bindlessDescriptorLayout;
 	//VkDescriptorSetLayout _
 

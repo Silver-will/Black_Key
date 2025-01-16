@@ -270,7 +270,6 @@
   <ItemGroup>
     <None Include="shaders\blur.frag" />
     <None Include="shaders\blur.vert" />
-    <None Include="shaders\brdf.fs" />
     <None Include="shaders\brdf_lut.comp" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
@@ -294,6 +293,7 @@
     <None Include="shaders\brdf.vert" />
     <None Include="shaders\irradiance_cube.comp" />
     <None Include="shaders\irradiance_cube.frag" />
+    <None Include="shaders\lights.glsl" />
     <None Include="shaders\pre_filter.comp" />
     <None Include="shaders\pre_filter_envmap.frag" />
     <None Include="shaders\sky.comp" />

@@ -1,32 +1,49 @@
 #version 450 core
 
 layout(local_size_x = 1, local_size_x = 1) in;
+#extension GL_GOOGLE_include_directive : require
+#include "lights.glsl"
 
-struct VolumeTileAABB{
-	vec4 minPoint;
-	vec4 maxPoint;
-};
-
-layout (std430,set = 0, binding = 1) buffer clusterAABB{
-    VolumeTileAABB cluster[ ];
-};
-
-layout (std430,set = 0, binding = 2) buffer screenToView{
-    mat4 inverseProjection;
-    uvec4 tileSizes;
-    uvec2 screenDimensions;
+layout(push_constant) uniform CameraConstants
+{
+	float zNear;
+    float zFar;
 };
 
 vec4 clipToView(vec4 clip);
-vec4 screenToView(vec4 screen);
+vec4 screenSpaceToView(vec4 screen);
 vec3 lineIntersectionToZPlane(vec3 A, vec3 B, float zDistance);
 
 void main()
 {
+    const vec3 eyePos = vec3(0);
+
+    uint tileSizePx = tileSizes[3];
+
+    uint tileIndex = gl_WorkGroupID.x +
+                     gl_WorkGroupID.y * gl_NumWorkGroups.x +
+                     gl_WorkGroupID.z * (gl_NumWorkGroups.x * gl_NumWorkGroups.y);
+    
+    //Calculating the min and max point in screen space
+    vec4 maxPoint_sS = vec4(vec2(gl_WorkGroupID.x + 1, gl_WorkGroupID.y + 1) * tileSizePx, 0.1, 1.0); // Top Right
+    vec4 minPoint_sS = vec4(gl_WorkGroupID.xy * tileSizePx, 0.1, 1.0); // Bottom left
+    
+    //Pass min and max to view space
+    vec3 maxPoint_vS = screenSpaceToView(maxPoint_sS).xyz;
+    vec3 minPoint_vS = screenSpaceToView(minPoint_sS).xyz;
+
+    float tileNear = -zNear * pow(zFar/ zNear, gl_WorkGroupID.z/float(gl_NumWorkGroups.z));
+    float tileFar   = -zNear * pow(zFar/ zNear, (gl_WorkGroupID.z + 1) /float(gl_NumWorkGroups.z));
+
+    vec3 minPointNear = lineIntersectionToZPlane(eyePos, minPoint_vS, tileNear );
+    vec3 minPointFar  = lineIntersectionToZPlane(eyePos, minPoint_vS, tileFar );
+    vec3 maxPointNear = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileNear );
+    vec3 maxPointFar  = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileFar );
 }
 
 vec3 lineIntersectionToZPlane(vec3 A, vec3 B, float zDistance){
     //Because this is a Z based normal this is fixed
+    //Might need to change this to -1.0 for further testing
     vec3 normal = vec3(0.0, 0.0, 1.0);
 
     vec3 ab =  B - A;
@@ -49,7 +66,7 @@ vec4 clipToView(vec4 clip)
     return view;
 }
 
-vec4 screenToView(vec4 screen)
+vec4 screenSpaceToView(vec4 screen)
 {
     vec2 texCoord = screen.xy / screenDimensions.xy;
 
