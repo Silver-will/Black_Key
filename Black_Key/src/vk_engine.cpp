@@ -84,19 +84,23 @@ void VulkanEngine::init()
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
+
+	std::string cubePath{ "assets/cube.gltf" };
+	auto cubeFile = loadGltf(this, cubePath);
+	loadedScenes["cube"] = *cubeFile;
+
+	black_key::generate_irradiance_cube(this);
+	//black_key::generate_prefiltered_cubemap(this);
+
 	std::string structurePath{ "assets/sponza/Sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
-	std::string cubePath{ "assets/cube.gltf" };
-	auto cubeFile = loadGltf(this, cubePath);
+	
 	std::string planePath{"assets/plane.glb"};
 	auto planeFile = loadGltf(this, planePath);
 
 	loadedScenes["sponza"] = *structureFile;
-	loadedScenes["cube"] = *cubeFile;
 	loadedScenes["plane"] = *planeFile;
-
-	black_key::generate_irradiance_cube(this);
 }
 
 void VulkanEngine::cleanup()
