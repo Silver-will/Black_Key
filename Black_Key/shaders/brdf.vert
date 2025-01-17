@@ -11,7 +11,8 @@ layout (location = 2) out vec3 outFragPos;
 layout (location = 3) out vec3 outViewPos;
 layout (location = 4) out vec3 outPos;
 layout (location = 5) out vec2 outUV;
-layout (location = 6) out mat3 outTBN;
+layout (location = 6) out vec4 outTangent;
+layout (location = 7) out mat3 outTBN;
 
 struct Vertex {
 	vec3 position;
@@ -46,7 +47,7 @@ void main()
 	mat3 normalMatrix = mat3(transpose(inverse(PushConstants.render_matrix)));
 	vec3 T = normalize(normalMatrix * vec3(v.tangent.xyz));
 	vec3 N = normalize(normalMatrix * v.normal);
-	T = normalize(T - dot(T, N) * N);
+	//T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
 
 	outTBN = mat3(T, B, N);
@@ -57,5 +58,6 @@ void main()
 	outPos = v.position;
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
+	outTangent = v.tangent.xyzw;
 }
 

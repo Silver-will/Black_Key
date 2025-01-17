@@ -61,7 +61,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
         imagesize.width = width;
         imagesize.height = height;
         imagesize.depth = 1;
-
+        
         newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
         stbi_image_free(data);
@@ -428,11 +428,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             if (tangent != p.attributes.end()) {
 
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*tangent).second],
-                    [&](glm::vec3 v, size_t index) {
-                        vertices[initial_vtx + index].tangents = glm::vec4(v,0.0f);
+                    [&](glm::vec4 v, size_t index) {
+                        vertices[initial_vtx + index].tangents = glm::vec4(v);
                     });
             }
 
+            
             if (p.materialIndex.has_value()) {
                 newSurface.material = materials[p.materialIndex.value()];
             }

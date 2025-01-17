@@ -68,6 +68,8 @@ void VulkanEngine::init()
 
 	init_default_data();
 
+	init_buffers();
+	
 	init_pipelines();
 
 	init_imgui();
@@ -79,15 +81,15 @@ void VulkanEngine::init()
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
 	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
-	mainCamera.setPosition(glm::vec3(-0.12f, 1.14f, -2.25f));
+	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
-	std::string structurePath{ "assets/sponza/sponza.gltf" };
+	std::string structurePath{ "assets/sponza/Sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
 	std::string cubePath{ "assets/cube.gltf" };
 	auto cubeFile = loadGltf(this, cubePath);
-	std::string planePath{"assets/textures/plane2.glb"};
+	std::string planePath{"assets/plane.glb"};
 	auto planeFile = loadGltf(this, planePath);
 
 	loadedScenes["sponza"] = *structureFile;
@@ -1049,6 +1051,7 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1056,9 +1059,7 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
-	{
-		DescriptorLayoutBuilder builder;
-	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1070,6 +1071,7 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -1079,7 +1081,13 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		_cullLightsDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+	}
 
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		_buildClustersDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	_mainDeletionQueue.push_function([&]() {
@@ -1087,6 +1095,8 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _shadowSceneDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -1360,11 +1370,14 @@ void VulkanEngine::init_background_pipelines()
 
 }
 
+void VulkanEngine::init_buffers()
+{
+
+}
 void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
-	//
-
+	//Create Shadow render target
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
 	
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
@@ -1378,7 +1391,9 @@ void VulkanEngine::init_default_data() {
 	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
-
+	
+	pointLights.push_back(PointLight(glm::vec4(), glm::vec4(),5.0f, 1.0f));
+	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/pisa_cube.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
 	
 	//checkerboard image

@@ -13,9 +13,19 @@ struct DirectionalLight
 
 struct PointLight
 {
-	glm::vec3 position;
-	glm::vec3 intensity;
-	glm::vec3 color;
+	PointLight(const glm::vec4& pos, const glm::vec4& col, const float& rad, const float& i)
+		: position{ pos }, color{ col }, range{ rad }, intensity{ i } {}
 
+	glm::vec4 position;
+	glm::vec4 color;
+	uint32_t enabled = 1;
+	float range;
+	float intensity;
+	float padding;
+};
+
+struct LightGrid {
+	uint32_t offset;
+	uint32_t count;
 };
 
