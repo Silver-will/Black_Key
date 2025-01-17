@@ -1,33 +1,41 @@
 # Black Key
 
 
-A modern rendering engine in vulkan
+A realtime rendering engine leveraging modern vulkan and C++ features built as a research project
+![Sponza](images/sponza.png)
+![Normal](images/normal.png)
+![Bistro](images/bistro.png)
 
-##  Upcoming work list
-* [x] Opaque and transparent object rendering
-* [x] GLTF Loading
-* [x] Physically based rendering using a cook-torrence brdf
-* [x] normal mapping
-* [x] frustum culling
-* [x] Cascaded shadow maps + PCF filtering
-* [x] Skybox 
-* [x] HDR
-* [x] gamma correction
-* [x] Filmic/Uncharted/unreal tonemapping
-* [x] MSAA
-* [ ] HBAO/GTAO/SSAO
-* [ ] Image based lighting
-* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
-* [ ] Adjustments based on filament PBR documentation
-* [ ] Bloom
-* [ ] Bindless rendering
-* [ ] Async compute
-* [ ] Task graph
+## Currently supported features
+
+# Graphics
+* Physically based rendering using a cook-torrence brdf
+* Cascaded shadow maps + PCF filtering
+* Irradiance maps
+* GLTF loading via Fastgltf
+* Early depth testing via Z-prepass
+* HDR + options for Filmic/Uncharted/unreal tonemappers
+* CPU side Frustum culling
+* Multisampling anti-aliasing
+* normal mapping
+* Ktx Texture support for skybox
+* Transparency
+
+# API Features
+* Buffer device addressing for programmable vertex pulling
+* Dynamic Rendering
+
+##  Roadmap
+* [ ] Clustered forward shading
 * [ ] GPU driven rendering
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
-* [ ] Clustered forward shading
-* [x] Early depth testing
+* [ ] Bindless Resources
+* [ ] Bloom
+* [ ] HBAO/GTAO/SSAO
+* [ ] Image based lighting
+* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
+* [ ] Async compute
+* [ ] Render graph
 * [ ] shader hot reloading
 * [ ] editor
-* [ ] Compare Doing TBN matrix calculation in vertex vs fragment
