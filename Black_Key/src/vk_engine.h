@@ -7,7 +7,7 @@
 #include "engine_util.h"
 #include "vk_descriptors.h"
 #include "vk_renderer.h"
-#include <vma/vk_mem_alloc.h>
+//#include <vma/vk_mem_alloc.h>
 #include "camera.h"
 #include "engine_psos.h"
 #include "shadows.h"
@@ -144,8 +144,8 @@ public:
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
-	VkDescriptorSetLayout _buildClusterDescriptorLayout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
+	VkDescriptorSetLayout _buildClustersDescriptorLayout;
 	VkDescriptorSetLayout _bindlessDescriptorLayout;
 	//VkDescriptorSetLayout _
 
@@ -169,11 +169,30 @@ public:
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
+	//Clustered culling  values
+	struct {
+		//Configuration values
+		const uint16_t gridSizeX = 16;
+		const uint16_t gridSizeY = 9;
+		const uint16_t gridSizeZ = 24;
+		const uint16_t numClusters = gridSizeX * gridSizeY * gridSizeZ;
+		uint16_t sizeX, sizeY;
+
+		//Storage Buffers
+		AllocatedBuffer AABBVolumeGridSSBO;
+		AllocatedBuffer screenToViewSSBO;
+		AllocatedBuffer lightSSBO;
+		AllocatedBuffer lightIndexListSSBO;
+		AllocatedBuffer lightGridSSBO;
+		AllocatedBuffer lightIndexGlobalCountSSBO;
+
+	} ClusterValues;
 	std::vector<uint32_t> draws;
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	//lights
 	DirectionalLight directLight;
+	std::vector<PointLight> pointLights;
 
 	void init_mesh_pipeline();
 	void init_default_data();
@@ -205,6 +224,7 @@ private:
 	void init_commands();
 	void init_sync_structures();
 	void init_descriptors();
+	void init_buffers();
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
 	void init_pipelines();
