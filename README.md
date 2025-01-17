@@ -1,7 +1,10 @@
 # Black Key
 
 
-A realtime rendering engine leveraging modern vulkan and C++ features built as a research project
+A realtime rendering engine leveraging modern vulkan and C++ features built as a research project.
+All the following scenes are rendered in engine:
+
+
 ![Sponza](images/sponza.png)
 ![Normal](images/normal.png)
 ![Bistro](images/bistro.png)
