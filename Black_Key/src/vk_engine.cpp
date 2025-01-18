@@ -90,7 +90,8 @@ void VulkanEngine::init()
 	loadedScenes["cube"] = *cubeFile;
 
 	black_key::generate_irradiance_cube(this);
-	//black_key::generate_prefiltered_cubemap(this);
+	black_key::generate_prefiltered_cubemap(this);
+	black_key::generate_brdf_lut(this);
 
 	std::string structurePath{ "assets/sponza/Sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath, true);
@@ -569,6 +570,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_image(2, _shadowDepthImage.imageView, _depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, IBL._irradianceCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(5, IBL._preFilteredCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -1061,6 +1064,8 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -1147,7 +1152,6 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
 void VulkanEngine::init_pipelines()
 {
-	init_background_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	cascadedShadows.build_pipelines(this);
 	skyBoxPSO.build_pipelines(this);
@@ -1293,86 +1297,6 @@ void VulkanEngine::init_mesh_pipeline()
 	vkDestroyPipeline(_device, _meshPipeline, nullptr);
 		});
 }
-void VulkanEngine::init_background_pipelines()
-{
-	/*
-	VkPipelineLayoutCreateInfo computeLayout{};
-	computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	computeLayout.pNext = nullptr;
-	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
-	computeLayout.setLayoutCount = 1;
-
-	VkPushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = sizeof(ComputePushConstants);
-	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-	computeLayout.pPushConstantRanges = &pushConstant;
-	computeLayout.pushConstantRangeCount = 1;
-
-	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
-
-	VkShaderModule gradientShader;
-	if (!vkutil::load_shader_module("shaders/gradient_color.spv", _device, &gradientShader)) {
-		fmt::print("Error when building the compute shader \n");
-	}
-
-	VkShaderModule skyShader;
-	if (!vkutil::load_shader_module("shaders/sky.spv", _device, &skyShader)) {
-		fmt::print("Error when building the compute shader \n");
-	}
-
-	VkPipelineShaderStageCreateInfo stageinfo{};
-	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stageinfo.pNext = nullptr;
-	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageinfo.module = gradientShader;
-	stageinfo.pName = "main";
-	
-	VkComputePipelineCreateInfo computePipelineCreateInfo{};
-	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = _gradientPipelineLayout;
-	computePipelineCreateInfo.stage = stageinfo;
-
-	ComputeEffect gradient;
-	gradient.layout = _gradientPipelineLayout;
-	gradient.name = "gradient";
-	gradient.data = {};
-
-	//default colors
-	gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
-
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
-
-	//change the shader module only to create the sky shader
-	computePipelineCreateInfo.stage.module = skyShader;
-
-	ComputeEffect sky;
-	sky.layout = _gradientPipelineLayout;
-	sky.name = "sky";
-	sky.data = {};
-	//default sky parameters
-	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
-
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-
-	//add the 2 background effects into the array
-	backgroundEffects.push_back(gradient);
-	backgroundEffects.push_back(sky);
-
-	//destroy structures properly
-	vkDestroyShaderModule(_device, gradientShader, nullptr);
-	vkDestroyShaderModule(_device, skyShader, nullptr);
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-	vkDestroyPipeline(_device, sky.pipeline, nullptr);
-	vkDestroyPipeline(_device, gradient.pipeline, nullptr);
-		});
-	*/
-
-}
 
 void VulkanEngine::init_buffers()
 {
@@ -1398,7 +1322,7 @@ void VulkanEngine::init_default_data() {
 	
 	pointLights.push_back(PointLight(glm::vec4(), glm::vec4(),5.0f, 1.0f));
 	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/pisa_cube.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
 	
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));

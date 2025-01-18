@@ -27,5 +27,5 @@ void vk_device::flush_command_buffer(VkCommandBuffer cmd, VkQueue queue, VkComma
 	VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
 
 	VK_CHECK(vkQueueSubmit2(engine->_graphicsQueue, 1, &submit, fence));
-	VK_CHECK(vkWaitForFences(engine->_device, 1, &fence, VK_TRUE, 1000000000));
+	VK_CHECK(vkWaitForFences(engine->_device, 1, &fence, VK_TRUE, 1000000000000));
 }

@@ -228,7 +228,6 @@ private:
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
 	void init_pipelines();
-	void init_background_pipelines();
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 };

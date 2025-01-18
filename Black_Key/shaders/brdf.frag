@@ -16,8 +16,8 @@ layout (location = 7) in mat3 inTBN;
 
 layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
 layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
-//layout(set = 0, binding = 4) uniform samplerCube BRDFLUT;
-//layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
+layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
+layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -100,6 +100,17 @@ vec3 F_Schlick(float cosTheta, vec3 F0)
 vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 {
 	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 prefilteredReflection(vec3 R, float roughness)
+{
+	const float MAX_REFLECTION_LOD = 9.0; // todo: param/const
+	float lod = roughness * MAX_REFLECTION_LOD;
+	float lodf = floor(lod);
+	float lodc = ceil(lod);
+	vec3 a = textureLod(preFilterMap, R, lodf).rgb;
+	vec3 b = textureLod(preFilterMap, R, lodc).rgb;
+	return mix(a, b, lod - lodf);
 }
 
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness)
@@ -248,7 +259,9 @@ void main()
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
     
     Lo += specularContribution(L, V, N, F0, metallic, roughness);
-    //vec2 brdf = texture(samplerBRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+
+    vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
 
     vec3 diffuse = irradiance * albedo;
