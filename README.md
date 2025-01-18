@@ -14,6 +14,7 @@ All the following scenes are rendered in engine:
 
 # Graphics
 * Physically based rendering using a cook-torrence brdf
+* Image based lighting
 * Cascaded shadow maps + PCF filtering
 * Irradiance maps
 * GLTF loading via Fastgltf
@@ -35,11 +36,10 @@ All the following scenes are rendered in engine:
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
 * [ ] Bindless Resources
+* [ ] Async compute
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
-* [ ] Image based lighting
 * [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
-* [ ] Async compute
 * [ ] Render graph
 * [ ] shader hot reloading
 * [ ] editor
