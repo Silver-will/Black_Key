@@ -225,6 +225,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 				PushBlock pushBlock;
 				// Update shader push constant block
 				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+				pushBlock.mvp[1][1] *= -1;
 				pushBlock.vertexBuffer = r.vertexBufferAddress;
 				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushBlock), &pushBlock);
 				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
@@ -686,6 +687,8 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 			for (uint32_t f = 0; f < 6; f++)
 			{
 				vkCmdBeginRendering(cmd, &renderInfo);
+				viewport.width = static_cast<float>(dim * std::pow(0.5f, m));
+				viewport.height = static_cast<float>(dim * std::pow(0.5f, m));
 				vkCmdSetViewport(cmd, 0, 1, &viewport);
 				
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradiancePipeline);
@@ -698,6 +701,7 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 				}
 				// Update shader push constant block
 				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+				pushBlock.mvp[1][1] *= -1;
 				pushBlock.vertexBuffer = r.vertexBufferAddress;
 				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
 				
@@ -707,12 +711,12 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 				VkImageBlit2 blitRegion{.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr};
 
-				blitRegion.srcOffsets[1].x = 0;
-				blitRegion.srcOffsets[1].y = 0;
+				blitRegion.srcOffsets[1].x = viewport.width;
+				blitRegion.srcOffsets[1].y = viewport.height;
 				blitRegion.srcOffsets[1].z = 1;
 
-				blitRegion.dstOffsets[1].x = 0;
-				blitRegion.dstOffsets[1].y = 0;
+				blitRegion.dstOffsets[1].x = viewport.width;
+				blitRegion.dstOffsets[1].y = viewport.height;
 				blitRegion.dstOffsets[1].z = 1;
 
 				blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

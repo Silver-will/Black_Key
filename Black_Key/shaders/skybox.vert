@@ -33,8 +33,8 @@ void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	outUVW = v.position.xyz;
-	outUVW.xy *= -1.0f;
-	
-	vec4 position = sceneData.skyMat * vec4(v.position.xyz,1.0f);
+	vec3 pos = outUVW;
+	pos.y *= -1.0f;
+	vec4 position = sceneData.skyMat * vec4(pos,1.0f);
 	gl_Position = position.xyww;
 }

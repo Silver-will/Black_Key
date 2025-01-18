@@ -187,10 +187,10 @@
     <None Include="shaders\sky.comp">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\brdf.frag">
+    <None Include="shaders\pbr_cluster.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\brdf.vert">
+    <None Include="shaders\pbr_cluster.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\input_structures.glsl">
@@ -272,6 +272,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\lights.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\cluster_info.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
