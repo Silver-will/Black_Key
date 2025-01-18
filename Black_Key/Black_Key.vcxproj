@@ -279,8 +279,8 @@
     <None Include="shaders\depthReduce.comp" />
     <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\filter_cube.vert" />
-    <None Include="shaders\genbrdflut.frag" />
-    <None Include="shaders\genbrdflut.vert" />
+    <None Include="shaders\gen_brdf_lut.frag" />
+    <None Include="shaders\gen_brdf_lut.vert" />
     <None Include="shaders\gradient.comp" />
     <None Include="shaders\gradient_color.comp" />
     <None Include="shaders\hdr.frag" />

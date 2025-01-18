@@ -232,10 +232,10 @@
     <None Include="shaders\filter_cube.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\genbrdflut.frag">
+    <None Include="shaders\gen_brdf_lut.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\genbrdflut.vert">
+    <None Include="shaders\gen_brdf_lut.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\irradiance_cube.frag">
