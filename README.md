@@ -16,8 +16,7 @@ All the following scenes are rendered in engine:
 * Physically based rendering using a cook-torrence brdf
 * Image based lighting
 * Cascaded shadow maps + PCF filtering
-* Irradiance maps
-* GLTF loading via Fastgltf
+* GLTF loading suppport via Fastgltf
 * Early depth testing via Z-prepass
 * HDR + options for Filmic/Uncharted/unreal tonemappers
 * CPU side Frustum culling
