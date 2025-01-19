@@ -19,7 +19,80 @@ struct PushParams {
 	float roughness;
 };
 
+struct clusterParams {
+	float zFar;
+	float zNear;
+};
 
+void black_key::build_clusters(VulkanEngine* engine)
+{
+	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
+	ClusterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	ClusterLayoutInfo.pNext = nullptr;
+	ClusterLayoutInfo.pSetLayouts = &engine->_buildClustersDescriptorLayout;
+	ClusterLayoutInfo.setLayoutCount = 1;
+
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(clusterParams);
+	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	ClusterLayoutInfo.pPushConstantRanges = &pushConstant;
+	ClusterLayoutInfo.pushConstantRangeCount = 1;
+
+	VkPipelineLayout buildClusterLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &ClusterLayoutInfo, nullptr, &buildClusterLayout));
+
+	VkShaderModule buildClusterShader;
+	if (!vkutil::load_shader_module("shaders/cluster_shader.spv", engine->_device, &buildClusterShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stageinfo{};
+	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stageinfo.pNext = nullptr;
+	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stageinfo.module = buildClusterShader;
+	stageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo computePipelineCreateInfo{};
+	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	computePipelineCreateInfo.pNext = nullptr;
+	computePipelineCreateInfo.layout = buildClusterLayout;
+	computePipelineCreateInfo.stage = stageinfo;
+
+	VkPipeline clusterPipeline;
+	//default colors
+
+	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &clusterPipeline));
+
+	VkDescriptorSet globalDescriptor = engine->globalDescriptorAllocator.allocate(engine->_device, engine->_buildClustersDescriptorLayout);
+
+	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, engine->_frames[0]._commandPool, engine);
+	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	//> draw_first
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, engine->ClusterValues.AABBVolumeGridSSBO.buffer, engine->ClusterValues.AABBVolumeGridSSBO.info.size,0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(1, engine->ClusterValues.screenToViewSSBO.buffer, engine->ClusterValues.screenToViewSSBO.info.size, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.update_set(engine->_device, globalDescriptor);
+
+	clusterParams clusterData;
+	clusterData.zNear = engine->mainCamera.getNearClip();
+	clusterData.zFar = engine->mainCamera.getFarClip();
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, clusterPipeline);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, buildClusterLayout, 0, 1, &globalDescriptor, 0, nullptr);
+
+	vkCmdPushConstants(cmd, buildClusterLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(clusterParams), &clusterData);
+	vkCmdDispatch(cmd, engine->ClusterValues.gridSizeX, engine->ClusterValues.gridSizeY, engine->ClusterValues.gridSizeZ);
+
+	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
+
+}
 bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
 		glm::vec3 { 1, 1, 1 },

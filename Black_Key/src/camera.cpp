@@ -197,11 +197,11 @@ bool Camera::moving()
 	return keys.left || keys.right || keys.up || keys.down;
 }
 
-float Camera::getNearClip() {
+float Camera::getNearClip()const {
 	return znear;
 }
 
-float Camera::getFarClip() {
+float Camera::getFarClip()const {
 	return zfar;
 }
 

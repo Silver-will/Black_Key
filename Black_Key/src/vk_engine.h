@@ -176,6 +176,7 @@ public:
 		const uint16_t gridSizeY = 9;
 		const uint16_t gridSizeZ = 24;
 		const uint16_t numClusters = gridSizeX * gridSizeY * gridSizeZ;
+		const uint16_t maxLightsPerTile = 50;
 		uint16_t sizeX, sizeY;
 
 		//Storage Buffers
@@ -187,16 +188,18 @@ public:
 		AllocatedBuffer lightIndexGlobalCountSSBO;
 
 	} ClusterValues;
+
 	std::vector<uint32_t> draws;
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	//lights
 	DirectionalLight directLight;
-	std::vector<PointLight> pointLights;
-
-	void init_mesh_pipeline();
-	void init_default_data();
-	void init_triangle_pipeline();
+	uint32_t maxLights = 100;
+	struct PointLightData{
+		uint32_t numOfLights = 4;
+		//PointLight pointLights[100];
+		std::vector<PointLight> pointLights;
+	}pointData;
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 	DrawContext mainDrawContext;
@@ -205,11 +208,14 @@ public:
 	void update_scene();
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
+	AllocatedBuffer create_and_upload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data);
 	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	void destroy_image(const AllocatedImage& img);
 
 private:
+	void load_assets();
+	void pre_process_pass();
 	void draw_shadows(VkCommandBuffer cmd);
 	void draw_main(VkCommandBuffer cmd);
 	void draw_post_process(VkCommandBuffer cmd);
@@ -219,6 +225,9 @@ private:
 	void draw_early_depth(VkCommandBuffer cmd);
 	void resize_swapchain();
 	void init_vulkan();
+	void init_mesh_pipeline();
+	void init_default_data();
+	void init_triangle_pipeline();
 	void init_imgui();
 	void init_swapchain();
 	void init_commands();

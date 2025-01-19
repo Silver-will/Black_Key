@@ -1,5 +1,6 @@
 #pragma once
 #include "vk_types.h"
+#include <vma/vk_mem_alloc.h>
 
 class VulkanEngine;
 

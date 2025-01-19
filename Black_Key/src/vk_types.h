@@ -86,8 +86,16 @@ struct VolumeTileAABB {
     glm::vec4 maxPoint;
 };
 
-struct Vertex {
+struct ScreenToView {
+    glm::mat4 inverseProjectionMat;
+    uint32_t tileSizes[4];
+    uint32_t screenWidth;
+    uint32_t screenHeight;
+    float sliceScalingFactor;
+    float sliceBiasFactor;
+};
 
+struct Vertex {
     glm::vec3 position;
     float uv_x;
     glm::vec3 normal;
