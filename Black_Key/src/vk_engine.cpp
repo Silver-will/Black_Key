@@ -5,6 +5,7 @@
 #include "input_handler.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
+#include "vk_buffer.h"
 #include "vk_loader.h"
 #include "Lights.h"
 #include "graphics.h"
@@ -14,6 +15,7 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <random>
 
 #ifdef _DEBUG
 constexpr bool bUseValidationLayers = true;
@@ -74,7 +76,9 @@ void VulkanEngine::init()
 
 	init_imgui();
 
-	
+	load_assets();
+
+	pre_process_pass();
 	_isInitialized = true;
 
 	mainCamera.type = Camera::CameraType::firstperson;
@@ -83,25 +87,31 @@ void VulkanEngine::init()
 	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
+}
 
-
+void VulkanEngine::load_assets()
+{
 	std::string cubePath{ "assets/cube.gltf" };
 	auto cubeFile = loadGltf(this, cubePath);
 	loadedScenes["cube"] = *cubeFile;
 
-	black_key::generate_irradiance_cube(this);
-	black_key::generate_prefiltered_cubemap(this);
-	black_key::generate_brdf_lut(this);
-
-	std::string structurePath{ "assets/sponza/Sponza.gltf" };
+	std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
-	
-	std::string planePath{"assets/plane.glb"};
+
+	std::string planePath{ "assets/plane.glb" };
 	auto planeFile = loadGltf(this, planePath);
 
 	loadedScenes["sponza"] = *structureFile;
 	loadedScenes["plane"] = *planeFile;
+}
+
+void VulkanEngine::pre_process_pass()
+{
+	black_key::generate_irradiance_cube(this);
+	black_key::generate_prefiltered_cubemap(this);
+	black_key::generate_brdf_lut(this);
+	black_key::build_clusters(this);
 }
 
 void VulkanEngine::cleanup()
@@ -1300,7 +1310,36 @@ void VulkanEngine::init_mesh_pipeline()
 
 void VulkanEngine::init_buffers()
 {
+	ClusterValues.AABBVolumeGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	float zNear = mainCamera.getNearClip();
+	float zFar = mainCamera.getFarClip();
 
+	ScreenToView screen;
+	screen.inverseProjectionMat = glm::inverse(sceneData.proj);
+	screen.tileSizes[0] = ClusterValues.gridSizeX;
+	screen.tileSizes[1] = ClusterValues.gridSizeY;
+	screen.tileSizes[2] = ClusterValues.gridSizeZ;
+	screen.tileSizes[3] = ClusterValues.sizeX;
+	screen.screenWidth = _aspect_width;
+	screen.screenHeight = _aspect_height;
+
+	screen.sliceScalingFactor = (float)ClusterValues.gridSizeZ / std::log2f(zFar / zNear);
+	screen.sliceBiasFactor = -((float)ClusterValues.gridSizeZ * std::log2f(zNear) / std::log2f(zFar / zNear));
+	
+	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(screen), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
+
+	ClusterValues.lightSSBO = create_buffer(sizeof(uint32_t) + sizeof(PointLight) * maxLights, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	//write the buffer
+	PointLightData* pointBuffer = (PointLightData*)ClusterValues.lightSSBO.allocation->GetMappedData();
+	pointBuffer->numOfLights = pointData.numOfLights;
+	pointBuffer->pointLights = pointData.pointLights;
+
+	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
+	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+	ClusterValues.lightGridSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+	ClusterValues.lightIndexGlobalCountSSBO = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 }
 void VulkanEngine::init_default_data() {
 
@@ -1308,6 +1347,7 @@ void VulkanEngine::init_default_data() {
 	//Create Shadow render target
 	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
 	
+	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
@@ -1320,7 +1360,15 @@ void VulkanEngine::init_default_data() {
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT,this);
 	
-	pointLights.push_back(PointLight(glm::vec4(), glm::vec4(),5.0f, 1.0f));
+	//Populate point light list
+	int numOfLights = 4;
+	std::random_device dev;
+	std::mt19937 rng(dev());
+	std::uniform_real_distribution<std::mt19937::result_type> distFloat(-10, 10);
+	for (int i = 0; i < numOfLights; i++)
+	{
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng),-6.0f,distFloat(rng),1.0f), glm::vec4(1), 5.0f, 1.0f));
+	}
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
 	
@@ -1482,6 +1530,29 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 		&newBuffer.info));
 
 	return newBuffer;
+}
+
+AllocatedBuffer VulkanEngine::create_and_upload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data)
+{
+	AllocatedBuffer stagingBuffer = create_buffer(allocSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+	void* bufferData = stagingBuffer.allocation->GetMappedData();
+
+	memcpy(bufferData, data, allocSize);
+
+	AllocatedBuffer DataBuffer = create_buffer(allocSize, usage, memoryUsage);
+
+	immediate_submit([&](VkCommandBuffer cmd) {
+		VkBufferCopy dataCopy{ 0 };
+		dataCopy.dstOffset = 0;
+		dataCopy.srcOffset = 0;
+		dataCopy.size = allocSize;
+
+		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, DataBuffer.buffer, 1, &dataCopy);
+		});
+
+	destroy_buffer(stagingBuffer);
+	return DataBuffer;
 }
 
 void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)

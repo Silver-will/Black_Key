@@ -40,8 +40,8 @@ public:
 	} keys;
 
 	bool moving();
-	float getNearClip();
-	float getFarClip();
+	float getNearClip() const;
+	float getFarClip() const;
 	void setPerspective(float fov, float aspect, float znear, float zfar);
 	void updateAspectRatio(float aspect);
 	void processKeyInput(GLFWwindow* window, int key, int action);

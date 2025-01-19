@@ -9,4 +9,5 @@ namespace black_key {
 	void generate_brdf_lut(VulkanEngine* engine);
 	void generate_irradiance_cube(VulkanEngine* engine);
 	void generate_prefiltered_cubemap(VulkanEngine* engine);
+	void build_clusters(VulkanEngine* engine);
 }

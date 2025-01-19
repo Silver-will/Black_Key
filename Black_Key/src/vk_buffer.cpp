@@ -3,8 +3,11 @@
 
 //#define VMA_IMPLEMENTATION
 //#define TRACY_ENABLE
-#include <vma/vk_mem_alloc.h>
+//#include <vma/vk_mem_alloc.h>
 
+
+//#define VMA_IMPLEMENTATION
+//#define TRACY_ENABLE
 
 AllocatedBuffer vkutil::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VulkanEngine* engine)
 {
@@ -31,7 +34,7 @@ AllocatedBuffer vkutil::create_buffer(size_t allocSize, VkBufferUsageFlags usage
 /*
 AllocatedBuffer vkutil::create_and_upload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data, VulkanEngine* engine)
 {
-	auto stagingBuffer = create_buffer(allocSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, engine);
+	AllocatedBuffer stagingBuffer = create_buffer(allocSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, engine);
 
 	void* bufferData = stagingBuffer.allocation->GetMappedData();
 
