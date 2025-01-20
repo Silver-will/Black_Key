@@ -9,6 +9,8 @@ layout (std430, binding = 0) buffer clusterAABB{
 
 layout (std430, binding = 1) buffer screenToView{
     mat4 inverseProjection;
-    uvec4 tileSizes;
+    vec4 tileSizes;
     uvec2 screenDimensions;
+    float sliceFactor;
+    float sliceBiasFactor;
 };

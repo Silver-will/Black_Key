@@ -114,7 +114,6 @@ public:
 		AllocatedImage _irradianceCube;
 		AllocatedImage _preFilteredCube;
 		VkSampler _irradianceCubeSampler;
-		VkSampler _preFilteredCubeSampler;
 		VkSampler _lutBRDFSampler;
 
 	}IBL;
@@ -135,6 +134,8 @@ public:
 	VkPipeline _trianglePipeline;
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
+	VkPipeline _cullLightsPipeline;
+	VkPipelineLayout _cullLightsPipelineLayout;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -195,10 +196,13 @@ public:
 	//lights
 	DirectionalLight directLight;
 	uint32_t maxLights = 100;
+
 	struct PointLightData{
+	
 		uint32_t numOfLights = 4;
-		//PointLight pointLights[100];
-		std::vector<PointLight> pointLights;
+		PointLight pointLights[100];
+		//std::vector<PointLight> pointLights;
+	
 	}pointData;
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
@@ -216,6 +220,7 @@ public:
 private:
 	void load_assets();
 	void pre_process_pass();
+	void cull_lights(VkCommandBuffer cmd);
 	void draw_shadows(VkCommandBuffer cmd);
 	void draw_main(VkCommandBuffer cmd);
 	void draw_post_process(VkCommandBuffer cmd);
@@ -228,6 +233,7 @@ private:
 	void init_mesh_pipeline();
 	void init_default_data();
 	void init_triangle_pipeline();
+	void init_compute_pipelines();
 	void init_imgui();
 	void init_swapchain();
 	void init_commands();

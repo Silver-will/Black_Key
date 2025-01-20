@@ -19,7 +19,7 @@ void main()
 {
     const vec3 eyePos = vec3(0);
 
-    uint tileSizePx = tileSizes[3];
+    uint tileSizePx = uint(tileSizes[3]);
 
     uint tileIndex = gl_WorkGroupID.x +
                      gl_WorkGroupID.y * gl_NumWorkGroups.x +
@@ -40,6 +40,13 @@ void main()
     vec3 minPointFar  = lineIntersectionToZPlane(eyePos, minPoint_vS, tileFar );
     vec3 maxPointNear = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileNear );
     vec3 maxPointFar  = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileFar );
+
+    vec3 minPointAABB = min(min(minPointNear, minPointFar),min(maxPointNear, maxPointFar));
+    vec3 maxPointAABB = max(max(minPointNear, minPointFar),max(maxPointNear, maxPointFar));
+
+    //Getting the 
+    cluster[tileIndex].minPoint  = vec4(minPointAABB , 0.0);
+    cluster[tileIndex].maxPoint  = vec4(maxPointAABB , 0.0);
 }
 
 vec3 lineIntersectionToZPlane(vec3 A, vec3 B, float zDistance){
