@@ -15,7 +15,7 @@ struct PointLight
 {
 	PointLight(const glm::vec4& pos, const glm::vec4& col, const float& rad, const float& i)
 		: position{ pos }, color{ col }, range{ rad }, intensity{ i } {}
-
+	PointLight() {}
 	glm::vec4 position;
 	glm::vec4 color;
 	uint32_t enabled = 1;

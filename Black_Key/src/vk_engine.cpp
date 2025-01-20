@@ -40,6 +40,13 @@ VulkanEngine* loadedEngine = nullptr;
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 void VulkanEngine::init()
 {
+
+	mainCamera.type = Camera::CameraType::firstperson;
+	//mainCamera.flipY = true;
+	mainCamera.movementSpeed = 2.5f;
+	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
+	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
+	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
     // only one engine initialization is allowed with the application.
     assert(loadedEngine == nullptr);
     loadedEngine = this;
@@ -80,13 +87,6 @@ void VulkanEngine::init()
 
 	pre_process_pass();
 	_isInitialized = true;
-
-	mainCamera.type = Camera::CameraType::firstperson;
-	//mainCamera.flipY = true;
-	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
-	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
-	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 }
 
 void VulkanEngine::load_assets()
@@ -112,6 +112,16 @@ void VulkanEngine::pre_process_pass()
 	black_key::generate_prefiltered_cubemap(this);
 	black_key::generate_brdf_lut(this);
 	black_key::build_clusters(this);
+
+	_mainDeletionQueue.push_function([=]() {
+		destroy_image(IBL._irradianceCube);
+		destroy_image(IBL._preFilteredCube);
+		destroy_image(IBL._lutBRDF);
+
+		//destroy_image(_shadowDepthImage);
+		vkDestroySampler(_device, IBL._irradianceCubeSampler, nullptr);
+		vkDestroySampler(_device, IBL._lutBRDFSampler, nullptr);
+		});
 }
 
 void VulkanEngine::cleanup()
@@ -307,6 +317,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 	
+	//Cull lights
+	cull_lights(cmd);
+
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment2 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,VK_ATTACHMENT_LOAD_OP_LOAD);
@@ -335,6 +348,29 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	draw_background(cmd);
 
 	vkCmdEndRendering(cmd);
+}
+
+void VulkanEngine::cull_lights(VkCommandBuffer cmd)
+{
+	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _cullLightsDescriptorLayout);
+	
+	DescriptorWriter writer;
+	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(1, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(2, ClusterValues.lightSSBO.buffer, sizeof(PointLightData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
+	writer.write_buffer(3, ClusterValues.lightIndexListSSBO.buffer, sizeof(uint32_t) * totalLightCount, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * 2 * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(5, ClusterValues.lightIndexGlobalCountSSBO.buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.update_set(_device, cullingDescriptor);
+
+	auto view = mainCamera.matrices.view;
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipeline);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipelineLayout, 0, 1, &cullingDescriptor, 0, nullptr);
+
+	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::mat4), &view);
+	vkCmdDispatch(cmd, 1, 1, 6);
 }
 
 void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
@@ -582,6 +618,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_image(3, IBL._irradianceCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(5, IBL._preFilteredCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(_device, globalDescriptor);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -1055,11 +1092,11 @@ void VulkanEngine::init_descriptors()
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 
-	globalDescriptorAllocator.init_pool(_device, 10, sizes);
+	globalDescriptorAllocator.init_pool(_device, 30, sizes);
 	_mainDeletionQueue.push_function(
 		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
 
@@ -1122,7 +1159,7 @@ void VulkanEngine::init_descriptors()
 		// create a descriptor pool
 		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
 		};
@@ -1162,6 +1199,7 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
 void VulkanEngine::init_pipelines()
 {
+	init_compute_pipelines();
 	metalRoughMaterial.build_pipelines(this);
 	cascadedShadows.build_pipelines(this);
 	skyBoxPSO.build_pipelines(this);
@@ -1180,6 +1218,54 @@ void VulkanEngine::init_pipelines()
 	vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
 	vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
 		});
+}
+
+void VulkanEngine::init_compute_pipelines()
+{
+	VkPipelineLayoutCreateInfo cullLightsLayoutInfo = {};
+	cullLightsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	cullLightsLayoutInfo.pNext = nullptr;
+	cullLightsLayoutInfo.pSetLayouts = &_cullLightsDescriptorLayout;
+	cullLightsLayoutInfo.setLayoutCount = 1;
+
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(glm::mat4);
+	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
+	cullLightsLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &cullLightsLayoutInfo, nullptr, &_cullLightsPipelineLayout));
+
+	VkShaderModule cullLightShader;
+	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", _device, &cullLightShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stageinfo{};
+	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stageinfo.pNext = nullptr;
+	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stageinfo.module = cullLightShader;
+	stageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo computePipelineCreateInfo{};
+	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	computePipelineCreateInfo.pNext = nullptr;
+	computePipelineCreateInfo.layout = _cullLightsPipelineLayout;
+	computePipelineCreateInfo.stage = stageinfo;
+
+	VkPipeline cullingPipeline;
+	//default colors
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_cullLightsPipeline));
+
+
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyPipelineLayout(_device, _cullLightsPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _cullLightsPipeline,nullptr);
+	});
 }
 
 void VulkanEngine::init_triangle_pipeline()
@@ -1315,7 +1401,7 @@ void VulkanEngine::init_buffers()
 	float zFar = mainCamera.getFarClip();
 
 	ScreenToView screen;
-	screen.inverseProjectionMat = glm::inverse(sceneData.proj);
+	screen.inverseProjectionMat = glm::inverse(mainCamera.matrices.perspective);
 	screen.tileSizes[0] = ClusterValues.gridSizeX;
 	screen.tileSizes[1] = ClusterValues.gridSizeY;
 	screen.tileSizes[2] = ClusterValues.gridSizeZ;
@@ -1326,20 +1412,28 @@ void VulkanEngine::init_buffers()
 	screen.sliceScalingFactor = (float)ClusterValues.gridSizeZ / std::log2f(zFar / zNear);
 	screen.sliceBiasFactor = -((float)ClusterValues.gridSizeZ * std::log2f(zNear) / std::log2f(zFar / zNear));
 	
-	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(screen), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
+	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
 
-	ClusterValues.lightSSBO = create_buffer(sizeof(uint32_t) + sizeof(PointLight) * maxLights, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	ClusterValues.lightSSBO = create_buffer(sizeof(PointLightData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	//write the buffer
 	PointLightData* pointBuffer = (PointLightData*)ClusterValues.lightSSBO.allocation->GetMappedData();
-	pointBuffer->numOfLights = pointData.numOfLights;
-	pointBuffer->pointLights = pointData.pointLights;
-
+	*pointBuffer = pointData;
+	
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	ClusterValues.lightGridSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightGridSSBO = create_buffer(ClusterValues.numClusters * 2 * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	ClusterValues.lightIndexGlobalCountSSBO = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+	_mainDeletionQueue.push_function([=]() {
+		destroy_buffer(ClusterValues.lightSSBO);
+		destroy_buffer(ClusterValues.lightGridSSBO);
+		destroy_buffer(ClusterValues.screenToViewSSBO);
+		destroy_buffer(ClusterValues.AABBVolumeGridSSBO);
+		destroy_buffer(ClusterValues.lightIndexListSSBO);
+		destroy_buffer(ClusterValues.lightIndexGlobalCountSSBO);
+		});
 }
 void VulkanEngine::init_default_data() {
 
@@ -1364,10 +1458,11 @@ void VulkanEngine::init_default_data() {
 	int numOfLights = 4;
 	std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<std::mt19937::result_type> distFloat(-10, 10);
+	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng),-6.0f,distFloat(rng),1.0f), glm::vec4(1), 5.0f, 1.0f));
+		pointData.pointLights[i] = PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 5.0f, 1.0f);
+		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng),-6.0f,distFloat(rng),1.0f), glm::vec4(1), 5.0f, 1.0f));
 	}
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
@@ -1423,7 +1518,6 @@ void VulkanEngine::init_default_data() {
 		destroy_image(_greyImage);
 		destroy_image(_errorCheckerboardImage);
 		destroy_image(_skyImage);
-		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _cubeMapSampler, nullptr);
@@ -1437,17 +1531,17 @@ void VulkanEngine::init_imgui()
 	// 1: create descriptor pool for IMGUI
 	//  the size of the pool is very oversize, but it's copied from imgui demo
 	//  itself.
-	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 } };
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
