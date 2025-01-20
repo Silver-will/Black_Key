@@ -35,10 +35,15 @@ All the following scenes are rendered in engine:
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
 * [ ] Bindless Resources
-* [ ] Async compute
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
+* [ ] Async compute
 * [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
 * [ ] Render graph
 * [ ] shader hot reloading
 * [ ] editor
+
+## Things to look into
+* [ ] visibility buffer rendering
+* [ ] virtual shadow maps
+* [ ] Radiance cascades
