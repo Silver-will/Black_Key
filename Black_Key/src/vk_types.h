@@ -86,11 +86,16 @@ struct VolumeTileAABB {
     glm::vec4 maxPoint;
 };
 
+struct LightGrid {
+    uint32_t offset;
+    uint32_t count;
+};
+
 struct ScreenToView {
     glm::mat4 inverseProjectionMat;
     glm::vec4 tileSizes;
-    unsigned int screenWidth;
-    unsigned int screenHeight;
+    float screenWidth;
+    float screenHeight;
     float sliceScalingFactor;
     float sliceBiasFactor;
 };

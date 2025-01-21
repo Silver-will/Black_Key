@@ -37,6 +37,7 @@ void main()
 	globalIndexCount = 0;
     uint threadCount = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
     uint lightCount  = pointLight.length();
+    lightCount = 6;
     uint numBatches = (lightCount + threadCount -1) / threadCount;
 
     uint tileIndex = gl_LocalInvocationIndex + gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z * gl_WorkGroupID.z;
@@ -50,12 +51,14 @@ void main()
 
         lightIndex = min(lightIndex, lightCount);
 
-        sharedLights[gl_LocalInvocationIndex] = pointLight[lightIndex];
+        //sharedLights[gl_LocalInvocationIndex] = pointLight[lightIndex];
+        sharedLights[0] = pointLight[0];
+        sharedLights[1] = pointLight[1];
         barrier();
 
         //Iterating within the current batch of lights
         for( uint light = 0; light < threadCount; ++light){
-            if( sharedLights[light].enabled  == 1){
+            if( sharedLights[light].enabled  == 1.0){
                 if( testSphereAABB(light, tileIndex) ){
                     visibleLightIndices[visibleLightCount] = batch * threadCount + light;
                     visibleLightCount += 1;
@@ -63,7 +66,6 @@ void main()
             }
         }
     }
-
     //We want all thread groups to have completed the light tests before continuing
     barrier();
 
@@ -73,8 +75,9 @@ void main()
         globalLightIndexList[offset + i] = visibleLightIndices[i];
     }
 
-    lightGrid[tileIndex].offset = offset;
-    lightGrid[tileIndex].count = visibleLightCount;
+    //globalLightIndexList[0] = pointLight[0].enabled;
+    lightGrid[tileIndex].offset = uint(sharedLights[0].range);
+    lightGrid[tileIndex].count = uint(sharedLights[0].range);
 }
 
 bool testSphereAABB(uint light, uint tile){

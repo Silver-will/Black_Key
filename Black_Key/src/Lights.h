@@ -23,9 +23,3 @@ struct PointLight
 	float intensity;
 	float padding;
 };
-
-struct LightGrid {
-	uint32_t offset;
-	uint32_t count;
-};
-
