@@ -95,7 +95,9 @@ void VulkanEngine::load_assets()
 	auto cubeFile = loadGltf(this, cubePath);
 	loadedScenes["cube"] = *cubeFile;
 
-	std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
+	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
+	std::string structurePath{ "assets/sponza/Sponza.gltf" };
+
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
 
@@ -1420,11 +1422,11 @@ void VulkanEngine::init_buffers()
 	*pointBuffer = pointData;
 	
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
-	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	ClusterValues.lightGridSSBO = create_buffer(ClusterValues.numClusters * 2 * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(LightGrid), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	ClusterValues.lightIndexGlobalCountSSBO = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightIndexGlobalCountSSBO = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 
 	_mainDeletionQueue.push_function([=]() {
 		destroy_buffer(ClusterValues.lightSSBO);
@@ -1464,6 +1466,9 @@ void VulkanEngine::init_default_data() {
 		pointData.pointLights[i] = PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 5.0f, 1.0f);
 		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng),-6.0f,distFloat(rng),1.0f), glm::vec4(1), 5.0f, 1.0f));
 	}
+	pointData.pointLights[4] = PointLight(glm::vec4(-0.12f, -5.14f,  5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f);
+	pointData.pointLights[5] = PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f);
+
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
 	
