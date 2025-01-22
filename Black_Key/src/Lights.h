@@ -21,5 +21,5 @@ struct PointLight
 	uint32_t enabled = 1;
 	float range;
 	float intensity;
-	float padding;
+	float padding = 20.0f;
 };

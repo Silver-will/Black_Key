@@ -14,6 +14,10 @@ layout(push_constant) uniform CameraConstants
 vec4 clipToView(vec4 clip);
 vec4 screenSpaceToView(vec4 screen);
 vec3 lineIntersectionToZPlane(vec3 A, vec3 B, float zDistance);
+vec3 RayIntersectZPlane(vec3 incident, float zOffset)
+{
+	return incident * zOffset / incident.z;
+}
 
 void main()
 {
@@ -25,9 +29,12 @@ void main()
                      gl_WorkGroupID.y * gl_NumWorkGroups.x +
                      gl_WorkGroupID.z * (gl_NumWorkGroups.x * gl_NumWorkGroups.y);
     
+    vec2 normPerTileSize = vec2(1.0 / float(tileSizes.x),
+		1.0 / float(tileSizes.y));
+
     //Calculating the min and max point in screen space
-    vec4 maxPoint_sS = vec4(vec2(gl_WorkGroupID.x + 1, gl_WorkGroupID.y + 1) * tileSizePx, 0.1, 1.0); // Top Right
-    vec4 minPoint_sS = vec4(gl_WorkGroupID.xy * tileSizePx, 0.1, 1.0); // Bottom left
+    vec4 maxPoint_sS = vec4(vec2((gl_WorkGroupID.x + 1) * normPerTileSize.x, (gl_WorkGroupID.y + 1) * normPerTileSize.y), 0.1, 1.0); // Top Right
+    vec4 minPoint_sS = vec4(vec2((gl_WorkGroupID.x) * normPerTileSize.x, (gl_WorkGroupID.y) * normPerTileSize.y), 0.1, 1.0); // Bottom left
     
     //Pass min and max to view space
     vec3 maxPoint_vS = screenSpaceToView(maxPoint_sS).xyz;
@@ -36,10 +43,16 @@ void main()
     float tileNear = -zNear * pow(zFar/ zNear, gl_WorkGroupID.z/float(gl_NumWorkGroups.z));
     float tileFar   = -zNear * pow(zFar/ zNear, (gl_WorkGroupID.z + 1) /float(gl_NumWorkGroups.z));
 
-    vec3 minPointNear = lineIntersectionToZPlane(eyePos, minPoint_vS, tileNear );
+    /*vec3 minPointNear = lineIntersectionToZPlane(eyePos, minPoint_vS, tileNear );
     vec3 minPointFar  = lineIntersectionToZPlane(eyePos, minPoint_vS, tileFar );
     vec3 maxPointNear = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileNear );
     vec3 maxPointFar  = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileFar );
+    */
+
+    vec3 minPointNear = RayIntersectZPlane(minPoint_vS, tileNear);
+	vec3 minPointFar = RayIntersectZPlane(minPoint_vS, tileFar);
+	vec3 maxPointNear = RayIntersectZPlane(maxPoint_vS, tileNear);
+	vec3 maxPointFar = RayIntersectZPlane(maxPoint_vS, tileFar);
 
     vec3 minPointAABB = min(min(minPointNear, minPointFar),min(maxPointNear, maxPointFar));
     vec3 maxPointAABB = max(max(minPointNear, minPointFar),max(maxPointNear, maxPointFar));
@@ -76,9 +89,23 @@ vec4 clipToView(vec4 clip)
 
 vec4 screenSpaceToView(vec4 screen)
 {
-    vec2 texCoord = screen.xy / screenDimensions.xy;
+    /*vec2 texCoord = screen.xy / screenDimensions.xy;
 
     vec4 clip = vec4(vec2(texCoord.x, texCoord.y)* 2.0 - 1.0, screen.z, screen.w);
 
     return clipToView(clip);
+    */
+
+    vec4 clip = vec4(
+		screen.x * 2.0 - 1.0,
+		screen.y * 2.0 - 1.0,
+		screen.z,
+		screen.w);
+	vec4 view = inverseProjection * clip;
+
+	// Normalize
+	// stackoverflow.com/questions/25463735/w-coordinate-in-inverse-projection
+	view = view / view.w;
+
+	return view;
 }

@@ -199,9 +199,9 @@ public:
 
 	struct PointLightData{
 	
-		uint32_t numOfLights = 4;
-		PointLight pointLights[100];
-		//std::vector<PointLight> pointLights;
+		uint32_t numOfLights = 6;
+		//PointLight pointLights[100];
+		std::vector<PointLight> pointLights;
 	
 	}pointData;
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
