@@ -3,11 +3,11 @@ struct VolumeTileAABB{
     vec4 maxPoint;
 };
 
-layout (std430, binding = 0) buffer clusterAABB{
+layout (set = 0, binding = 0) buffer clusterAABB{
     VolumeTileAABB cluster[ ];
 };
 
-layout (std430, binding = 1) buffer screenToView{
+layout (set = 0, binding = 1) buffer screenToView{
     mat4 inverseProjection;
     vec4 tileSizes;
     uvec2 screenDimensions;

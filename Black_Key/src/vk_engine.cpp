@@ -95,8 +95,8 @@ void VulkanEngine::load_assets()
 	auto cubeFile = loadGltf(this, cubePath);
 	loadedScenes["cube"] = *cubeFile;
 
-	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
-	std::string structurePath{ "assets/sponza/Sponza.gltf" };
+	std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
+	//std::string structurePath{ "assets/sponza/Sponza.gltf" };
 
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
@@ -354,24 +354,31 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
 void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 {
+	CullData culling_information;
+
 	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _cullLightsDescriptorLayout);
+
+	//write the buffer
+	//auto* pointBuffer = ClusterValues.lightSSBO.allocation->GetMappedData();
+	//memcpy(pointBuffer, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
 	
 	DescriptorWriter writer;
 	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(1, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(2, ClusterValues.lightSSBO.buffer, sizeof(PointLightData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(2, ClusterValues.lightSSBO.buffer, pointData.pointLights.size() * sizeof(PointLight), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	writer.write_buffer(3, ClusterValues.lightIndexListSSBO.buffer, sizeof(uint32_t) * totalLightCount, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * 2 * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(5, ClusterValues.lightIndexGlobalCountSSBO.buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, cullingDescriptor);
 
-	auto view = mainCamera.matrices.view;
+	culling_information.view = mainCamera.matrices.view;
+	culling_information.lightCount = pointData.pointLights.size();
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipeline);
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipelineLayout, 0, 1, &cullingDescriptor, 0, nullptr);
 
-	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::mat4), &view);
+	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
 	vkCmdDispatch(cmd, 1, 1, 6);
 }
 
@@ -1232,7 +1239,7 @@ void VulkanEngine::init_compute_pipelines()
 
 	VkPushConstantRange pushConstant{};
 	pushConstant.offset = 0;
-	pushConstant.size = sizeof(glm::mat4);
+	pushConstant.size = sizeof(CullData);
 	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
@@ -1416,11 +1423,7 @@ void VulkanEngine::init_buffers()
 	
 	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
 
-	ClusterValues.lightSSBO = create_buffer(sizeof(PointLightData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-	//write the buffer
-	PointLightData* pointBuffer = (PointLightData*)ClusterValues.lightSSBO.allocation->GetMappedData();
-	*pointBuffer = pointData;
-	
+	ClusterValues.lightSSBO = create_and_upload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, pointData.pointLights.data());
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
@@ -1463,11 +1466,10 @@ void VulkanEngine::init_default_data() {
 	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights[i] = PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 5.0f, 1.0f);
-		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng),-6.0f,distFloat(rng),1.0f), glm::vec4(1), 5.0f, 1.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 5.0f, 1.0f));
 	}
-	pointData.pointLights[4] = PointLight(glm::vec4(-0.12f, -5.14f,  5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f);
-	pointData.pointLights[5] = PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f);
+	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, 5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f));
+	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f));
 
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);

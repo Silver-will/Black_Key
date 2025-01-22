@@ -8,6 +8,7 @@ struct PointLight{
     uint enabled;
     float intensity;
     float range;
+    float padding;
 };
 
 struct LightGrid{

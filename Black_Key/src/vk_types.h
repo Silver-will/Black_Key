@@ -91,6 +91,11 @@ struct LightGrid {
     uint32_t count;
 };
 
+struct CullData {
+    glm::mat4 view;
+    uint32_t lightCount;
+};
+
 struct ScreenToView {
     glm::mat4 inverseProjectionMat;
     glm::vec4 tileSizes;

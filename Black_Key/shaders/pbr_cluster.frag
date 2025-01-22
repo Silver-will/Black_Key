@@ -27,16 +27,6 @@ layout (std430, set = 0, binding = 6) buffer screenToView{
     float scale;
     float bias;
 };
-layout (std430, set = 0, binding = 7) buffer lightSSBO{
-    PointLight pointLight[];
-};
-layout (std430, set = 0, binding = 8) buffer lightIndexSSBO{
-    uint globalLightIndexList[];
-};
-layout (std430, set = 0, binding = 9) buffer lightGridSSBO{
-    LightGrid lightGrid[];
-};
-
 layout (location = 0) out vec4 outFragColor;
 
 #define NUM_OF_LIGHTS 4
