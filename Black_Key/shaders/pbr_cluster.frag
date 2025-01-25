@@ -146,14 +146,18 @@ void main()
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
     
     Lo += specularContribution(L, V, N, F0, metallic, roughness);
+	// Calculate point lights
+	//for(int i = 0; i < pointLightCount; i++)
+	//{
+		//Lo += specularContribution(L, V, N, F0, metallic, roughness);
+	//}
 
+    vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
     vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
 	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
 
     vec3 diffuse = irradiance * albedo;
-
-    vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
 
 	// Specular reflectance
 	vec3 specular = reflection * (F * brdf.x + brdf.y);
