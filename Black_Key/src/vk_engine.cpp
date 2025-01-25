@@ -44,7 +44,7 @@ void VulkanEngine::init()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1, 1000.0f);
+	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 300.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
     // only one engine initialization is allowed with the application.
@@ -95,8 +95,8 @@ void VulkanEngine::load_assets()
 	auto cubeFile = loadGltf(this, cubePath);
 	loadedScenes["cube"] = *cubeFile;
 
-	std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
-	//std::string structurePath{ "assets/sponza/Sponza.gltf" };
+	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
+	std::string structurePath{ "assets/sponza/Sponza.gltf" };
 
 	auto structureFile = loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
@@ -778,7 +778,23 @@ void VulkanEngine::resize_swapchain()
 	
 	_aspect_width = w;
 	_aspect_height = h;
+
 	create_swapchain(_windowExtent.width, _windowExtent.height);
+	
+	//Destroy and recreate render targets
+	destroy_image(_drawImage);
+	destroy_image(_hdrImage);
+	destroy_image(_resolveImage);
+
+	VkExtent3D ImageExtent{
+		_aspect_width,
+		_aspect_height,
+		1
+	};
+	_drawImage = vkutil::create_image_empty(ImageExtent,VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,this, VK_IMAGE_VIEW_TYPE_2D, false, 1, VK_SAMPLE_COUNT_4_BIT);
+	_hdrImage = vkutil::create_image_empty(ImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, this);
+	_resolveImage = vkutil::create_image_empty(ImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
+
 	resize_requested = false;
 }
 
@@ -1409,8 +1425,12 @@ void VulkanEngine::init_buffers()
 	float zNear = mainCamera.getNearClip();
 	float zFar = mainCamera.getFarClip();
 
+	ClusterValues.sizeX = (uint16_t)std::ceilf(_aspect_width / (float)ClusterValues.gridSizeX);
 	ScreenToView screen;
-	screen.inverseProjectionMat = glm::inverse(mainCamera.matrices.perspective);
+	auto proj = mainCamera.matrices.perspective;
+	proj[1][1] *= -1;
+	screen.inverseProjectionMat = glm::inverse(proj);
+	//screen.inverseProjectionMat[1][1] *= -1;
 	screen.tileSizes[0] = ClusterValues.gridSizeX;
 	screen.tileSizes[1] = ClusterValues.gridSizeY;
 	screen.tileSizes[2] = ClusterValues.gridSizeZ;
@@ -1466,10 +1486,10 @@ void VulkanEngine::init_default_data() {
 	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 5.0f, 1.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 15.0f, 1.0f));
 	}
-	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, 5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f));
-	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 5.0f, 1.0f));
+	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, 5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
+	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
 
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
