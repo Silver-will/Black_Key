@@ -96,6 +96,9 @@
     <ClCompile Include="src\vk_device.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\UI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -175,6 +178,9 @@
     </ClInclude>
     <ClInclude Include="..\tracy\public\tracy\Tracy.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\UI.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

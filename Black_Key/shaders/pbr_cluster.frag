@@ -20,12 +20,16 @@ layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
 layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
 layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
 
-layout (std430, set = 0, binding = 6) buffer screenToView{
+layout (std430, set = 0, binding = 7) buffer screenToView{
     mat4 inverseProjection;
     uvec4 tileSizes;
     uvec2 screenDimensions;
     float scale;
     float bias;
+};
+
+layout (set = 0, binding = 6) readonly buffer lightSSBO{
+    PointLight pointLight[];
 };
 layout (location = 0) out vec4 outFragColor;
 
@@ -44,7 +48,7 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 	return mix(a, b, lod - lodf);
 }
 
-vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness)
+vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
 	// Precalculate vectors and dot products	
 	vec3 H = normalize (V + L);
@@ -53,7 +57,7 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float
 	float dotNL = clamp(dot(N, L), 0.0, 1.0);
 
 	// Light color fixed
-	vec3 lightColor = vec3(1.0);
+	//vec3 lightColor = vec3(1.0);
 
 	vec3 color = vec3(0.0);
 
@@ -67,6 +71,47 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
 		color += (kD * pow(texture(colorTex, inUV).rgb,vec3(2.2)) / PI + spec) * dotNL;
+		color *= C;
+	}
+
+	return color;
+}
+
+vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C)
+{
+	 float distance = length(L);
+	 L = normalize(L);
+	 float diff = max(dot(N, L), 0.0);
+	 float attenuation = 1.0/(distance * distance);
+	 vec3 diffuse = C * diff * attenuation;
+	 return diffuse;
+}
+
+vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
+{
+	float distance = length(L);
+	L = normalize(L);
+	// Precalculate vectors and dot products	
+	vec3 H = normalize (V + L);
+	float dotNH = clamp(dot(N, H), 0.0, 1.0);
+	float dotNV = clamp(dot(N, V), 0.0, 1.0);
+	float dotNL = clamp(dot(N, L), 0.0, 1.0);
+
+	float attenuation = 1.0/(distance * distance);
+	vec3 radiance = C * attenuation;
+
+	vec3 color = vec3(0.0);
+
+	if (dotNL > 0.0) {
+		// D = Normal distribution (Distribution of the microfacets)
+		float D = D_GGX(dotNH, roughness); 
+		// G = Geometric shadowing term (Microfacets shadowing)
+		float G = G_SchlicksmithGGX(dotNL, dotNV, roughness);
+		// F = Fresnel factor (Reflectance depending on angle of incidence)
+		vec3 F = F_Schlick(dotNV, F0);		
+		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
+		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
+		color += (kD * pow(texture(colorTex, inUV).rgb,vec3(2.2)) / PI + spec) * radiance * dotNL;
 	}
 
 	return color;
@@ -144,20 +189,24 @@ void main()
 
 	vec3 Lo = vec3(0.0);
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
+	vec3 Ld = vec3(1.0);
     
-    Lo += specularContribution(L, V, N, F0, metallic, roughness);
-	// Calculate point lights
-	//for(int i = 0; i < pointLightCount; i++)
-	//{
-		//Lo += specularContribution(L, V, N, F0, metallic, roughness);
-	//}
+    Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
+
+	//Calculate point lights
+	for(int i = 0; i < sceneData.lightCount; i++)
+	{
+		L = pointLight[i].position.xyz - inFragPos;
+		Lo += PointLightContribution(L, V, N, pointLight[i].color.xyz, F0, metallic, roughness);
+		Ld += CalcDiffuseContribution(L,N,pointLight[i].color.xyz);
+	}
 
     vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
     vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
 	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
 
-    vec3 diffuse = irradiance * albedo;
+    vec3 diffuse = irradiance * albedo * Ld;
 
 	// Specular reflectance
 	vec3 specular = reflection * (F * brdf.x + brdf.y);

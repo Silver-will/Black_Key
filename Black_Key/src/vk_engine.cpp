@@ -9,6 +9,7 @@
 #include "vk_loader.h"
 #include "Lights.h"
 #include "graphics.h"
+#include "UI.h"
 
 #include <VkBootstrap.h>
 
@@ -627,7 +628,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_image(3, IBL._irradianceCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(5, IBL._preFilteredCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.update_set(_device, globalDescriptor);
+	writer.write_buffer(6, ClusterValues.lightSSBO.buffer, pointData.pointLights.size() * sizeof(PointLight), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -821,25 +822,11 @@ void VulkanEngine::run()
 
 		
 		ImGui::NewFrame();
-
-		ImGui::Begin("Stats");
-
-		ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
-		ImGui::Text("frametime %f ms", stats.frametime);
-		ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
-		ImGui::Text("triangles %i", stats.triangle_count);
-		ImGui::Text("draws %i", stats.drawcall_count);
-		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
-		ImGui::Text("Update time %f ms", stats.update_time);
-		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
-		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
-		ImGui::SeparatorText("light options");
-		float direction[] = { directLight.direction.x,directLight.direction.y, directLight.direction.z};
-		ImGui::SliderFloat3("lightDirection", direction, -5.0f, 5.0f, "%.05f");
-		directLight.direction = glm::vec4(direction[0], direction[1], direction[2], directLight.direction.w);
-		//ImGui::Text("Camera eulers: %f, %f", mainCamera.pitch, mainCamera.yaw);
-		ImGui::End();
-
+		
+		SetImguiTheme(0.8f);
+		RenderUI(this);
+		
+		//ImGui::ShowDemoWindow();
 		ImGui::Render();
 		
 
@@ -1138,6 +1125,7 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -1443,7 +1431,7 @@ void VulkanEngine::init_buffers()
 	
 	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
 
-	ClusterValues.lightSSBO = create_and_upload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, pointData.pointLights.data());
+	ClusterValues.lightSSBO = create_and_upload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, pointData.pointLights.data());
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
@@ -1483,12 +1471,12 @@ void VulkanEngine::init_default_data() {
 	int numOfLights = 4;
 	std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
+	std::uniform_real_distribution<> distFloat(0.0f, 15.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), -6.0f, distFloat(rng), 1.0f), glm::vec4(1), 15.0f, 1.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), 5.0f, distFloat(rng), 1.0f), glm::vec4(1), 400.0f, 1.0f));
 	}
-	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, 5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
+	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
 	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
 
 	//Load in skyBox image
@@ -1839,7 +1827,11 @@ void VulkanEngine::update_scene()
 	sceneData.ambientColor = glm::vec4(.1f);
 	sceneData.sunlightColor = directLight.color;
 	sceneData.sunlightDirection = directLight.direction;
+	sceneData.lightCount = pointData.pointLights.size();
 
+	void* data = ClusterValues.lightSSBO.allocation->GetMappedData();
+	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
+	
 	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
 	{
 		auto cascadeData = shadows.getCascades(this);

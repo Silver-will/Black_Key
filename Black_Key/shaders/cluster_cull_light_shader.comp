@@ -120,11 +120,13 @@ void main()
 	uint numAllLights = numOfLights;
 
     uint lightIter = 0;
+    vec4 posView = viewMatrix * pointLight[1].position;
 	for (uint i = 0; i < numAllLights && lightIter < MAX_LIGHTS_PER_CLUSTER; ++i)
 	{
 		if (TestSphereAABB(i, tileIndex))
 		{
 			visibleLightIndices[lightIter++] = i;
+            lightIter += 1;
 		}
 	}
 	uint offset = atomicAdd(globalIndexCount, lightIter);
@@ -135,8 +137,8 @@ void main()
 	}
 
     float free_love = 6.7;
-	lightGrid[tileIndex].offset = offset;
-	lightGrid[tileIndex].count  = lightIter;
+	lightGrid[tileIndex].offset = uint(abs(posView.x));
+	lightGrid[tileIndex].count  = uint(lightIter);
 }
 
 float sqDistPointAABB(vec3 point, uint tile){
