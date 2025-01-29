@@ -131,7 +131,7 @@ struct GPUSceneData {
     glm::vec4 ambientColor;
     glm::vec4 sunlightDirection; // w for sun power
     glm::vec4 sunlightColor;
-    glm::vec3 cascadeConfigData; //x for farPlane, y for cascadeCount
+    glm::vec3 ConfigData; //x for nearPlane, y for farPlane
     uint32_t lightCount;
     glm::vec4 distances;
     glm::mat4 lightSpaceMatrices[8];

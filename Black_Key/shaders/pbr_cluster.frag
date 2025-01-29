@@ -20,7 +20,12 @@ layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
 layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
 layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
 
-layout (std430, set = 0, binding = 7) buffer screenToView{
+
+layout (set = 0, binding = 6) readonly buffer lightSSBO{
+    PointLight pointLight[];
+};
+
+layout (set = 0, binding = 7) buffer screenToView{
     mat4 inverseProjection;
     uvec4 tileSizes;
     uvec2 screenDimensions;
@@ -28,12 +33,14 @@ layout (std430, set = 0, binding = 7) buffer screenToView{
     float bias;
 };
 
-layout (set = 0, binding = 6) readonly buffer lightSSBO{
-    PointLight pointLight[];
+layout (set = 0, binding = 8) buffer lightIndexSSBO{
+    uint globalLightIndexList[];
 };
-layout (location = 0) out vec4 outFragColor;
+layout (set = 0, binding = 9) buffer lightGridSSBO{
+    LightGrid lightGrid[];
+};
 
-#define NUM_OF_LIGHTS 4
+layout (location = 0) out vec4 outFragColor;
 
 float linearDepth(float depthSample);
 
@@ -193,10 +200,21 @@ void main()
     
     Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
 
+
+	uint zTile     = uint(max(log2(linearDepth(gl_FragCoord.z)) * scale + bias, 0.0));
+    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy / tileSizes[3] ), zTile);
+    uint tileIndex = tiles.x +
+                     tileSizes.x * tiles.y +
+                     (tileSizes.x * tileSizes.y) * tiles.z;  
+
+	uint lightCount       = lightGrid[tileIndex].count;
+    uint lightIndexOffset = lightGrid[tileIndex].offset;
+
 	//Calculate point lights
-	for(int i = 0; i < sceneData.lightCount; i++)
+	for(int i = 0; i < lightCount; i++)
 	{
-		L = pointLight[i].position.xyz - inFragPos;
+		uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
+		L = pointLight[lightVectorIndex].position.xyz - inFragPos;
 		Lo += PointLightContribution(L, V, N, pointLight[i].color.xyz, F0, metallic, roughness);
 		Ld += CalcDiffuseContribution(L,N,pointLight[i].color.xyz);
 	}
@@ -258,7 +276,6 @@ float linearDepth(float depthSample){
 	float zNear = sceneData.cascadeConfigData.x;
 	float zFar  = sceneData.cascadeConfigData.y;
     float depthRange = 2.0 * depthSample - 1.0;
-    // Near... Far... wherever you are...
     float linear = 2.0 * zNear * zFar / (zFar + zNear - depthRange * (zFar - zNear));
     return linear;
 }
