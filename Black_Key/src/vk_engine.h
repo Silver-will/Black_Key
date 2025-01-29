@@ -173,12 +173,12 @@ public:
 	//Clustered culling  values
 	struct {
 		//Configuration values
-		const uint16_t gridSizeX = 16;
-		const uint16_t gridSizeY = 9;
-		const uint16_t gridSizeZ = 24;
-		const uint16_t numClusters = gridSizeX * gridSizeY * gridSizeZ;
-		const uint16_t maxLightsPerTile = 50;
-		uint16_t sizeX, sizeY;
+		const uint32_t gridSizeX = 16;
+		const uint32_t gridSizeY = 9;
+		const uint32_t gridSizeZ = 24;
+		const uint32_t numClusters = gridSizeX * gridSizeY * gridSizeZ;
+		const uint32_t maxLightsPerTile = 50;
+		uint32_t sizeX, sizeY;
 
 		//Storage Buffers
 		AllocatedBuffer AABBVolumeGridSSBO;
@@ -186,8 +186,7 @@ public:
 		AllocatedBuffer lightSSBO;
 		AllocatedBuffer lightIndexListSSBO;
 		AllocatedBuffer lightGridSSBO;
-		AllocatedBuffer lightIndexGlobalCountSSBO;
-
+		AllocatedBuffer lightGlobalIndex[2];
 	} ClusterValues;
 
 	std::vector<uint32_t> draws;

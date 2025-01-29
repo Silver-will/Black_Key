@@ -88,7 +88,7 @@ void black_key::build_clusters(VulkanEngine* engine)
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, buildClusterLayout, 0, 1, &globalDescriptor, 0, nullptr);
 
 	vkCmdPushConstants(cmd, buildClusterLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(clusterParams), &clusterData);
-	vkCmdDispatch(cmd, engine->ClusterValues.gridSizeX, engine->ClusterValues.gridSizeY, engine->ClusterValues.gridSizeZ);
+	vkCmdDispatch(cmd, 16, 9, 24);
 
 	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
 

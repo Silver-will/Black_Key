@@ -1,6 +1,6 @@
 #version 450 core
 
-layout(local_size_x = 16, local_size_y = 9, local_size_z = 4) in;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #extension GL_GOOGLE_include_directive : require
 #include "lights.glsl"
 #include "cluster_info.glsl"
@@ -50,8 +50,7 @@ float SquaredDistancePointAABB(vec3 point, uint tile)
 			sqDist += (diff * diff);
 		}
 	}
-
-	return sqDist;
+   	return sqDist;
 }
 
 bool TestSphereAABB(uint lightIndex, uint tile)
@@ -61,99 +60,38 @@ bool TestSphereAABB(uint lightIndex, uint tile)
 	vec4 posView = viewMatrix * posWorld;
 	float squaredDistance = SquaredDistancePointAABB(posView.xyz, tile);
 
+    //lightGrid[tile].count  = uint(lightRadius * lightRadius);
+    //lightGrid[tile].offset = uint(squaredDistance);
 	return squaredDistance < (lightRadius * lightRadius);
 }
 
 void main()
 {
-    /*
-	globalIndexCount = 0;
-    uint threadCount = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
-    uint lightCount  = pointLight.length();
-    uint numBatches = (lightCount + threadCount -1) / threadCount;
-
-    uint tileIndex = gl_LocalInvocationIndex + gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z * gl_WorkGroupID.z;
-    
-    uint visibleLightCount = 0;
-    uint visibleLightIndices[100];
-
-    for( uint batch = 0; batch < numBatches; ++batch){
-        uint lightIndex = batch * threadCount + gl_LocalInvocationIndex;
-
-        //Prevent overflow by clamping to last light which is always null
-        lightIndex = min(lightIndex, lightCount);
-
-        //Populating shared light array
-        sharedLights[gl_LocalInvocationIndex] = pointLight[lightIndex];
-        barrier();
-
-        //Iterating within the current batch of lights
-        for( uint light = 0; light < threadCount; ++light){
-            if( sharedLights[light].enabled  == 1){
-                if( testSphereAABB(light, tileIndex) ){
-                    visibleLightIndices[visibleLightCount] = batch * threadCount + light;
-                    visibleLightCount += 1;
-                }
-            }
-        }
-    }
-
-    //We want all thread groups to have completed the light tests before continuing
-    barrier();
-
-    uint offset = atomicAdd(globalIndexCount, visibleLightCount);
-
-    for(uint i = 0; i < visibleLightCount; ++i){
-        globalLightIndexList[offset + i] = visibleLightIndices[i];
-    }
-
-    lightGrid[tileIndex].offset = offset;
-    lightGrid[tileIndex].count = visibleLightCount;
-    */
-
     uint tileIndex = gl_WorkGroupID.x +
 		gl_WorkGroupID.y * gl_NumWorkGroups.x +
 		gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y;
 
     uint visibleLightIndices[MAX_LIGHTS_PER_CLUSTER];
-
 	uint numAllLights = numOfLights;
 
     uint lightIter = 0;
-    vec4 posView = viewMatrix * pointLight[1].position;
 	for (uint i = 0; i < numAllLights && lightIter < MAX_LIGHTS_PER_CLUSTER; ++i)
 	{
 		if (TestSphereAABB(i, tileIndex))
 		{
 			visibleLightIndices[lightIter++] = i;
-            lightIter += 1;
 		}
 	}
-	uint offset = atomicAdd(globalIndexCount, lightIter);
-
+	barrier();
+	uint offset = atomicAdd(globalIndexCount, 1);
+	//globalIndexCount += lightIter;
+	//uint offset = 2;
+	
 	for (uint i = 0; i < lightIter; ++i)
 	{
 		globalLightIndexList[offset + i] = visibleLightIndices[i];
 	}
 
-    float free_love = 6.7;
-	lightGrid[tileIndex].offset = uint(abs(posView.x));
-	lightGrid[tileIndex].count  = uint(lightIter);
-}
-
-float sqDistPointAABB(vec3 point, uint tile){
-    float sqDist = 0.0;
-    VolumeTileAABB currentCell = cluster[tile];
-    cluster[tile].maxPoint[3] = tile;
-    for(int i = 0; i < 3; ++i){
-        float v = point[i];
-        if(v < currentCell.minPoint[i]){
-            sqDist += (currentCell.minPoint[i] - v) * (currentCell.minPoint[i] - v);
-        }
-        if(v > currentCell.maxPoint[i]){
-            sqDist += (v - currentCell.maxPoint[i]) * (v - currentCell.maxPoint[i]);
-        }
-    }
-
-    return sqDist;
+	lightGrid[tileIndex].offset = offset;
+	lightGrid[tileIndex].count  = lightIter;
 }

@@ -370,7 +370,7 @@ void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	writer.write_buffer(3, ClusterValues.lightIndexListSSBO.buffer, sizeof(uint32_t) * totalLightCount, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * 2 * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(5, ClusterValues.lightIndexGlobalCountSSBO.buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, cullingDescriptor);
 
 	culling_information.view = mainCamera.matrices.view;
@@ -380,7 +380,7 @@ void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipelineLayout, 0, 1, &cullingDescriptor, 0, nullptr);
 
 	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
-	vkCmdDispatch(cmd, 1, 1, 6);
+	vkCmdDispatch(cmd, 16, 9, 24);
 }
 
 void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
@@ -1416,7 +1416,7 @@ void VulkanEngine::init_buffers()
 	ClusterValues.sizeX = (uint16_t)std::ceilf(_aspect_width / (float)ClusterValues.gridSizeX);
 	ScreenToView screen;
 	auto proj = mainCamera.matrices.perspective;
-	proj[1][1] *= -1;
+	//proj[1][1] *= -1;
 	screen.inverseProjectionMat = glm::inverse(proj);
 	//screen.inverseProjectionMat[1][1] *= -1;
 	screen.tileSizes[0] = ClusterValues.gridSizeX;
@@ -1437,7 +1437,12 @@ void VulkanEngine::init_buffers()
 
 	ClusterValues.lightGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(LightGrid), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	ClusterValues.lightIndexGlobalCountSSBO = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+	uint32_t val= 0;
+	for (uint32_t i = 0; i < 2; i++)
+	{
+		ClusterValues.lightGlobalIndex[i] = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &val);
+	}
+	//ClusterValues.lightIndexGlobalCountSSBO = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY,&val);
 
 	_mainDeletionQueue.push_function([=]() {
 		destroy_buffer(ClusterValues.lightSSBO);
@@ -1445,7 +1450,9 @@ void VulkanEngine::init_buffers()
 		destroy_buffer(ClusterValues.screenToViewSSBO);
 		destroy_buffer(ClusterValues.AABBVolumeGridSSBO);
 		destroy_buffer(ClusterValues.lightIndexListSSBO);
-		destroy_buffer(ClusterValues.lightIndexGlobalCountSSBO);
+		destroy_buffer(ClusterValues.lightGlobalIndex[0]);
+		destroy_buffer(ClusterValues.lightGlobalIndex[1]);
+
 		});
 }
 void VulkanEngine::init_default_data() {
@@ -1474,7 +1481,7 @@ void VulkanEngine::init_default_data() {
 	std::uniform_real_distribution<> distFloat(0.0f, 15.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), 5.0f, distFloat(rng), 1.0f), glm::vec4(1), 400.0f, 1.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), 5.0f, distFloat(rng), 1.0f), glm::vec4(1), 12.0f, 1.0f));
 	}
 	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
 	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
