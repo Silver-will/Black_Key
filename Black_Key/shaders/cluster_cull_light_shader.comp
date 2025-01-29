@@ -60,8 +60,6 @@ bool TestSphereAABB(uint lightIndex, uint tile)
 	vec4 posView = viewMatrix * posWorld;
 	float squaredDistance = SquaredDistancePointAABB(posView.xyz, tile);
 
-    //lightGrid[tile].count  = uint(lightRadius * lightRadius);
-    //lightGrid[tile].offset = uint(squaredDistance);
 	return squaredDistance < (lightRadius * lightRadius);
 }
 
@@ -83,9 +81,10 @@ void main()
 		}
 	}
 	barrier();
-	uint offset = atomicAdd(globalIndexCount, 1);
+	uint offset = atomicAdd(globalIndexCount, lightIter);
+	
+	//uint offset = globalIndexCount;
 	//globalIndexCount += lightIter;
-	//uint offset = 2;
 	
 	for (uint i = 0; i < lightIter; ++i)
 	{

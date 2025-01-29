@@ -369,7 +369,7 @@ void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 	writer.write_buffer(2, ClusterValues.lightSSBO.buffer, pointData.pointLights.size() * sizeof(PointLight), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 	writer.write_buffer(3, ClusterValues.lightIndexListSSBO.buffer, sizeof(uint32_t) * totalLightCount, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * 2 * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, cullingDescriptor);
 
@@ -622,6 +622,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
 
+	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
+
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_image(2, _shadowDepthImage.imageView, _depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -629,6 +631,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(5, IBL._preFilteredCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_buffer(6, ClusterValues.lightSSBO.buffer, pointData.pointLights.size() * sizeof(PointLight), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(7, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(8, ClusterValues.lightIndexListSSBO.buffer, totalLightCount * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
 	writer.update_set(_device, globalDescriptor);
 
 	MaterialPipeline* lastPipeline = nullptr;
@@ -1126,6 +1132,9 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -1440,7 +1449,7 @@ void VulkanEngine::init_buffers()
 	uint32_t val= 0;
 	for (uint32_t i = 0; i < 2; i++)
 	{
-		ClusterValues.lightGlobalIndex[i] = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &val);
+		ClusterValues.lightGlobalIndex[i] = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
 	}
 	//ClusterValues.lightIndexGlobalCountSSBO = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY,&val);
 
@@ -1839,6 +1848,11 @@ void VulkanEngine::update_scene()
 	void* data = ClusterValues.lightSSBO.allocation->GetMappedData();
 	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
 	
+	uint32_t* val = (uint32_t*)ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
+	*val = 0;
+	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	//*sceneUniformData = sceneData;
+
 	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
 	{
 		auto cascadeData = shadows.getCascades(this);
@@ -1854,9 +1868,11 @@ void VulkanEngine::update_scene()
 	}
 
 	if (debugShadowMap)
-		sceneData.cascadeConfigData.z = 1.0f;
+		sceneData.ConfigData.z = 1.0f;
 	else
-		sceneData.cascadeConfigData.z = 0.0f;
+		sceneData.ConfigData.z = 0.0f;
+	sceneData.ConfigData.x = mainCamera.getNearClip();
+	sceneData.ConfigData.y = mainCamera.getFarClip();
 
 	//Not an actual api Draw call
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
