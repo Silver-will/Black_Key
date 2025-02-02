@@ -169,24 +169,3 @@ struct EngineStats {
             abort();                                                    \
         }                                                               \
     } while (0)
-
-
-struct BufferHandle {
-    uint32_t index;
-};
-
-struct TextureHandle {
-    uint32_t index;
-};
-
-struct RenderPassHandle {
-    uint32_t index;
-};
-
-struct RenderTargetHandle {
-    uint32_t index;
-};
-
-enum RenderPassEnum {
-    DontCare, Load, Clear, Count
-};

@@ -1,5 +1,5 @@
 #include "vk_types.h"
-
+#include<stack>
 namespace BlackKey{
 	
 }
@@ -19,5 +19,24 @@ struct DeletionQueue
 		}
 
 		deletors.clear();
+	}
+};
+
+//makes more sense yh
+struct DeletionStack
+{
+	std::stack<std::function<void()>> deletors;
+
+	void push_function(std::function<void()>&& function) {
+		deletors.push(function);
+	}
+
+	void flush() {
+		
+		//Loop through stack executing all deletion functions
+		while(!deletors.empty()) {
+			auto func = deletors.top();
+			func();
+		}
 	}
 };
