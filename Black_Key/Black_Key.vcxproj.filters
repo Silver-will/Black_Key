@@ -19,6 +19,9 @@
     <Filter Include="Extern\Imgui">
       <UniqueIdentifier>{03a006e7-b2ac-4e82-b72e-e0749cf92147}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderers">
+      <UniqueIdentifier>{19dc9ef5-5d97-4d2f-a6e9-f43c96479c9c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\camera.cpp">
@@ -72,9 +75,6 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp">
       <Filter>Extern\Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_renderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\vk_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -106,6 +106,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\resource_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renderers\blinn_phong_renderer.cpp">
+      <Filter>Source Files\renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renderers\pbr_clustered_renderer.cpp">
+      <Filter>Source Files\renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renderers\base_renderer.cpp">
+      <Filter>Source Files\renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_pass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -198,6 +210,18 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\resource_manager.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderers\blinn_phong_renderer.h">
+      <Filter>Source Files\renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderers\pbr_clustered_renderer.h">
+      <Filter>Source Files\renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderers\base_renderer.h">
+      <Filter>Source Files\renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render_pass.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

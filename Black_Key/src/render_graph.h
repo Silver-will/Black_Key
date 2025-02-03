@@ -1,6 +1,11 @@
 #pragma once
+
+#ifndef RENDER_GRAPH_H
+#define RENDER_GRAPH_H
 #include "vk_types.h"
-namespace {
+#include "resource_manager.h"
+
+namespace black_key{
 	enum class RenderGraphResourceType {
 		invalid_resource = -1,
 		texture_resource = 0,
@@ -162,7 +167,7 @@ namespace {
 	};
 
 	struct RenderGraph {
-		void                            init(RenderGraphBuilder* builder);
+		void                            init(RenderGraphBuilder* builder, ResourceManager* resource_manager = nullptr);
 		void                            shutdown();
 
 		void                            parse(std::string_view file_path);
@@ -190,8 +195,9 @@ namespace {
 		std::vector<RenderGraphNodeHandle>     nodes;
 
 		RenderGraphBuilder* builder;
+		ResourceManager* resource_manager;
 
 		std::string name = nullptr;
 	};
 };
-
+#endif

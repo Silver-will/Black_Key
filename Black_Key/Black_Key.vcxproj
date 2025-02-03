@@ -222,7 +222,11 @@
     <ClCompile Include="external\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\renderers\base_renderer.cpp" />
+    <ClCompile Include="src\renderers\blinn_phong_renderer.cpp" />
+    <ClCompile Include="src\renderers\pbr_clustered_renderer.cpp" />
     <ClCompile Include="src\render_graph.cpp" />
+    <ClCompile Include="src\render_pass.cpp" />
     <ClCompile Include="src\resource_manager.cpp" />
     <ClCompile Include="src\scene_manager.cpp" />
     <ClCompile Include="src\UI.cpp" />
@@ -241,7 +245,6 @@
     <ClCompile Include="src\vk_initializers.cpp" />
     <ClCompile Include="src\vk_loader.cpp" />
     <ClCompile Include="src\vk_pipelines.cpp" />
-    <ClCompile Include="src\vk_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tracy\public\tracy\Tracy.hpp" />
@@ -254,6 +257,10 @@
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
     <ClInclude Include="src\camera.h" />
+    <ClInclude Include="src\renderers\base_renderer.h" />
+    <ClInclude Include="src\renderers\blinn_phong_renderer.h" />
+    <ClInclude Include="src\renderers\pbr_clustered_renderer.h" />
+    <ClInclude Include="src\render_pass.h" />
     <ClInclude Include="src\resource_manager.h" />
     <ClInclude Include="src\render_graph.h" />
     <ClInclude Include="src\scene_manager.h" />
