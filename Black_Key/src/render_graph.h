@@ -3,6 +3,7 @@
 #ifndef RENDER_GRAPH_H
 #define RENDER_GRAPH_H
 #include "vk_types.h"
+#include "render_pass.h"
 #include "resource_manager.h"
 
 namespace black_key{
@@ -43,7 +44,7 @@ namespace black_key{
 
 				VkFormat format;
 				VkImageUsageFlags flags;
-				RenderPassEnum::Load;
+				RenderPassEnum op = RenderPassEnum::Load;
 
 				TextureHandle texture;
 			} texture;
@@ -175,6 +176,7 @@ namespace black_key{
 		// NOTE(marco): each frame we rebuild the graph so that we can enable only
 		// the nodes we are interested in
 		void                            reset();
+		void add_render_pass();
 		void                            enable_render_pass(std::string_view render_pass_name);
 		void                            disable_render_pass(std::string_view render_pass_name);
 		void                            compile();
@@ -193,6 +195,7 @@ namespace black_key{
 
 		// NOTE(marco): nodes sorted in topological order
 		std::vector<RenderGraphNodeHandle>     nodes;
+		std::vector<Task> tasks;
 
 		RenderGraphBuilder* builder;
 		ResourceManager* resource_manager;
