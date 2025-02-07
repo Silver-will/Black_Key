@@ -74,9 +74,8 @@ namespace black_key{
 	struct RenderGraphNodeCreation {
 		std::vector<RenderGraphResourceCreation>  inputs;
 		std::vector<RenderGraphResourceCreation> outputs;
-
-		bool                                    enabled;
-
+		RenderGraphResourceType type;
+		bool enabled;
 		std::string name;
 	};
 
@@ -176,7 +175,7 @@ namespace black_key{
 		// NOTE(marco): each frame we rebuild the graph so that we can enable only
 		// the nodes we are interested in
 		void                            reset();
-		void add_render_pass();
+		void AddRenderPass();
 		void                            enable_render_pass(std::string_view render_pass_name);
 		void                            disable_render_pass(std::string_view render_pass_name);
 		void                            compile();

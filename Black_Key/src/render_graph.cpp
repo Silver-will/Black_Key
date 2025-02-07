@@ -18,4 +18,9 @@ namespace black_key {
 		}
 		nodes.clear();
 	}
+
+	void RenderGraph::AddRenderPass(RenderGraphNodeCreation node)
+	{
+
+	}
 };
