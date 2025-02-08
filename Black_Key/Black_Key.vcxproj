@@ -221,6 +221,7 @@
     <ClCompile Include="external\imgui\imgui_impl_vulkan.cpp" />
     <ClCompile Include="external\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\asset_manager.cpp" />
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\renderers\base_renderer.cpp" />
     <ClCompile Include="src\renderers\blinn_phong_renderer.cpp" />
@@ -256,6 +257,7 @@
     <ClInclude Include="external\imgui\imstb_rectpack.h" />
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
+    <ClInclude Include="src\asset_manager.h" />
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\renderers\base_renderer.h" />
     <ClInclude Include="src\renderers\blinn_phong_renderer.h" />

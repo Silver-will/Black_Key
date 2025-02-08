@@ -7,9 +7,17 @@
 
 class VulkanEngine;
 
+
+enum class MaterialType {
+    pbr_material,
+    phong_material,
+    albedo_only_material
+};
+
 struct GLTFMaterial {
     MaterialInstance data;
     uint16_t obj_count;
+    MaterialType mat_type;
 };
 
 

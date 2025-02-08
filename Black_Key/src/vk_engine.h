@@ -33,18 +33,17 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 
 class VulkanEngine {
 public:
-	//initializes everything in the engine
-	void init();
+	virtual void init();
 
 	//shuts down the engine
-	void cleanup();
+	virtual void cleanup();
 
 	//draw loop
-	void draw();
-	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+	virtual void draw();
+	virtual void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	//run main loop
-	void run();
+	virtual void run();
 
 	Camera mainCamera;
 

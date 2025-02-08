@@ -9,6 +9,7 @@
 #include "vk_loader.h"
 #include "Lights.h"
 #include "graphics.h"
+#include "render_graph.h"
 #include "UI.h"
 
 #include <VkBootstrap.h>
