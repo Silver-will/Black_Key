@@ -175,7 +175,7 @@ namespace black_key{
 		// NOTE(marco): each frame we rebuild the graph so that we can enable only
 		// the nodes we are interested in
 		void                            reset();
-		void AddRenderPass();
+		void AddRenderPass(RenderGraphNodeCreation node);
 		void                            enable_render_pass(std::string_view render_pass_name);
 		void                            disable_render_pass(std::string_view render_pass_name);
 		void                            compile();

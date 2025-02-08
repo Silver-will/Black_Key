@@ -3,11 +3,6 @@
 #include <stb_image.h>
 #include <glm/gtx/quaternion.hpp>
 #include <fastgltf/glm_element_traits.hpp>
-#include <fastgltf/parser.hpp>
-#include <fastgltf/tools.hpp>
-#include <fastgltf/util.hpp>
-#include <fastgltf/base64.hpp>
-#include <fastgltf/types.hpp>
 #include <iostream>
 #include <string>
 

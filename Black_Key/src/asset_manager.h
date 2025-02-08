@@ -1,5 +1,10 @@
 #pragma once
 #include "vk_engine.h"
+#include <fastgltf/parser.hpp>
+#include <fastgltf/tools.hpp>
+#include <fastgltf/util.hpp>
+#include <fastgltf/base64.hpp>
+#include <fastgltf/types.hpp>
 
 struct AssetManager {
 	AssetManager(VulkanEngine* engine);
