@@ -81,7 +81,7 @@ struct AllocatedBuffer {
     VmaAllocationInfo info;
 };
 
-struct VolumeTileAABB {
+struct AABB {
     glm::vec4 minPoint;
     glm::vec4 maxPoint;
 };

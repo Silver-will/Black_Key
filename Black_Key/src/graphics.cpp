@@ -76,7 +76,7 @@ void black_key::build_clusters(VulkanEngine* engine)
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	DescriptorWriter writer;
-	writer.write_buffer(0, engine->ClusterValues.AABBVolumeGridSSBO.buffer, engine->ClusterValues.numClusters * sizeof(VolumeTileAABB),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(0, engine->ClusterValues.AABBVolumeGridSSBO.buffer, engine->ClusterValues.numClusters * sizeof(AABB),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(1, engine->ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, globalDescriptor);
 

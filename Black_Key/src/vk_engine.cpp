@@ -365,7 +365,7 @@ void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 	//memcpy(pointBuffer, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
 	
 	DescriptorWriter writer;
-	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(AABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(1, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(2, ClusterValues.lightSSBO.buffer, pointData.pointLights.size() * sizeof(PointLight), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
@@ -1419,7 +1419,7 @@ void VulkanEngine::init_mesh_pipeline()
 
 void VulkanEngine::init_buffers()
 {
-	ClusterValues.AABBVolumeGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.AABBVolumeGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(AABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	float zNear = mainCamera.getNearClip();
 	float zFar = mainCamera.getFarClip();
 
