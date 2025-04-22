@@ -150,6 +150,25 @@ struct HDRDrawPushConstants {
     glm::vec4 TexCoordScale;
 };
 
+struct GPUObjectData {
+    glm::mat4 modelMatrix;
+    glm::vec4 origin_rad; // bounds
+    glm::vec4 extents;  // bounds
+};
+
+struct MeshObject {
+    GPUMeshBuffers* mesh{ nullptr };
+
+    vkutil::Material* material;
+    uint32_t customSortKey;
+    glm::mat4 transformMatrix;
+
+    Bounds bounds;
+
+    uint32_t bDrawForwardPass : 1;
+    uint32_t bDrawShadowPass : 1;
+};
+
 struct EngineStats {
     float frametime;
     int triangle_count;
