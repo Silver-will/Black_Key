@@ -1,58 +1,36 @@
-﻿// vulkan_guide.h : Include file for standard system include files,
-// or project specific include files.
 #pragma once
+#include "base_renderer.h"
+struct ClusteredForwardRenderer : BaseRenderer
+{
+	void Init(VulkanEngine* engine) override;
 
-#include "vk_loader.h"
-#include "vk_types.h"
-#include "engine_util.h"
-#include "vk_descriptors.h"
-#include "vk_renderer.h"
-//#include <vma/vk_mem_alloc.h>
-#include "camera.h"
-#include "engine_psos.h"
-#include "shadows.h"
-#include "Lights.h"
-#include <chrono>
-#include <ktxvulkan.h>
+	void Cleanup() override;
 
-#define USE_BINDLESS 0
+	void Draw() override;
 
-struct FrameData {
+	void DrawUI() override;
 
-	VkCommandPool _commandPool;
-	VkCommandBuffer _mainCommandBuffer;
+	void Run() override;
 
-	VkSemaphore _swapchainSemaphore, _renderSemaphore;
-	VkFence _renderFence;
-
-	DeletionQueue _deletionQueue;
-	DescriptorAllocatorGrowable _frameDescriptors;
-};
-
-constexpr unsigned int FRAME_OVERLAP = 2;
-
-class VulkanEngine {
-public:
-	//initializes everything in the engine
-	void init();
-
-	//shuts down the engine
-	void cleanup();
-
-	//draw loop
-	void draw();
-	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
-
-	//run main loop
-	void run();
-
-	Camera mainCamera;
-
-	VkInstance _instance;// Vulkan library handle
-	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
-	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
-	VkDevice _device; // Vulkan device for commands
-	VkSurfaceKHR _surface;// Vulkan window surface
+	void pre_process_pass();
+	void cull_lights(VkCommandBuffer cmd);
+	void draw_shadows(VkCommandBuffer cmd);
+	void draw_main(VkCommandBuffer cmd);
+	void draw_post_process(VkCommandBuffer cmd);
+	void draw_background(VkCommandBuffer cmd);
+	void draw_geometry(VkCommandBuffer cmd);
+	void draw_hdr(VkCommandBuffer cmd);
+	void draw_early_depth(VkCommandBuffer cmd);
+	void init_commands();
+	void init_sync_structures();
+	void init_descriptors();
+	void init_buffers();
+	void init_pipelines();
+	void create_swapchain(uint32_t width, uint32_t height);
+	void destroy_swapchain();
+	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
+private:
 
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
@@ -71,7 +49,7 @@ public:
 	DescriptorAllocator globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
-	
+
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	bool resize_requested = false;
@@ -80,11 +58,11 @@ public:
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
 	bool debugShadowMap = true;
-	
+
 	struct {
 		float lastFrame;
 	} delta;
-	VkExtent2D _windowExtent{ 1920,1080};
+	VkExtent2D _windowExtent{ 1920,1080 };
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
@@ -97,11 +75,7 @@ public:
 	std::vector<float>cascades;
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
-
-	VkQueue _graphicsQueue;
-	uint32_t _graphicsQueueFamily;
-	DeletionQueue _mainDeletionQueue;
-	VmaAllocator _allocator;
+	
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
 	AllocatedImage _resolveImage;
@@ -122,11 +96,7 @@ public:
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
-
-	VkFence _immFence;
-	VkCommandBuffer _immCommandBuffer;
-	VkCommandPool _immCommandPool;
-
+	
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{ 0 };
 
@@ -196,54 +166,12 @@ public:
 	DirectionalLight directLight;
 	uint32_t maxLights = 100;
 
-	struct PointLightData{
-	
+	struct PointLightData {
+
 		uint32_t numOfLights = 6;
 		//PointLight pointLights[100];
 		std::vector<PointLight> pointLights;
-	
+
 	}pointData;
-	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
-	//r
-	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
-	DrawContext mainDrawContext;
-	//r
-	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
-
-	void update_scene();
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void destroy_buffer(const AllocatedBuffer& buffer);
-	AllocatedBuffer create_and_upload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data);
-	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	void destroy_image(const AllocatedImage& img);
-
-private:
-	void load_assets();
-	void pre_process_pass();
-	void cull_lights(VkCommandBuffer cmd);
-	void draw_shadows(VkCommandBuffer cmd);
-	void draw_main(VkCommandBuffer cmd);
-	void draw_post_process(VkCommandBuffer cmd);
-	void draw_background(VkCommandBuffer cmd);
-	void draw_geometry(VkCommandBuffer cmd);
-	void draw_hdr(VkCommandBuffer cmd);
-	void draw_early_depth(VkCommandBuffer cmd);
-	void resize_swapchain();
-	void init_vulkan();
-	void init_mesh_pipeline();
-	void init_default_data();
-	void init_triangle_pipeline();
-	void init_compute_pipelines();
-	void init_imgui();
-	void init_swapchain();
-	void init_commands();
-	void init_sync_structures();
-	void init_descriptors();
-	void init_buffers();
-	void create_swapchain(uint32_t width, uint32_t height);
-	void destroy_swapchain();
-	void init_pipelines();
-	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 };
+

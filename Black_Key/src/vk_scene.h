@@ -9,8 +9,8 @@ struct Handle {
 	uint32_t handle;
 };
 
-namespace vkutil { struct Material; }
-namespace vkutil { struct ShaderPass; }
+namespace vk_util { struct Material; }
+namespace vk_util { struct ShaderPass; }
 
 
 struct GPUIndirectObject {
@@ -30,14 +30,32 @@ struct DrawMesh {
 };
 
 
-struct SceneRenderObject {
+struct SceneMeshObject {
 
 	Handle<DrawMesh> meshID;
-	Handle<MaterialInstance> material;
+	IndirectMesh* mesh{nullptr};
+	vk_util::Material* material;
 
 	uint32_t updateIndex;
 	uint32_t customSortKey{ 0 };
 
+	vk_util::PerPassData<int32_t> passIndices;
+
+	glm::mat4 transformMatrix;
+	uint32_t bDrawForwardPass : 1;
+	uint32_t bDrawShadowPass : 1;
+
+	Bounds bounds;
+};
+
+struct SceneRenderObject {
+	Handle<DrawMesh> meshID;
+	Handle<vk_util::Material> material;
+
+	uint32_t updateIndex;
+	uint32_t customSortKey{ 0 };
+
+	
 	vk_util::PerPassData<int32_t> passIndices;
 
 	glm::mat4 transformMatrix;
@@ -126,18 +144,18 @@ struct RenderScene {
 
 	void init();
 
-	Handle<SceneRenderObject> register_object(MeshObject* object);
+	Handle<SceneMeshObject> register_object(SceneMeshObject* object);
 
-	void register_object_batch(MeshObject* first, uint32_t count);
+	void register_object_batch(SceneMeshObject* first, uint32_t count);
 
-	void update_transform(Handle<SceneRenderObject> objectID, const glm::mat4& localToWorld);
-	void update_object(Handle<SceneRenderObject> objectID);
+	void update_transform(Handle<SceneMeshObject> objectID, const glm::mat4& localToWorld);
+	void update_object(Handle<SceneMeshObject> objectID);
 
 	void fill_objectData(GPUObjectData* data);
 	void fill_indirectArray(GPUIndirectObject* data, MeshPass& pass);
 	void fill_instancesArray(GPUInstance* data, MeshPass& pass);
 
-	void write_object(GPUObjectData* target, Handle<SceneRenderObject> objectID);
+	void write_object(GPUObjectData* target, Handle<SceneMeshObject> objectID);
 
 	void clear_dirty_objects();
 
@@ -152,11 +170,11 @@ struct RenderScene {
 	DrawMesh* get_mesh(Handle<DrawMesh> objectID);
 
 
-	vkutil::Material* get_material(Handle<vkutil::Material> objectID);
+	vk_util::Material get_material(vk_util::Material objectID);
 
-	std::vector<RenderObject> renderables;
+	std::vector<SceneRenderObject> renderables;
 	std::vector<DrawMesh> meshes;
-	std::vector<vkutil::Material*> materials;
+	std::vector<vk_util::Material*> materials;
 
 	std::vector<Handle<RenderObject>> dirtyObjects;
 
@@ -166,11 +184,11 @@ struct RenderScene {
 	MeshPass _transparentForwardPass;
 	MeshPass _shadowPass;
 
-	std::unordered_map<vkutil::Material*, Handle<vkutil::Material>> materialConvert;
+	std::unordered_map<vk_util::Material*, Handle<vk_util::Material>> materialConvert;
 	std::unordered_map<GPUMeshBuffers*, Handle<DrawMesh>> meshConvert;
 
-	Handle<vkutil::Material> getMaterialHandle(vkutil::Material* m);
-	Handle<DrawMesh> getMeshHandle(GPUMeshBuffers* m);
+	Handle<vk_util::Material> GetMaterialHandle(vk_util::Material* m);
+	Handle<DrawMesh> GetMeshHandle(IndirectMesh* m);
 
 
 	AllocatedBuffer mergedVertexBuffer;

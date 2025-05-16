@@ -33,6 +33,10 @@ enum class MaterialPass :uint8_t {
     Transparent,
     Other
 };
+template<typename T>
+struct Handle {
+    uint32_t handle;
+};
 
 struct Bounds {
     glm::vec3 origin;
@@ -114,6 +118,19 @@ struct Vertex {
     glm::vec4 tangents;
 };
 
+// Draw indirect version of mesh resources
+struct IndirectMesh {
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+
+    Bounds bounds;
+
+    bool load_from_meshasset(const char* filename);
+
+    AllocatedBuffer indexBuffer;
+    AllocatedBuffer vertexBuffer;
+};
+
 // holds the resources needed for a mesh
 struct GPUMeshBuffers {
 
@@ -156,10 +173,12 @@ struct GPUObjectData {
     glm::vec4 extents;  // bounds
 };
 
+
+
 struct MeshObject {
     GPUMeshBuffers* mesh{ nullptr };
 
-    vkutil::Material* material;
+    //vkutil::Material* material;
     uint32_t customSortKey;
     glm::mat4 transformMatrix;
 
@@ -167,6 +186,7 @@ struct MeshObject {
 
     uint32_t bDrawForwardPass : 1;
     uint32_t bDrawShadowPass : 1;
+
 };
 
 struct EngineStats {

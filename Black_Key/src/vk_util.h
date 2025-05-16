@@ -11,20 +11,22 @@ namespace vk_util {
 		EarlyDepth
 	};
 
+
 	template<typename T>
 	struct PerPassData {
 
 	public:
-		T& operator[](MeshpassType pass)
+		T& operator[](vk_util::MeshPassType pass)
 		{
 			switch (pass)
 			{
-			case MeshpassType::Forward:
+			case vk_util::MeshPassType::Forward:
 				return data[0];
-			case MeshpassType::Transparency:
+			case vk_util::MeshPassType::Transparency:
 				return data[1];
-			case MeshpassType::DirectionalShadow:
+			case vk_util::MeshPassType::DirectionalShadow:
 				return data[2];
+			
 			}
 			assert(false);
 			return data[0];

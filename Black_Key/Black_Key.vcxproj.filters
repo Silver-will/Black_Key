@@ -19,30 +19,18 @@
     <Filter Include="Extern\Imgui">
       <UniqueIdentifier>{03a006e7-b2ac-4e82-b72e-e0749cf92147}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Renderers">
+      <UniqueIdentifier>{1ebd1de7-8682-4f7b-8173-2c42775de752}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vulkan Backend">
+      <UniqueIdentifier>{027d9716-6a5e-4654-9525-576475715969}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_descriptors.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_engine.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_images.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_initializers.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_pipelines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\engine_util.cpp">
@@ -72,12 +60,6 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp">
       <Filter>Extern\Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_renderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vk_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\graphics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -93,36 +75,54 @@
     <ClCompile Include="..\tracy\public\TracyClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_device.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\UI.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_material_system.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp">
+      <Filter>Source Files\Renderers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_buffer.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_engine.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_descriptors.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_device.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_images.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_initializers.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_loader.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_scene.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_pipelines.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_renderer.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderers\base_renderer.cpp">
+      <Filter>Source Files\Renderers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_descriptors.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\vk_engine.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_images.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_initializers.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_loader.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_pipelines.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_types.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\engine_util.h">
@@ -155,12 +155,6 @@
     <ClInclude Include="external\imgui\imstb_truetype.h">
       <Filter>Extern\Imgui</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_renderer.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\vk_buffer.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\graphics.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -181,6 +175,45 @@
     </ClInclude>
     <ClInclude Include="src\UI.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_material_system.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderers\clustered_forward_renderer.h">
+      <Filter>Source Files\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_buffer.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_descriptors.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_images.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_loader.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_initializers.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_types.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_renderer.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_pipelines.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderers\base_renderer.h">
+      <Filter>Source Files\Renderers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
