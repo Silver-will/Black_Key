@@ -222,6 +222,9 @@
     <ClCompile Include="external\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\Renderers\base_renderer.cpp" />
+    <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp" />
+    <ClCompile Include="src\vk_material_system.cpp" />
     <ClCompile Include="src\UI.cpp" />
     <ClCompile Include="src\vk_device.cpp" />
     <ClCompile Include="src\engine_psos.cpp" />
@@ -252,6 +255,9 @@
     <ClInclude Include="external\imgui\imstb_textedit.h" />
     <ClInclude Include="external\imgui\imstb_truetype.h" />
     <ClInclude Include="src\camera.h" />
+    <ClInclude Include="src\Renderers\base_renderer.h" />
+    <ClInclude Include="src\Renderers\clustered_forward_renderer.h" />
+    <ClInclude Include="src\vk_material_system.h" />
     <ClInclude Include="src\UI.h" />
     <ClInclude Include="src\vk_device.h" />
     <ClInclude Include="src\engine_psos.h" />
