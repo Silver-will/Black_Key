@@ -1,6 +1,14 @@
 #pragma once
 #include "../vk_engine.h"
 
+#include "../vk_initializers.h"
+#include "../vk_types.h"
+#include "../input_handler.h"
+#include "../vk_images.h"
+#include "../vk_pipelines.h"
+#include "../vk_buffer.h"
+#include "../vk_loader.h"
+
 struct BaseRenderer
 {
 	virtual void Init(VulkanEngine* engine)=0;
@@ -17,6 +25,6 @@ struct BaseRenderer
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
 
-	VulkanEngine* engine{ nullptr };
+	VulkanEngine* loaded_engine{ nullptr };
 };
 

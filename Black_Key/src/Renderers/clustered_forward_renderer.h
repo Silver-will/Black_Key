@@ -22,6 +22,11 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void draw_hdr(VkCommandBuffer cmd);
 	void draw_early_depth(VkCommandBuffer cmd);
 	void init_commands();
+	void InitRenderTargets();
+	void InitSwapchain();
+
+	void InitDefaultData();
+	void LoadAssets();
 	void init_sync_structures();
 	void init_descriptors();
 	void init_buffers();
@@ -31,6 +36,8 @@ struct ClusteredForwardRenderer : BaseRenderer
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 private:
+
+	Camera mainCamera;
 
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
