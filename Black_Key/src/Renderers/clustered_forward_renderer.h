@@ -12,29 +12,32 @@ struct ClusteredForwardRenderer : BaseRenderer
 
 	void Run() override;
 
-	void pre_process_pass();
-	void cull_lights(VkCommandBuffer cmd);
-	void draw_shadows(VkCommandBuffer cmd);
-	void draw_main(VkCommandBuffer cmd);
-	void draw_post_process(VkCommandBuffer cmd);
-	void draw_background(VkCommandBuffer cmd);
-	void draw_geometry(VkCommandBuffer cmd);
-	void draw_hdr(VkCommandBuffer cmd);
-	void draw_early_depth(VkCommandBuffer cmd);
-	void init_commands();
+	void PreProcessPass();
+	void CullLights(VkCommandBuffer cmd);
+	void DrawShadows(VkCommandBuffer cmd);
+	void DrawMain(VkCommandBuffer cmd);
+	void DrawPostProcess(VkCommandBuffer cmd);
+	void DrawBackground(VkCommandBuffer cmd);
+	void DrawGeometry(VkCommandBuffer cmd);
+	void DrawHdr(VkCommandBuffer cmd);
+	void DrawEarlyDepth(VkCommandBuffer cmd);
+	void InitCommands();
 	void InitRenderTargets();
 	void InitSwapchain();
+	void InitComputePipelines();
 
+	void InitImgui();
 	void InitDefaultData();
 	void LoadAssets();
-	void init_sync_structures();
-	void init_descriptors();
-	void init_buffers();
-	void init_pipelines();
-	void create_swapchain(uint32_t width, uint32_t height);
-	void destroy_swapchain();
-	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
+	void UpdateScene();
+	void InitSyncStructures();
+	void InitDescriptors();
+	void InitBuffers();
+	void InitPipelines();
+	void CreateSwapchain(uint32_t width, uint32_t height);
+	void DestroySwapchain();
+	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void CursorCallback(GLFWwindow* window, double xpos, double ypos);
 private:
 
 	Camera mainCamera;
@@ -53,10 +56,12 @@ private:
 	RenderImagePipelineObject HdrPSO;
 	EarlyDepthPipelineObject depthPrePassPSO;
 
+	DrawContext mainDrawContext;
+	//r
+	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+
 	DescriptorAllocator globalDescriptorAllocator;
-
 	VkDescriptorSet _drawImageDescriptors;
-
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	bool resize_requested = false;
