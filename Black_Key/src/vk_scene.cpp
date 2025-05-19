@@ -1,5 +1,6 @@
 #include "vk_scene.h"
 #include "vk_engine.h"
+/*
 
 void RenderScene::init()
 {
@@ -27,3 +28,5 @@ Handle<SceneMeshObject> RenderScene::register_object(SceneMeshObject* object) {
 		//if(object->material->)
 	}
 }
+
+*/

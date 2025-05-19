@@ -3,7 +3,7 @@
 #include "vk_types.h"
 #include "vk_util.h"
 #include "vk_loader.h"
-
+/*
 template <typename T>
 struct Handle {
 	uint32_t handle;
@@ -196,4 +196,5 @@ struct RenderScene {
 
 	AllocatedBuffer objectDataBuffer;
 };
+*/
 #endif

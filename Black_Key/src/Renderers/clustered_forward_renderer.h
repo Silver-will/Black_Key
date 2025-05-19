@@ -7,7 +7,6 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void Cleanup() override;
 
 	void Draw() override;
-
 	void DrawUI() override;
 
 	void Run() override;
@@ -18,6 +17,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
 	void DrawBackground(VkCommandBuffer cmd);
+	void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 	void DrawGeometry(VkCommandBuffer cmd);
 	void DrawHdr(VkCommandBuffer cmd);
 	void DrawEarlyDepth(VkCommandBuffer cmd);
@@ -36,6 +36,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void InitPipelines();
 	void CreateSwapchain(uint32_t width, uint32_t height);
 	void DestroySwapchain();
+	void ResizeSwapchain();
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void CursorCallback(GLFWwindow* window, double xpos, double ypos);
 private:
