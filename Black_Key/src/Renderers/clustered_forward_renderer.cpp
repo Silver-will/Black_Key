@@ -21,7 +21,6 @@ using namespace std::literals::string_literals;
 #include <imgui/imgui_impl_vulkan.h>
 
 
-/*
 void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 {
 	mainCamera.type = Camera::CameraType::firstperson;
@@ -56,7 +55,7 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 
 	InitPipelines();
 
-	InitImgui();
+	//InitImgui();
 
 	LoadAssets();
 
@@ -82,7 +81,13 @@ void ClusteredForwardRenderer::InitRenderTargets()
 	//Allocate images larger than swapchain to avoid 
 	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-	
+
+	/*VkExtent3D drawImageExtent = {
+		mode->width,
+		mode->height,
+		1
+	};*/
+
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
@@ -526,70 +531,71 @@ void ClusteredForwardRenderer::InitBuffers()
 
 void ClusteredForwardRenderer::InitImgui()
 {
-	// 1: create descriptor pool for IMGUI
-	//  the size of the pool is very oversize, but it's copied from imgui demo
-	//  itself.
-	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 } };
 
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
+	//// 1: create descriptor pool for IMGUI
+	////  the size of the pool is very oversize, but it's copied from imgui demo
+	////  itself.
+	//VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
+	//	{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 } };
 
-	VkDescriptorPool imguiPool;
-	VK_CHECK(vkCreateDescriptorPool(loaded_engine->_device, &pool_info, nullptr, &imguiPool));
+	//VkDescriptorPoolCreateInfo pool_info = {};
+	//pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	//pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	//pool_info.maxSets = 1000;
+	//pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	//pool_info.pPoolSizes = pool_sizes;
 
-	// 2: initialize imgui library
+	//VkDescriptorPool imguiPool;
+	//VK_CHECK(vkCreateDescriptorPool(loaded_engine->_device, &pool_info, nullptr, &imguiPool));
 
-	// this initializes the core structures of imgui
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	//// 2: initialize imgui library
 
-	// this initializes imgui for SDL
-	ImGui_ImplGlfw_InitForVulkan(window, true);
+	//// this initializes the core structures of imgui
+	//ImGui::CreateContext();
+	//ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-	// this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo init_info = {};
-	init_info.Instance = loaded_engine->_instance;
-	init_info.PhysicalDevice = loaded_engine->_chosenGPU;
-	init_info.Device = loaded_engine->_device;
-	init_info.Queue = loaded_engine->_graphicsQueue;
-	init_info.DescriptorPool = imguiPool;
-	init_info.MinImageCount = 3;
-	init_info.ImageCount = 3;
-	init_info.UseDynamicRendering = true;
+	//// this initializes imgui for SDL
+	//ImGui_ImplGlfw_InitForVulkan(window, true);
 
-	//dynamic rendering parameters for imgui to use
-	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
+	//// this initializes imgui for Vulkan
+	//ImGui_ImplVulkan_InitInfo init_info = {};
+	//init_info.Instance = loaded_engine->_instance;
+	//init_info.PhysicalDevice = loaded_engine->_chosenGPU;
+	//init_info.Device = loaded_engine->_device;
+	//init_info.Queue = loaded_engine->_graphicsQueue;
+	//init_info.DescriptorPool = imguiPool;
+	//init_info.MinImageCount = 3;
+	//init_info.ImageCount = 3;
+	//init_info.UseDynamicRendering = true;
+
+	////dynamic rendering parameters for imgui to use
+	//init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+	//init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	//init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
 
 
-	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	//init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-	ImGui_ImplVulkan_Init(&init_info);
+	//ImGui_ImplVulkan_Init(&init_info);
 
-	ImGui_ImplVulkan_CreateFontsTexture();
+	//ImGui_ImplVulkan_CreateFontsTexture();
 
-	// add the destroy the imgui created structures
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		ImGui_ImplVulkan_Shutdown();
-		vkDestroyDescriptorPool(loaded_engine->_device, imguiPool, nullptr);
-		});
+	//// add the destroy the imgui created structures
+	//loaded_engine->_mainDeletionQueue.push_function([=]() {
+	//	ImGui_ImplVulkan_Shutdown();
+	//	vkDestroyDescriptorPool(loaded_engine->_device, imguiPool, nullptr);
+	//	});
 }
 
 void ClusteredForwardRenderer::DestroySwapchain()
@@ -691,14 +697,14 @@ void ClusteredForwardRenderer::LoadAssets()
 
 void ClusteredForwardRenderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	//auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
-	//app->mainCamera.processKeyInput(window, key, action);
+	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	app->mainCamera.processKeyInput(window, key, action);
 }
 
 void ClusteredForwardRenderer::CursorCallback(GLFWwindow* window, double xpos, double ypos)
 {
-	//auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
-	//app->mainCamera.processMouseMovement(window, xpos, ypos);
+	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	app->mainCamera.processMouseMovement(window, xpos, ypos);
 }
 
 void ClusteredForwardRenderer::PreProcessPass()
@@ -920,11 +926,79 @@ void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 }
 void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 {
+	ZoneScoped;
+	auto main_start = std::chrono::system_clock::now();
 
+	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
+	vkCmdBeginRendering(cmd, &earlyDepthRenderInfo);
+
+	DrawEarlyDepth(cmd);
+
+	vkCmdEndRendering(cmd);
+
+	if (render_shadowMap)
+	{
+		VkRenderingAttachmentInfo shadowDepthAttachment = vkinit::depth_attachment_info(_shadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+		VkExtent2D shadowExtent{};
+		shadowExtent.width = _shadowDepthImage.imageExtent.width;
+		shadowExtent.height = _shadowDepthImage.imageExtent.height;
+		VkRenderingInfo shadowRenderInfo = vkinit::rendering_info(shadowExtent, nullptr, &shadowDepthAttachment, shadows.getCascadeLevels());
+		auto startShadow = std::chrono::system_clock::now();
+		vkCmdBeginRendering(cmd, &shadowRenderInfo);
+
+		DrawShadows(cmd);
+
+		vkCmdEndRendering(cmd);
+		auto endShadow = std::chrono::system_clock::now();
+		auto elapsedShadow = std::chrono::duration_cast<std::chrono::microseconds>(endShadow - startShadow);
+		stats.shadow_pass_time = elapsedShadow.count() / 1000.f;
+		render_shadowMap = false;
+	}
+
+	//Cull lights
+	CullLights(cmd);
+
+	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depthAttachment2 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
+
+	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
+
+	auto start = std::chrono::system_clock::now();
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	DrawGeometry(cmd);
+
+	vkCmdEndRendering(cmd);
+	auto end = std::chrono::system_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	stats.mesh_draw_time = elapsed.count() / 1000.f;
+
+	auto main_end = std::chrono::system_clock::now();
+	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
+	//stats.frametime = main_elapsed.count() / 1000.f;
+	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depthAttachment3 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment3);
+	vkCmdBeginRendering(cmd, &backRenderInfo);
+
+	DrawBackground(cmd);
+
+	vkCmdEndRendering(cmd);
 }
 void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 {
-
+	ZoneScoped;
+	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
+	vkCmdBeginRendering(cmd, &hdrRenderInfo);
+	DrawHdr(cmd);
+	vkCmdEndRendering(cmd);
 }
 
 void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
@@ -1299,7 +1373,7 @@ void ClusteredForwardRenderer::Run()
 		ImGui::NewFrame();
 
 		SetImguiTheme(0.8f);
-		RenderUI(loaded_engine);
+		DrawUI();
 
 		//ImGui::ShowDemoWindow();
 		ImGui::Render();
@@ -1536,5 +1610,3 @@ void SetImguiTheme(float alpha)
 		}
 	}
 }
-
-*/
