@@ -22,8 +22,6 @@ struct BaseRenderer
 	virtual void UpdateScene() = 0;
 	virtual void LoadAssets() = 0;
 	virtual void init_imgui()=0;
-	void create_swapchain(uint32_t width, uint32_t height);
-	void destroy_swapchain();
 
 	VulkanEngine* loaded_engine{ nullptr };
 };
