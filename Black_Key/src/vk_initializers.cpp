@@ -303,7 +303,6 @@ VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags u
     info.arrayLayers = layers;
 
     info.samples = samples;
-
     //optimal tiling, which means the image is stored on the best gpu format
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
     info.usage = usageFlags;

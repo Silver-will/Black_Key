@@ -42,6 +42,16 @@ VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 void VulkanEngine::init()
 {
 
+	mainCamera.type = Camera::CameraType::firstperson;
+	//mainCamera.flipY = true;
+	mainCamera.movementSpeed = 2.5f;
+	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 1000.0f);
+	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
+	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
+    // only one engine initialization is allowed with the application.
+    assert(loadedEngine == nullptr);
+    loadedEngine = this;
+
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -50,25 +60,71 @@ void VulkanEngine::init()
 	if (window == nullptr)
 		throw std::exception("FATAL ERROR: Failed to create window");
 
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
+	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
 	init_vulkan();
 
+	init_swapchain();
+	
 	init_commands();
 	
 	init_sync_structures();
 
+	init_descriptors();
+
+	init_default_data();
+
+	init_buffers();
+	
+	init_pipelines();
+
 	init_imgui();
 
+	load_assets();
+
+	pre_process_pass();
 	_isInitialized = true;
 }
 
 void VulkanEngine::load_assets()
 {
-	
+	std::string cubePath{ "assets/cube.gltf" };
+	auto cubeFile = loadGltf(this, cubePath);
+	loadedScenes["cube"] = *cubeFile;
+
+	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
+	std::string structurePath{ "assets/sponza/Sponza.gltf" };
+
+	auto structureFile = loadGltf(this, structurePath, true);
+	assert(structureFile.has_value());
+
+	std::string planePath{ "assets/plane.glb" };
+	auto planeFile = loadGltf(this, planePath);
+
+	loadedScenes["sponza"] = *structureFile;
+	loadedScenes["plane"] = *planeFile;
 }
 
 void VulkanEngine::pre_process_pass()
 {
+	black_key::generate_irradiance_cube(this);
+	black_key::generate_prefiltered_cubemap(this);
+	black_key::generate_brdf_lut(this);
+	black_key::build_clusters(this);
 
+	_mainDeletionQueue.push_function([=]() {
+		destroy_image(IBL._irradianceCube);
+		destroy_image(IBL._preFilteredCube);
+		destroy_image(IBL._lutBRDF);
+
+		//destroy_image(_shadowDepthImage);
+		vkDestroySampler(_device, IBL._irradianceCubeSampler, nullptr);
+		vkDestroySampler(_device, IBL._lutBRDFSampler, nullptr);
+		});
 }
 
 void VulkanEngine::cleanup()
@@ -751,6 +807,50 @@ void VulkanEngine::resize_swapchain()
 
 void VulkanEngine::run()
 {
+    bool bQuit = false;
+	
+
+    // main loop
+    while (!glfwWindowShouldClose(window)) {
+		auto start = std::chrono::system_clock::now();
+		if (resize_requested) {
+			resize_swapchain();
+		}
+        // do not draw if we are minimized
+        if (stop_rendering) {
+            // throttle the speed to avoid the endless spinning
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+		
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+
+		
+		ImGui::NewFrame();
+		
+		SetImguiTheme(0.8f);
+		RenderUI(this);
+		
+		//ImGui::ShowDemoWindow();
+		ImGui::Render();
+		
+
+		auto start_update = std::chrono::system_clock::now();
+		update_scene();
+		auto end_update = std::chrono::system_clock::now();
+		auto elapsed_update= std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
+		
+        draw();
+
+        glfwPollEvents();
+		auto end = std::chrono::system_clock::now();
+
+		//convert to microseconds (integer), and then come back to miliseconds
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		stats.frametime = elapsed.count() / 1000.f;
+    }
+	FrameMark;
 }
 
 void VulkanEngine::init_vulkan()
@@ -834,7 +934,7 @@ void VulkanEngine::init_vulkan()
 void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
 {
 	vkb::SwapchainBuilder swapchainBuilder{ _chosenGPU,_device,_surface };
-	
+
 	_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
@@ -857,7 +957,101 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
 
 void VulkanEngine::init_swapchain()
 {
+	create_swapchain(_windowExtent.width, _windowExtent.height);
+
+	VkExtent3D drawImageExtent = {
+		_windowExtent.width,
+		_windowExtent.height,
+		1
+	};
 	
+
+	//Allocate images larger than swapchain to avoid 
+	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+	/*VkExtent3D drawImageExtent = {
+		mode->width,
+		mode->height,
+		1
+	};*/
+	
+	//hardcoding the draw format to 16 bit float
+	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	_drawImage.imageExtent = drawImageExtent;
+
+	_resolveImage = _drawImage;
+	_hdrImage = _drawImage;
+
+	VkImageUsageFlags drawImageUsages{};
+	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+
+	VkImageUsageFlags resolveImageUsages{};
+	resolveImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	resolveImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
+
+	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent,1,msaa_samples);
+
+	//for the draw image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo rimg_allocinfo = {};
+	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _drawImage.allocation,"Draw image");
+
+	//Create resolve image for multisampling
+	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, resolveImageUsages, drawImageExtent, 1);
+	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _resolveImage.allocation, "resolve image");
+
+	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _hdrImage.allocation, "hdr image");
+
+	//build a image-view for the draw image to use for rendering
+	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VkImageViewCreateInfo resolve_view_info = vkinit::imageview_create_info(_resolveImage.imageFormat, _resolveImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VkImageViewCreateInfo hdr_view_info = vkinit::imageview_create_info(_hdrImage.imageFormat, _hdrImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+
+	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
+
+
+	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
+	_depthImage.imageExtent = drawImageExtent;
+	VkImageUsageFlags depthImageUsages{};
+	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	depthImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+
+	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+
+	//build a image-view for the draw image to use for rendering
+	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
+
+	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
+
+	//add to deletion queues
+	_mainDeletionQueue.push_function([=]() {
+	vkDestroyImageView(_device, _drawImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+
+	vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
+
+	vkDestroyImageView(_device, _resolveImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _resolveImage.image, _resolveImage.allocation);
+
+	vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
+		});
 }
 
 void VulkanEngine::init_commands()
@@ -865,6 +1059,18 @@ void VulkanEngine::init_commands()
 	//create a command pool for commands submitted to the graphics queue.
 	//we also want the pool to allow for resetting of individual command buffers
 	VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+
+		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i]._commandPool));
+
+		// allocate the default command buffer that we will use for rendering
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
+
+		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
+
+		_mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr); });
+	}
 
 	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
 
@@ -882,11 +1088,110 @@ void VulkanEngine::init_sync_structures()
 
 	_mainDeletionQueue.push_function([=]() { vkDestroyFence(_device, _immFence, nullptr); });
 
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+
+		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_frames[i]._renderFence));
+
+		VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._swapchainSemaphore));
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
+
+		_mainDeletionQueue.push_function([=]() {
+			vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
+		vkDestroySemaphore(_device, _frames[i]._swapchainSemaphore, nullptr);
+		vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
+			});
+	}
 }
 
 void VulkanEngine::init_descriptors()
 {
-	
+	//create a descriptor pool that will hold 10 sets with 1 image each
+	std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
+	};
+
+	globalDescriptorAllocator.init_pool(_device, 30, sizes);
+	_mainDeletionQueue.push_function(
+		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		_shadowSceneDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		_cullLightsDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		_buildClustersDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+	}
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _shadowSceneDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
+		});
+
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+		// create a descriptor pool
+		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+		};
+
+		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
+		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
+		_mainDeletionQueue.push_function([&, i]() {
+			_frames[i]._frameDescriptors.destroy_pools(_device);
+			});
+	}
 }
 
 void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -913,6 +1218,345 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }
+
+void VulkanEngine::init_pipelines()
+{
+	init_compute_pipelines();
+	metalRoughMaterial.build_pipelines(this);
+	cascadedShadows.build_pipelines(this);
+	skyBoxPSO.build_pipelines(this);
+	HdrPSO.build_pipelines(this);
+	depthPrePassPSO.build_pipelines(this);
+	_mainDeletionQueue.push_function([&]() 
+	{
+	depthPrePassPSO.clear_resources(_device);
+	metalRoughMaterial.clear_resources(_device);
+	cascadedShadows.clear_resources(_device);
+	skyBoxPSO.clear_resources(_device);
+	HdrPSO.clear_resources(_device);
+	});
+
+	_mainDeletionQueue.push_function([=]() {
+	vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
+	vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
+		});
+}
+
+void VulkanEngine::init_compute_pipelines()
+{
+	VkPipelineLayoutCreateInfo cullLightsLayoutInfo = {};
+	cullLightsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	cullLightsLayoutInfo.pNext = nullptr;
+	cullLightsLayoutInfo.pSetLayouts = &_cullLightsDescriptorLayout;
+	cullLightsLayoutInfo.setLayoutCount = 1;
+
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(CullData);
+	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
+	cullLightsLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &cullLightsLayoutInfo, nullptr, &_cullLightsPipelineLayout));
+
+	VkShaderModule cullLightShader;
+	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", _device, &cullLightShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stageinfo{};
+	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stageinfo.pNext = nullptr;
+	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stageinfo.module = cullLightShader;
+	stageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo computePipelineCreateInfo{};
+	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	computePipelineCreateInfo.pNext = nullptr;
+	computePipelineCreateInfo.layout = _cullLightsPipelineLayout;
+	computePipelineCreateInfo.stage = stageinfo;
+
+	VkPipeline cullingPipeline;
+	//default colors
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_cullLightsPipeline));
+
+
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyPipelineLayout(_device, _cullLightsPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _cullLightsPipeline,nullptr);
+	});
+}
+
+void VulkanEngine::init_triangle_pipeline()
+{
+	VkShaderModule triangleFragShader;
+	if (!vkutil::load_shader_module("../../shaders/colored_triangle.frag.spv", _device, &triangleFragShader)) {
+		fmt::print("Error when building the triangle fragment shader module");
+	}
+	else {
+		fmt::print("Triangle fragment shader succesfully loaded");
+	}
+
+	VkShaderModule triangleVertexShader;
+	if (!vkutil::load_shader_module("../../shaders/colored_triangle.vert.spv", _device, &triangleVertexShader)) {
+		fmt::print("Error when building the triangle vertex shader module");
+	}
+	else {
+		fmt::print("Triangle vertex shader succesfully loaded");
+	}
+
+	//build the pipeline layout that controls the inputs/outputs of the shader
+	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
+	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+
+	PipelineBuilder pipelineBuilder;
+
+	//use the triangle layout we created
+	pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
+	//connecting the vertex and pixel shaders to the pipeline
+	pipelineBuilder.set_shaders(triangleVertexShader, triangleFragShader);
+	//it will draw triangles
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	//filled triangles
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	//no backface culling
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	//no multisampling
+	pipelineBuilder.set_multisampling_none();
+	//no blending
+	pipelineBuilder.disable_blending();
+	//no depth testing
+	pipelineBuilder.disable_depthtest();
+
+	//connect the image format we will draw into, from draw image
+	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+	pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+	//finally build the pipeline
+	_trianglePipeline = pipelineBuilder.build_pipeline(_device);
+
+	//clean structures
+	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
+	vkDestroyPipeline(_device, _trianglePipeline, nullptr);
+		});
+}
+
+void VulkanEngine::init_mesh_pipeline()
+{
+	VkShaderModule triangleFragShader;
+	if (!vkutil::load_shader_module("shaders/tex_image.spv", _device, &triangleFragShader)) {
+		fmt::print("Error when building the triangle fragment shader module");
+	}
+	else {
+		fmt::print("Triangle fragment shader succesfully loaded");
+	}
+
+	VkShaderModule triangleVertexShader;
+	if (!vkutil::load_shader_module("shaders/colored_triangle_mesh.spv", _device, &triangleVertexShader)) {
+		fmt::print("Error when building the triangle vertex shader module");
+	}
+	else {
+		fmt::print("Triangle vertex shader succesfully loaded");
+	}
+
+	VkPushConstantRange bufferRange{};
+	bufferRange.offset = 0;
+	bufferRange.size = sizeof(GPUDrawPushConstants);
+	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
+	pipeline_layout_info.pPushConstantRanges = &bufferRange;
+	pipeline_layout_info.pushConstantRangeCount = 1;
+	pipeline_layout_info.pSetLayouts = &_singleImageDescriptorLayout;
+	pipeline_layout_info.setLayoutCount = 1;
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_meshPipelineLayout));
+
+	PipelineBuilder pipelineBuilder;
+
+	//use the triangle layout we created
+	pipelineBuilder._pipelineLayout = _meshPipelineLayout;
+	//connecting the vertex and pixel shaders to the pipeline
+	pipelineBuilder.set_shaders(triangleVertexShader, triangleFragShader);
+	//it will draw triangles
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	//filled triangles
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	//no backface culling
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	//no multisampling
+	pipelineBuilder.set_multisampling_none();
+	//no blending
+	pipelineBuilder.disable_blending();
+
+	//pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(true,true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	//connect the image format we will draw into, from draw image
+	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+	pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+	//finally build the pipeline
+	_meshPipeline = pipelineBuilder.build_pipeline(_device);
+
+	//clean structures
+	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
+	vkDestroyPipeline(_device, _meshPipeline, nullptr);
+		});
+}
+
+void VulkanEngine::init_buffers()
+{
+	ClusterValues.AABBVolumeGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	float zNear = mainCamera.getNearClip();
+	float zFar = mainCamera.getFarClip();
+
+	ClusterValues.sizeX = (uint16_t)std::ceilf(_aspect_width / (float)ClusterValues.gridSizeX);
+	ScreenToView screen;
+	auto proj = mainCamera.matrices.perspective;
+	//proj[1][1] *= -1;
+	screen.inverseProjectionMat = glm::inverse(proj);
+	//screen.inverseProjectionMat[1][1] *= -1;
+	screen.tileSizes[0] = ClusterValues.gridSizeX;
+	screen.tileSizes[1] = ClusterValues.gridSizeY;
+	screen.tileSizes[2] = ClusterValues.gridSizeZ;
+	screen.tileSizes[3] = ClusterValues.sizeX;
+	screen.screenWidth = _aspect_width;
+	screen.screenHeight = _aspect_height;
+
+	screen.sliceScalingFactor = (float)ClusterValues.gridSizeZ / std::log2f(zFar / zNear);
+	screen.sliceBiasFactor = -((float)ClusterValues.gridSizeZ * std::log2f(zNear) / std::log2f(zFar / zNear));
+	
+	ClusterValues.screenToViewSSBO = create_and_upload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
+
+	ClusterValues.lightSSBO = create_and_upload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, pointData.pointLights.data());
+	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
+	ClusterValues.lightIndexListSSBO = create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+	ClusterValues.lightGridSSBO = create_buffer(ClusterValues.numClusters * sizeof(LightGrid), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+	uint32_t val= 0;
+	for (uint32_t i = 0; i < 2; i++)
+	{
+		ClusterValues.lightGlobalIndex[i] = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
+	}
+	//ClusterValues.lightIndexGlobalCountSSBO = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY,&val);
+
+	_mainDeletionQueue.push_function([=]() {
+		destroy_buffer(ClusterValues.lightSSBO);
+		destroy_buffer(ClusterValues.lightGridSSBO);
+		destroy_buffer(ClusterValues.screenToViewSSBO);
+		destroy_buffer(ClusterValues.AABBVolumeGridSSBO);
+		destroy_buffer(ClusterValues.lightIndexListSSBO);
+		destroy_buffer(ClusterValues.lightGlobalIndex[0]);
+		destroy_buffer(ClusterValues.lightGlobalIndex[1]);
+
+		});
+}
+void VulkanEngine::init_default_data() {
+
+	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	//Create Shadow render target
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this,VK_IMAGE_VIEW_TYPE_2D_ARRAY,false, shadows.getCascadeLevels());
+	
+	//Create default images
+	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT,this);
+
+	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+	_greyImage = vkutil::create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT,this);
+
+	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT,this);
+	
+	//Populate point light list
+	int numOfLights = 4;
+	std::random_device dev;
+	std::mt19937 rng(dev());
+	std::uniform_real_distribution<> distFloat(0.0f, 15.0f);
+	for (int i = 0; i < numOfLights; i++)
+	{
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), 5.0f, distFloat(rng), 1.0f), glm::vec4(1), 12.0f, 1.0f));
+	}
+	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
+	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
+
+	//Load in skyBox image
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,true);
+	
+	//checkerboard image
+	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
+	for (int x = 0; x < 16; x++) {
+		for (int y = 0; y < 16; y++) {
+			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+		}
+	}
+
+	_errorCheckerboardImage = vkutil::create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT,this);
+
+	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+	sampl.magFilter = VK_FILTER_NEAREST;
+	sampl.minFilter = VK_FILTER_NEAREST;
+
+	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerNearest);
+
+	sampl.magFilter = VK_FILTER_LINEAR;
+	sampl.minFilter = VK_FILTER_LINEAR;
+	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+
+	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	cubeSampl.magFilter = VK_FILTER_LINEAR;
+	cubeSampl.minFilter = VK_FILTER_LINEAR;
+	cubeSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	cubeSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	cubeSampl.addressModeV = cubeSampl.addressModeU;
+	cubeSampl.addressModeW = cubeSampl.addressModeU;
+	cubeSampl.mipLodBias = 0.0f;
+	//cubeSampl.maxAnisotropy = device->enabledFeatures.samplerAnisotropy ? device->properties.limits.maxSamplerAnisotropy : 1.0f;
+	//samplerCreateInfo.anisotropyEnable = device->enabledFeatures.samplerAnisotropy;
+	cubeSampl.compareOp = VK_COMPARE_OP_NEVER;
+	cubeSampl.minLod = 0.0f;
+	cubeSampl.maxLod = (float)11;
+	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	vkCreateSampler(_device, &cubeSampl, nullptr, &_cubeMapSampler);
+
+	cubeSampl.maxLod = 1;
+	cubeSampl.maxAnisotropy = 1.0f;
+	vkCreateSampler(_device, &cubeSampl, nullptr, &_depthSampler);
+
+	//< default_img
+
+	_mainDeletionQueue.push_function([=]() {
+		destroy_image(_whiteImage);
+		destroy_image(_blackImage);
+		destroy_image(_greyImage);
+		destroy_image(_errorCheckerboardImage);
+		destroy_image(_skyImage);
+		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+		vkDestroySampler(_device, _cubeMapSampler, nullptr);
+		vkDestroySampler(_device, _depthSampler, nullptr);
+		});
+	
+}
+
 void VulkanEngine::init_imgui()
 {
 	// 1: create descriptor pool for IMGUI
@@ -1167,6 +1811,73 @@ void VulkanEngine::destroy_image(const AllocatedImage& img)
 {
 	vkDestroyImageView(_device, img.imageView, nullptr);
 	vmaDestroyImage(_allocator, img.image, img.allocation);
+}
+
+void VulkanEngine::update_scene()
+{
+	float currentFrame = glfwGetTime();
+	float deltaTime = currentFrame - delta.lastFrame;
+	delta.lastFrame = currentFrame;
+	mainCamera.update(deltaTime);
+	mainDrawContext.OpaqueSurfaces.clear();
+
+	//sceneData.view = mainCamera.getViewMatrix();
+	sceneData.view = mainCamera.matrices.view;
+	auto camPos = mainCamera.position * -1.0f;
+	sceneData.cameraPos = glm::vec4(camPos, 1.0f);
+	// camera projection
+	mainCamera.updateAspectRatio(_aspect_width / _aspect_height);
+	sceneData.proj = mainCamera.matrices.perspective;
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	sceneData.proj[1][1] *= -1;
+	sceneData.viewproj = sceneData.proj * sceneData.view;
+	glm::mat4 model(1.0f);
+	model = glm::translate(model, glm::vec3(0, 50, -500));
+	model = glm::scale(model,glm::vec3(10, 10, 10));
+	//sceneData.skyMat = model;
+	sceneData.skyMat = sceneData.proj * glm::mat4(glm::mat3(sceneData.view));
+
+	//some default lighting parameters
+	sceneData.ambientColor = glm::vec4(.1f);
+	sceneData.sunlightColor = directLight.color;
+	sceneData.sunlightDirection = directLight.direction;
+	sceneData.lightCount = pointData.pointLights.size();
+
+	void* data = ClusterValues.lightSSBO.allocation->GetMappedData();
+	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
+	
+	uint32_t* val = (uint32_t*)ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
+	*val = 0;
+	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	//*sceneUniformData = sceneData;
+
+	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
+	{
+		auto cascadeData = shadows.getCascades(this);
+		memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
+		memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
+		sceneData.distances.x = cascadeData.cascadeDistances[0];
+		sceneData.distances.y = cascadeData.cascadeDistances[1];
+		sceneData.distances.z = cascadeData.cascadeDistances[2];
+		sceneData.distances.w = cascadeData.cascadeDistances[3];
+		directLight.lastDirection = directLight.direction;
+		render_shadowMap = true;
+		mainCamera.updated = false;
+	}
+
+	if (debugShadowMap)
+		sceneData.ConfigData.z = 1.0f;
+	else
+		sceneData.ConfigData.z = 0.0f;
+	sceneData.ConfigData.x = mainCamera.getNearClip();
+	sceneData.ConfigData.y = mainCamera.getFarClip();
+
+	//Not an actual api Draw call
+	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
+	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
+	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
 }
 
 void VulkanEngine::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
