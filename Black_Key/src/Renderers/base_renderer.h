@@ -21,7 +21,7 @@ struct BaseRenderer
 	virtual void Run() = 0;
 	virtual void UpdateScene() = 0;
 	virtual void LoadAssets() = 0;
-	virtual void init_imgui()=0;
+	virtual void InitImgui()=0;
 
 	VulkanEngine* loaded_engine{ nullptr };
 };
