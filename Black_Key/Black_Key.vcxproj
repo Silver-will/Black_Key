@@ -243,6 +243,7 @@
     <ClCompile Include="src\vk_pipelines.cpp" />
     <ClCompile Include="src\vk_renderer.cpp" />
     <ClCompile Include="src\vk_scene.cpp" />
+    <ClCompile Include="src\vma_definition.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tracy\public\tracy\Tracy.hpp" />

@@ -117,6 +117,9 @@
     <ClCompile Include="src\Renderers\base_renderer.cpp">
       <Filter>Source Files\Renderers</Filter>
     </ClCompile>
+    <ClCompile Include="src\vma_definition.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">

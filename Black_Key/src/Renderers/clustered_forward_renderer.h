@@ -11,6 +11,11 @@ struct ClusteredForwardRenderer : BaseRenderer
 
 	void Run() override;
 
+	void InitImgui() override;
+
+	void LoadAssets() override;
+	void UpdateScene() override;
+
 	void PreProcessPass();
 	void CullLights(VkCommandBuffer cmd);
 	void DrawShadows(VkCommandBuffer cmd);
@@ -26,10 +31,8 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void InitSwapchain();
 	void InitComputePipelines();
 
-	void InitImgui();
+	
 	void InitDefaultData();
-	void LoadAssets();
-	void UpdateScene();
 	void InitSyncStructures();
 	void InitDescriptors();
 	void InitBuffers();
@@ -39,6 +42,8 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void ResizeSwapchain();
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void CursorCallback(GLFWwindow* window, double xpos, double ypos);
+	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
+
 private:
 
 	Camera mainCamera;
@@ -78,8 +83,6 @@ private:
 	VkExtent2D _windowExtent{ 1920,1080 };
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
-
-	GLFWwindow* window{ nullptr };
 
 	static VulkanEngine& Get();
 

@@ -15,6 +15,7 @@
 #include <glm/glm.hpp>
 using namespace std::literals::string_literals;
 
+#include <vma/vk_mem_alloc.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -33,11 +34,11 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 	assert(loaded_engine == nullptr);
 	this->loaded_engine = engine;
 
-	glfwSetWindowUserPointer(window, this);
-	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
-	glfwSetKeyCallback(window, KeyCallback);
-	glfwSetCursorPosCallback(window, CursorCallback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetWindowUserPointer(loaded_engine->window, this);
+	glfwSetFramebufferSizeCallback(loaded_engine->window, framebuffer_resize_callback);
+	glfwSetKeyCallback(loaded_engine->window, KeyCallback);
+	glfwSetCursorPosCallback(loaded_engine->window, CursorCallback);
+	glfwSetInputMode(loaded_engine->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	InitSwapchain();
 
@@ -55,7 +56,7 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 
 	InitPipelines();
 
-	//InitImgui();
+	InitImgui();
 
 	LoadAssets();
 
@@ -641,10 +642,14 @@ void ClusteredForwardRenderer::UpdateScene()
 	sceneData.sunlightDirection = directLight.direction;
 	sceneData.lightCount = pointData.pointLights.size();
 
-	void* data = ClusterValues.lightSSBO.allocation->GetMappedData();
+	void* data = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, ClusterValues.lightSSBO.allocation, &data);
 	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
 
-	uint32_t* val = (uint32_t*)ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
+	void* value = nullptr;
+	//uint32_t* val = (uint32_t*)value; ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
+	vmaMapMemory(loaded_engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation, &value);
+	uint32_t* val = (uint32_t*)value;
 	*val = 0;
 	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
 	//*sceneUniformData = sceneData;
@@ -705,6 +710,16 @@ void ClusteredForwardRenderer::CursorCallback(GLFWwindow* window, double xpos, d
 {
 	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
 	app->mainCamera.processMouseMovement(window, xpos, ypos);
+}
+
+void ClusteredForwardRenderer::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
+{
+	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	app->resize_requested = true;
+	if (width == 0 || height == 0)
+		app->stop_rendering = true;
+	else
+		app->stop_rendering = false;
 }
 
 void ClusteredForwardRenderer::PreProcessPass()
@@ -868,7 +883,10 @@ void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 		});
 
 	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation,&sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
+	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
 	*sceneUniformData = sceneData;
 
 	//create a descriptor set that binds that buffer and update it
@@ -1015,7 +1033,9 @@ void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 		});
 
 	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)skySceneDataBuffer.allocation->GetMappedData();
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, skySceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
 	*sceneUniformData = sceneData;
 
 	//create a descriptor set that binds that buffer and update it
@@ -1077,9 +1097,15 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 		loaded_engine->destroy_buffer(gpuSceneDataBuffer);
 		});
 
-	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
 	*sceneUniformData = sceneData;
+
+	//write the buffer
+	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	//*sceneUniformData = sceneData;
 
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
@@ -1293,8 +1319,9 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 		loaded_engine->destroy_buffer(gpuSceneDataBuffer);
 		});
 
-	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
 	*sceneUniformData = sceneData;
 
 	//create a descriptor set that binds that buffer and update it
@@ -1354,7 +1381,7 @@ void ClusteredForwardRenderer::Run()
 
 
 	// main loop
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(loaded_engine->window)) {
 		auto start = std::chrono::system_clock::now();
 		if (resize_requested) {
 			ResizeSwapchain();
@@ -1374,8 +1401,6 @@ void ClusteredForwardRenderer::Run()
 
 		SetImguiTheme(0.8f);
 		DrawUI();
-
-		//ImGui::ShowDemoWindow();
 		ImGui::Render();
 
 
@@ -1427,14 +1452,6 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 	_resolveImage = vkutil::create_image_empty(ImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine);
 
 	resize_requested = false;
-}
-
-void setLights(glm::vec4& lightValues)
-{
-	ImGui::InputFloat("R", &lightValues[0], 0.00f, 1.0f);
-	ImGui::InputFloat("G", &lightValues[1], 0.00f, 1.0f);
-	ImGui::InputFloat("B", &lightValues[2], 0.00f, 1.0f);
-
 }
 
 void ClusteredForwardRenderer::DrawUI()
@@ -1552,61 +1569,4 @@ void ClusteredForwardRenderer::DrawUI()
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
 	}
 	ImGui::End();
-}
-
-
-void SetImguiTheme(float alpha)
-{
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	// light style from Pacôme Danhiez (user itamago) https://github.com/ocornut/imgui/pull/511#issuecomment-175719267
-	style.Alpha = 1.0f;
-	style.FrameRounding = 3.0f;
-	style.Colors[ImGuiCol_Text] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-	style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
-	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.94f, 0.94f, 0.94f, 0.94f);
-	style.Colors[ImGuiCol_PopupBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.94f);
-	style.Colors[ImGuiCol_Border] = ImVec4(0.00f, 0.00f, 0.00f, 0.39f);
-	style.Colors[ImGuiCol_BorderShadow] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
-	style.Colors[ImGuiCol_FrameBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.94f);
-	style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.26f, 0.2f, 0.2f, 0.40f);
-	style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
-	style.Colors[ImGuiCol_TitleBg] = ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-	style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(1.00f, 1.00f, 1.00f, 0.51f);
-	style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
-	style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.86f, 0.86f, 0.86f, 1.00f);
-	style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.98f, 0.98f, 0.98f, 0.53f);
-	style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.69f, 0.69f, 0.69f, 1.00f);
-	style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.59f, 0.59f, 0.59f, 1.00f);
-	style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.49f, 0.49f, 0.49f, 1.00f);
-	style.Colors[ImGuiCol_CheckMark] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
-	style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_Button] = ImVec4(0.26f, 0.59f, 0.98f, 0.40f);
-	style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.06f, 0.53f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_Header] = ImVec4(0.26f, 0.59f, 0.98f, 0.31f);
-	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.80f);
-	style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-	style.Colors[ImGuiCol_ResizeGrip] = ImVec4(1.00f, 1.00f, 1.00f, 0.50f);
-	style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
-	style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
-	style.Colors[ImGuiCol_PlotLines] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
-	style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-	style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-	style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-	style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
-	//ImGuiCol_::hove
-
-	for (int i = 0; i <= ImGuiCol_COUNT; i++)
-	{
-		ImVec4& col = style.Colors[i];
-		if (col.w < 1.00f)
-		{
-			col.x *= alpha;
-			col.y *= alpha;
-			col.z *= alpha;
-			col.w *= alpha;
-		}
-	}
 }
