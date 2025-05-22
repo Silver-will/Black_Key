@@ -1017,6 +1017,7 @@ AllocatedBuffer VulkanEngine::create_and_upload(size_t allocSize, VkBufferUsageF
 		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, DataBuffer.buffer, 1, &dataCopy);
 		});
 
+	vmaUnmapMemory(_allocator, stagingBuffer.allocation);
 	destroy_buffer(stagingBuffer);
 	return DataBuffer;
 }
@@ -1166,4 +1167,9 @@ void VulkanEngine::cursor_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
 	app->mainCamera.processMouseMovement(window, xpos, ypos);
+}
+
+VkSampleCountFlagBits VulkanEngine::GetMSAASampleCount()
+{
+	return msaa_samples;
 }

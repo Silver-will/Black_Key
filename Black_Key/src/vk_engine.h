@@ -97,6 +97,7 @@ public:
 	std::vector<float>cascades;
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
+	VkSampleCountFlagBits GetMSAASampleCount();
 
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
