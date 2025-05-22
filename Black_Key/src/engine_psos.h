@@ -4,6 +4,8 @@
 #include "vk_descriptors.h"
 #include <unordered_map>
 #include <filesystem>
+#include "Renderers/base_renderer.h"
+#include "Renderers/clustered_forward_renderer.h"
 
 class VulkanEngine;
 
@@ -108,4 +110,42 @@ struct RenderImagePipelineObject {
 	void clear_resources(VkDevice device);
 
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+};
+
+struct GLTFMetallic_Roughness {
+	MaterialPipeline opaquePipeline;
+	MaterialPipeline transparentPipeline;
+
+	VkDescriptorSetLayout materialLayout;
+
+	struct MaterialConstants {
+		glm::vec4 colorFactors;
+		glm::vec4 metal_rough_factors;
+		//padding, we need it anyway for uniform buffers
+		glm::vec4 extra[14];
+	};
+
+	struct MaterialResources {
+		AllocatedImage colorImage;
+		VkSampler colorSampler;
+		AllocatedImage metalRoughImage;
+		VkSampler metalRoughSampler;
+		AllocatedImage occlusionImage;
+		VkSampler occlusionSampler;
+		//Flag if the occlusion texture is separate from the metallicRoughness one
+		bool separate_occ_texture = false;
+		AllocatedImage normalImage;
+		VkSampler normalSampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipelines(VulkanEngine* application);
+	void clear_resources(VkDevice device);
+
+	MaterialInstance set_material_properties(const MaterialPass pass);
+	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	void write_material_array(VkDevice device, LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };

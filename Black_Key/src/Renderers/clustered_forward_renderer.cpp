@@ -78,6 +78,9 @@ void ClusteredForwardRenderer::InitRenderTargets()
 		1
 	};
 
+	//Grab current Sample count from engine
+	msaa_samples = loaded_engine->GetMSAASampleCount();
+
 
 	//Allocate images larger than swapchain to avoid 
 	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -297,6 +300,21 @@ void ClusteredForwardRenderer::InitPipelines()
 {
 	InitComputePipelines();
 	metalRoughMaterial.build_pipelines(loaded_engine);
+	VkShaderModule meshFragShader;
+	if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", loaded_engine->_device, &meshFragShader)) {
+		fmt::println("Error when building the triangle fragment shader module");
+	}
+
+	VkShaderModule meshVertexShader;
+	if (!vkutil::load_shader_module("shaders/pbr_cluster.vert.spv", loaded_engine->_device, &meshVertexShader)) {
+		fmt::println("Error when building the triangle vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
 	cascadedShadows.build_pipelines(loaded_engine);
 	skyBoxPSO.build_pipelines(loaded_engine);
 	HdrPSO.build_pipelines(loaded_engine);

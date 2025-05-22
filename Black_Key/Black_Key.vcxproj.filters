@@ -120,6 +120,9 @@
     <ClCompile Include="src\vma_definition.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
+    <ClCompile Include="PSO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -217,6 +220,9 @@
     </ClInclude>
     <ClInclude Include="src\Renderers\base_renderer.h">
       <Filter>Source Files\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="PSO.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
