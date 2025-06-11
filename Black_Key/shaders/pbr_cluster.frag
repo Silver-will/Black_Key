@@ -149,7 +149,7 @@ float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
 		float dist = texture(shadowMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
 		if (shadowCoord.w > 0 && dist < shadowCoord.z - bias) {
-			shadow = 0.3;
+			shadow = 0.05;
 		}
 	}
 	return shadow;
@@ -249,7 +249,8 @@ void main()
     vec4 shadowCoord = (biasMat * sceneData.lightMatrices[layer]) * vec4(inFragPos, 1.0);	
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-    color *= shadow;
+    //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
+	color *= shadow;
     
     if(sceneData.cascadeConfigData.z == 1.0f)
     {

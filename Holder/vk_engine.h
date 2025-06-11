@@ -71,7 +71,7 @@ public:
 	DescriptorAllocator globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
-
+	
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	bool resize_requested = false;
@@ -80,11 +80,11 @@ public:
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
 	bool debugShadowMap = true;
-
+	
 	struct {
 		float lastFrame;
 	} delta;
-	VkExtent2D _windowExtent{ 1920,1080 };
+	VkExtent2D _windowExtent{ 1920,1080};
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
@@ -97,6 +97,7 @@ public:
 	std::vector<float>cascades;
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
+	VkSampleCountFlagBits GetMSAASampleCount();
 
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
@@ -196,12 +197,12 @@ public:
 	DirectionalLight directLight;
 	uint32_t maxLights = 100;
 
-	struct PointLightData {
-
+	struct PointLightData{
+	
 		uint32_t numOfLights = 6;
 		//PointLight pointLights[100];
 		std::vector<PointLight> pointLights;
-
+	
 	}pointData;
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 	//r
@@ -219,31 +220,14 @@ public:
 	void destroy_image(const AllocatedImage& img);
 
 private:
-	void load_assets();
-	void pre_process_pass();
-	void cull_lights(VkCommandBuffer cmd);
-	void draw_shadows(VkCommandBuffer cmd);
-	void draw_main(VkCommandBuffer cmd);
-	void draw_post_process(VkCommandBuffer cmd);
-	void draw_background(VkCommandBuffer cmd);
-	void draw_geometry(VkCommandBuffer cmd);
-	void draw_hdr(VkCommandBuffer cmd);
-	void draw_early_depth(VkCommandBuffer cmd);
 	void resize_swapchain();
 	void init_vulkan();
-	void init_mesh_pipeline();
-	void init_default_data();
-	void init_triangle_pipeline();
-	void init_compute_pipelines();
 	void init_imgui();
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();
-	void init_descriptors();
-	void init_buffers();
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
-	void init_pipelines();
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 };

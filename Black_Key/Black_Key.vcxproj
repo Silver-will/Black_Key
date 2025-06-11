@@ -294,6 +294,7 @@
     <None Include="shaders\depthReduce.comp" />
     <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\filter_cube.vert" />
+    <None Include="shaders\FXAA.glsl" />
     <None Include="shaders\gen_brdf_lut.frag" />
     <None Include="shaders\gen_brdf_lut.vert" />
     <None Include="shaders\gradient.comp" />

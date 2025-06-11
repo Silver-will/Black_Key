@@ -325,5 +325,8 @@
     <None Include="shaders\cluster_info.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\FXAA.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

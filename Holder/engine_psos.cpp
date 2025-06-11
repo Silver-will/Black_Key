@@ -16,19 +16,19 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &shadowFragmentShader)) {
 		fmt::print("Error when building the shadow fragment shader module\n");
 	}
-
+	
 	VkShaderModule shadowGeometryShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.geom.spv", engine->_device, &shadowGeometryShader)) {
 		fmt::print("Error when building the shadow geometry shader module\n");
 	}
-
+	
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout/*,
-		materialLayout*/ };
+		materialLayout*/};
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
@@ -57,7 +57,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 
 	shadowPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
-	vkDestroyShaderModule(engine->_device, shadowVertexShader, nullptr);
+	vkDestroyShaderModule(engine->_device, shadowVertexShader,nullptr);
 	vkDestroyShaderModule(engine->_device, shadowFragmentShader, nullptr);
 	vkDestroyShaderModule(engine->_device, shadowGeometryShader, nullptr);
 }
@@ -74,7 +74,7 @@ void ShadowPipelineResources::write_material(VkDevice device, MaterialPass pass,
 {
 	matData.passType = pass;
 	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
-
+	
 	auto materialResource = AllocateResources(engine);
 
 	writer.clear();
@@ -108,7 +108,7 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout };
+	VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout};
 
 	VkPipelineLayoutCreateInfo sky_layout_info = vkinit::pipeline_layout_create_info();
 	sky_layout_info.setLayoutCount = 1;
@@ -244,7 +244,7 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout };
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout};
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
@@ -282,4 +282,150 @@ void EarlyDepthPipelineObject::clear_resources(VkDevice device)
 	vkDestroyPipelineLayout(device, earlyDepthPipeline.layout, nullptr);
 
 	vkDestroyPipeline(device, earlyDepthPipeline.pipeline, nullptr);
+}
+
+
+
+void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
+{
+	VkShaderModule meshFragShader;
+	if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", engine->_device, &meshFragShader)) {
+		fmt::println("Error when building the triangle fragment shader module");
+	}
+
+	VkShaderModule meshVertexShader;
+	if (!vkutil::load_shader_module("shaders/pbr_cluster.vert.spv", engine->_device, &meshVertexShader)) {
+		fmt::println("Error when building the triangle vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+#if USE_BINDLESS
+	constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
+	layoutBuilder.add_binding(10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES);
+	layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES);
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
+#else
+	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+#endif
+
+
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
+		materialLayout };
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	opaquePipeline.layout = newLayout;
+	transparentPipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
+	pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	// create the transparent variant
+	pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
+	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+}
+
+MaterialInstance GLTFMetallic_Roughness::set_material_properties(const MaterialPass pass)
+{
+	MaterialInstance matData;
+	matData.passType = pass;
+	if (pass == MaterialPass::Transparent) {
+		matData.pipeline = &transparentPipeline;
+	}
+	else {
+		matData.pipeline = &opaquePipeline;
+	}
+	return matData;
+}
+
+MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+	MaterialInstance matData;
+	matData.passType = pass;
+	if (pass == MaterialPass::Transparent) {
+		matData.pipeline = &transparentPipeline;
+	}
+	else {
+		matData.pipeline = &opaquePipeline;
+	}
+
+	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
+
+
+	writer.clear();
+	writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	if (resources.separate_occ_texture)
+	{
+		writer.write_image(4, resources.occlusionImage.imageView, resources.occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	}
+	writer.update_set(device, matData.materialSet);
+
+	return matData;
+}
+
+void GLTFMetallic_Roughness::write_material_array(VkDevice device, LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+	writer.clear();
+	for (int i = 0; i < bindless_resources.size(); i++)
+	{
+		int offset = i * 4;
+		//writer.write_buffer(i + offset, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		//writer.write_image(i + offset + 1, bindless_resources[i].colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		//writer.write_image(i + offset + 2, bindless_resources[i].metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		//writer.write_image(i + offset + 3, bindless_resources[i].normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	}
+}
+
+void GLTFMetallic_Roughness::clear_resources(VkDevice device)
+{
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
+	vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
 }
