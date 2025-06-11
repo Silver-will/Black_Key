@@ -1,26 +1,17 @@
-#version 450 core
-
-layout(location = 0)in vec2 uv;
-layout (set = 0, binding = 0) uniform sampler2D tex;
-
+layout (set = 0, binding = 0) uniform sampler2D HDRImage;
 #define SPAN_MAX 8.0
-#define REDUCE/MIN (1.0/128.0)
+#define REDUCE_MIN (1.0/128.0)
+#define REDUCE_MUL (1.0/32.0)
 
-#define REDUCE/MUL(1.0/32.0)
 
-
-void main()
+vec4 FXAA(vec2 uv)
 {
-    FragColor = textureFXAA(uv);
-}
-
-vec4 textureFXAA(vec2 uv)
-{
-	vec3 rgbCC = texture2D(tex, uv).rgb;
-    vec3 rgb00 = texture2D(tex, uv+vec2(-0.5,-0.5)*u_texel).rgb;
-    vec3 rgb10 = texture2D(tex, uv+vec2(+0.5,-0.5)*u_texel).rgb;
-    vec3 rgb01 = texture2D(tex, uv+vec2(-0.5,+0.5)*u_texel).rgb;
-    vec3 rgb11 = texture2D(tex, uv+vec2(+0.5,+0.5)*u_texel).rgb;
+    vec2 u_texel = 1.0 / textureSize(HDRImage, 0 );
+	vec3 rgbCC = texture(HDRImage, uv).rgb;
+    vec3 rgb00 = texture(HDRImage, uv+vec2(-0.5,-0.5)*u_texel).rgb;
+    vec3 rgb10 = texture(HDRImage, uv+vec2(+0.5,-0.5)*u_texel).rgb;
+    vec3 rgb01 = texture(HDRImage, uv+vec2(-0.5,+0.5)*u_texel).rgb;
+    vec3 rgb11 = texture(HDRImage, uv+vec2(+0.5,+0.5)*u_texel).rgb;
 	
 	//Luma coefficients
     const vec3 luma = vec3(0.299, 0.587, 0.114);
@@ -41,13 +32,13 @@ vec4 textureFXAA(vec2 uv)
 	
 	//Average middle texels along dir line
     vec4 A = 0.5 * (
-        texture2D(tex, uv - dir * (1.0/6.0)) +
-        texture2D(tex, uv + dir * (1.0/6.0)));
+        texture(HDRImage, uv - dir * (1.0/6.0)) +
+        texture(HDRImage, uv + dir * (1.0/6.0)));
 	
 	//Average with outer texels along dir line
     vec4 B = A * 0.5 + 0.25 * (
-        texture2D(tex, uv - dir * (0.5)) +
-        texture2D(tex, uv + dir * (0.5)));
+        texture(HDRImage, uv - dir * (0.5)) +
+        texture(HDRImage, uv + dir * (0.5)));
 		
 		
 	//Get lowest and highest luma values
