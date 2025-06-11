@@ -1,3 +1,4 @@
+/*
 #include "clustered_forward_renderer.h"
 #include "../graphics.h"
 #include "../UI.h"
@@ -92,6 +93,7 @@ void ClusteredForwardRenderer::InitRenderTargets()
 		1
 	};*/
 
+	/*
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
@@ -299,7 +301,8 @@ void ClusteredForwardRenderer::InitDescriptors()
 void ClusteredForwardRenderer::InitPipelines()
 {
 	InitComputePipelines();
-	metalRoughMaterial.build_pipelines(loaded_engine);
+	//metalRoughMaterial.build_pipelines(loaded_engine);
+
 	VkShaderModule meshFragShader;
 	if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", loaded_engine->_device, &meshFragShader)) {
 		fmt::println("Error when building the triangle fragment shader module");
@@ -314,6 +317,62 @@ void ClusteredForwardRenderer::InitPipelines()
 	matrixRange.offset = 0;
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	PBRPass.materialLayout = layoutBuilder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	VkDescriptorSetLayout layouts[] = { loaded_engine->_gpuSceneDataDescriptorLayout,
+		PBRPass.materialLayout };
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	PBRPass.pipelineState.layout = newLayout;
+	PBRPassTransparent.pipelineState.layout = newLayout;
+	//opaquePipeline.layout = newLayout;
+	//transparentPipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(msaa_samples);
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+	pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	PBRPass.pipelineState.pipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
+
+	// create the transparent variant
+	pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	PBRPassTransparent.pipelineState.pipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
+
+	vkDestroyShaderModule(loaded_engine->_device, meshFragShader, nullptr);
+	vkDestroyShaderModule(loaded_engine->_device, meshVertexShader, nullptr);
 
 	cascadedShadows.build_pipelines(loaded_engine);
 	skyBoxPSO.build_pipelines(loaded_engine);
@@ -1588,3 +1647,4 @@ void ClusteredForwardRenderer::DrawUI()
 	}
 	ImGui::End();
 }
+*/

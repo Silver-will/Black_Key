@@ -92,42 +92,4 @@ private:
     void clearAll();
 };
 
-struct GLTFMetallic_Roughness {
-    MaterialPipeline opaquePipeline;
-    MaterialPipeline transparentPipeline;
-
-    VkDescriptorSetLayout materialLayout;
-
-    struct MaterialConstants {
-        glm::vec4 colorFactors;
-        glm::vec4 metal_rough_factors;
-        //padding, we need it anyway for uniform buffers
-        glm::vec4 extra[14];
-    };
-
-    struct MaterialResources {
-        AllocatedImage colorImage;
-        VkSampler colorSampler;
-        AllocatedImage metalRoughImage;
-        VkSampler metalRoughSampler;
-        AllocatedImage occlusionImage;
-        VkSampler occlusionSampler;
-        //Flag if the occlusion texture is separate from the metallicRoughness one
-        bool separate_occ_texture = false;
-        AllocatedImage normalImage;
-        VkSampler normalSampler;
-        VkBuffer dataBuffer;
-        uint32_t dataBufferOffset;
-    };
-
-    DescriptorWriter writer;
-
-    void build_pipelines(VulkanEngine* engine);
-    void clear_resources(VkDevice device);
-
-    MaterialInstance set_material_properties(const MaterialPass pass);
-    MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
-    void write_material_array(VkDevice device, LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator);
-};
-
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial = false);

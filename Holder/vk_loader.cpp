@@ -23,7 +23,7 @@
 
 std::unordered_map<std::string, AllocatedImage> image_test;
 
-std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, const std::string& rootPath)
+std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image,const std::string& rootPath)
 {
     AllocatedImage newImage{};
 
@@ -61,7 +61,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
         imagesize.width = width;
         imagesize.height = height;
         imagesize.depth = 1;
-
+        
         newImage = vkutil::create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, engine, true);
 
         stbi_image_free(data);
@@ -143,7 +143,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 {
     std::string rootPath(filePath.begin(), filePath.end());
     rootPath = rootPath.substr(0, rootPath.find_last_of('/') + 1);
-
+    
     //> load_1
     fmt::println("Loading GLTF: {}", filePath);
 
@@ -226,7 +226,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     //< load_arrays
 
     int count = 0;
-    // load all textures
+        // load all textures
     for (fastgltf::Image& image : gltf.images) {
         std::optional<AllocatedImage> img = load_image(engine, gltf, image, rootPath);
 
@@ -258,7 +258,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
         file.materials[mat.name.c_str()] = newMat;
-
+        
 
         GLTFMetallic_Roughness::MaterialConstants constants;
         constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
@@ -286,7 +286,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materialResources.normalSampler = engine->_defaultSamplerLinear;
         materialResources.occlusionImage = engine->_whiteImage;
         materialResources.occlusionSampler = engine->_defaultSamplerLinear;
-
+       
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
@@ -384,12 +384,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
                     [&](glm::vec3 v, size_t index) {
                         Vertex newvtx;
-                        newvtx.position = v;
-                        newvtx.normal = { 1, 0, 0 };
-                        newvtx.color = glm::vec4{ 1.f };
-                        newvtx.uv_x = 0;
-                        newvtx.uv_y = 0;
-                        vertices[initial_vtx + index] = newvtx;
+                newvtx.position = v;
+                newvtx.normal = { 1, 0, 0 };
+                newvtx.color = glm::vec4{ 1.f };
+                newvtx.uv_x = 0;
+                newvtx.uv_y = 0;
+                vertices[initial_vtx + index] = newvtx;
                     });
             }
 
@@ -410,7 +410,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                 fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[(*uv).second],
                     [&](glm::vec2 v, size_t index) {
                         vertices[initial_vtx + index].uv_x = v.x;
-                        vertices[initial_vtx + index].uv_y = v.y;
+                vertices[initial_vtx + index].uv_y = v.y;
                     });
             }
 
@@ -433,7 +433,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                     });
             }
 
-
+            
             if (p.materialIndex.has_value()) {
                 newSurface.material = materials[p.materialIndex.value()];
             }
@@ -514,141 +514,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     return scene;
 }
 
-void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
-{
-    VkShaderModule meshFragShader;
-    if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", engine->_device, &meshFragShader)) {
-        fmt::println("Error when building the triangle fragment shader module");
-    }
-
-    VkShaderModule meshVertexShader;
-    if (!vkutil::load_shader_module("shaders/pbr_cluster.vert.spv", engine->_device, &meshVertexShader)) {
-        fmt::println("Error when building the triangle vertex shader module");
-    }
-
-    VkPushConstantRange matrixRange{};
-    matrixRange.offset = 0;
-    matrixRange.size = sizeof(GPUDrawPushConstants);
-    matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    DescriptorLayoutBuilder layoutBuilder;
-#if USE_BINDLESS
-    constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
-    layoutBuilder.add_binding(10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES);
-    layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES);
-    materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
-#else
-    layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-#endif
-
-
-    VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-        materialLayout };
-
-    VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-    mesh_layout_info.setLayoutCount = 2;
-    mesh_layout_info.pSetLayouts = layouts;
-    mesh_layout_info.pPushConstantRanges = &matrixRange;
-    mesh_layout_info.pushConstantRangeCount = 1;
-
-    VkPipelineLayout newLayout;
-    VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
-
-    opaquePipeline.layout = newLayout;
-    transparentPipeline.layout = newLayout;
-
-    // build the stage-create-info for both vertex and fragment stages. This lets
-    // the pipeline know the shader modules per stage
-    PipelineBuilder pipelineBuilder;
-    pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
-    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    pipelineBuilder.set_multisampling_level(engine->msaa_samples);
-    pipelineBuilder.disable_blending();
-    pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-    //render format
-    pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
-
-    // use the triangle layout we created
-    pipelineBuilder._pipelineLayout = newLayout;
-
-    // finally build the pipeline
-    opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-
-    // create the transparent variant
-    pipelineBuilder.enable_blending_additive();
-
-    pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-    transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-
-    vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
-    vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
-}
-
-MaterialInstance GLTFMetallic_Roughness::set_material_properties(const MaterialPass pass)
-{
-    MaterialInstance matData;
-    matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
-        matData.pipeline = &transparentPipeline;
-    }
-    else {
-        matData.pipeline = &opaquePipeline;
-    }
-    return matData;
-}
-
-MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
-{
-    MaterialInstance matData;
-    matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
-        matData.pipeline = &transparentPipeline;
-    }
-    else {
-        matData.pipeline = &opaquePipeline;
-    }
-
-    matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
-
-
-    writer.clear();
-    writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    if (resources.separate_occ_texture)
-    {
-        writer.write_image(4, resources.occlusionImage.imageView, resources.occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    }
-    writer.update_set(device, matData.materialSet);
-
-    return matData;
-}
-
-void GLTFMetallic_Roughness::write_material_array(VkDevice device, LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
-{
-    writer.clear();
-    for (int i = 0; i < bindless_resources.size(); i++)
-    {
-        int offset = i * 4;
-        //writer.write_buffer(i + offset, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        //writer.write_image(i + offset + 1, bindless_resources[i].colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        //writer.write_image(i + offset + 2, bindless_resources[i].metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        //writer.write_image(i + offset + 3, bindless_resources[i].normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-    }
-}
-
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
     vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
@@ -669,7 +534,7 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void LoadedGLTF::clearAll()
 {
     VkDevice dv = creator->_device;
-
+    
     for (auto& [k, v] : meshes) {
 
         creator->destroy_buffer(v->meshBuffers.indexBuffer);

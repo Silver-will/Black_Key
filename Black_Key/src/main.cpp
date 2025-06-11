@@ -4,7 +4,7 @@
 
 int main(int argc, char* argv[])
 {
-	VulkanEngine engine;
+	/*VulkanEngine engine;
 	engine.init();
 
 	std::unique_ptr<BaseRenderer> clusteredLightingDemo = std::make_unique<ClusteredForwardRenderer>();
@@ -14,6 +14,15 @@ int main(int argc, char* argv[])
 
 	//engine.run();	
 	engine.cleanup();	
+	*/
+
+	VulkanEngine engine;
+
+	engine.init();
+
+	engine.run();
+
+	engine.cleanup();
 
 	return 0;
 }

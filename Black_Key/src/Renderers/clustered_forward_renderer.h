@@ -1,5 +1,6 @@
 #pragma once
 #include "base_renderer.h"
+/*
 struct ClusteredForwardRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
@@ -53,14 +54,15 @@ private:
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
-
 	MaterialInstance defaultData;
-	GLTFMetallic_Roughness metalRoughMaterial;
-	ShadowPipelineResources cascadedShadows;
-	SkyBoxPipelineResources skyBoxPSO;
-	BloomBlurPipelineObject postProcessPSO;
-	RenderImagePipelineObject HdrPSO;
-	EarlyDepthPipelineObject depthPrePassPSO;
+
+	PipelinePassDescription PBRPass;
+	PipelinePassDescription PBRPassTransparent;
+	PipelinePassDescription cascadedShadowPass;
+	PipelinePassDescription skyBoxPass;
+	PipelinePassDescription postProcessPass;
+	PipelinePassDescription hdrPass;
+	PipelinePassDescription depthPrePass;
 
 	DrawContext mainDrawContext;
 	//r
@@ -191,3 +193,5 @@ private:
 	}pointData;
 };
 
+
+*/
