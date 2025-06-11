@@ -2,15 +2,15 @@
 
 #extension GL_GOOGLE_include_directive : require
 #include "helper_functions.glsl"
+#include "fxaa.glsl"
 
 layout(location = 0)in vec2 TexCoords;
-layout (set = 0, binding = 0) uniform sampler2D HDRImage;
-
 layout (location = 0)out vec4 FragColor;
 
 void main()
 {
-	FragColor = texture(HDRImage,TexCoords);
+	//FragColor = texture(HDRImage,TexCoords);
+	FragColor = FXAA(TexCoords);
 	
 	vec3 color = uchimura(FragColor.rgb);
 	// gamma correct
