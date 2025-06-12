@@ -328,5 +328,14 @@
     <None Include="shaders\FXAA.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\pbr_bindless.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\resource.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pbr_bindless.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

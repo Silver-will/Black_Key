@@ -9,10 +9,10 @@ layout (location = 0)out vec4 FragColor;
 
 void main()
 {
-	//FragColor = texture(HDRImage,TexCoords);
+	FragColor = texture(HDRImage,TexCoords);
 	FragColor = FXAA(TexCoords);
 	
-	vec3 color = uchimura(FragColor.rgb);
+	vec3 color = neutral(FragColor.rgb);
 	// gamma correct
     FragColor = vec4(pow(color, vec3(1.0/2.2)),1.0);
    

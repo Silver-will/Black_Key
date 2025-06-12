@@ -14,7 +14,7 @@ struct DescriptorLayoutBuilder {
 struct DescriptorAllocatorBindless {
     VkDescriptorPool pool;
 
-    void init_bindless_pool(VkDevice device, uint32_t maxBindlessResources);
+    void init_bindless_pool(VkDevice device, uint32_t MAX_BINDLESS_RESOURCES);
     void clear_descriptors(VkDevice device);
     void destroy_pool(VkDevice device);
 

@@ -305,6 +305,8 @@
     <None Include="shaders\ibl_helpers.glsl" />
     <None Include="shaders\indirect_cull.comp" />
     <None Include="shaders\input_structures.glsl" />
+    <None Include="shaders\pbr_bindless.frag" />
+    <None Include="shaders\pbr_bindless.vert" />
     <None Include="shaders\pbr_cluster.frag" />
     <None Include="shaders\pbr_cluster.vert" />
     <None Include="shaders\irradiance_cube.comp" />
@@ -312,6 +314,7 @@
     <None Include="shaders\lights.glsl" />
     <None Include="shaders\pre_filter.comp" />
     <None Include="shaders\pre_filter_envmap.frag" />
+    <None Include="shaders\resource.glsl" />
     <None Include="shaders\sky.comp" />
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
