@@ -253,7 +253,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         //
     //> load_material
     std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
-    bindless_resources.reserve(gltf.materials.size());
+    //bindless_resources.reserve(gltf.materials.size());
+
     for (fastgltf::Material& mat : gltf.materials) {
         std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
@@ -533,7 +534,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     DescriptorLayoutBuilder layoutBuilder;
 #if USE_BINDLESS
-    constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
+    constexpr uint32_t MAX_BINDLESS_RESOURCES = 1024;
     layoutBuilder.add_binding(10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES);
     layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES);
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);

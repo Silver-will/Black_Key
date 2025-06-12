@@ -79,7 +79,7 @@ public:
 	int _frameNumber{ 0 };
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
-	bool debugShadowMap = true;
+	bool debugShadowMap = false;
 
 	struct {
 		float lastFrame;

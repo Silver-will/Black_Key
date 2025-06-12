@@ -23,7 +23,7 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
 
     VkDescriptorSetLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     info.pNext = pNext;
-
+    
     info.pBindings = bindings.data();
     info.bindingCount = (uint32_t)bindings.size();
     info.flags = flags;
@@ -63,9 +63,9 @@ VkDescriptorSet DescriptorAllocatorBindless::allocate(VkDevice device, VkDescrip
     return ds;
 }
 
-void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t maxBindlessResources)
+void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t MAX_BINDLESS_RESOURCES)
 {
-    constexpr uint32_t MAX_BINDLESS_RESOURCES = 256;
+    //constexpr uint32_t MAX_BINDLESS_RESOURCES = 1024;
 
     std::vector<VkDescriptorPoolSize> pool_sizes_bindless = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_BINDLESS_RESOURCES},

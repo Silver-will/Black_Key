@@ -30,4 +30,3 @@ layout(set = 1, binding = 0) uniform GLTFMaterialData{
 	int colorTexID;
 	int metalRoughTexID;
 } materialData;
-
