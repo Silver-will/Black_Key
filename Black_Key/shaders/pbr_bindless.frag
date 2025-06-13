@@ -34,14 +34,26 @@ const mat4 biasMat = mat4(
 	0.5, 0.5, 0.0, 1.0 
 );
 
+
+layout( push_constant ) uniform constants
+{
+	mat4 render_matrix;
+	VertexBuffer vertexBuffer;
+	uint material_index;
+} PushConstants;
+
+
 void main() 
 {
-    vec4 colorVal = texture(colorTex, inUV).rgba;
+    //vec4 colorVal = texture(colorTex, inUV).rgba;
+    vec4 colorVal = texture(material_textures[nonuniformEXT(material_index)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     float ao = colorVal.a;
 
-    vec2 metallicRough  = texture(metalRoughTex, inUV).gb;
-    float roughness = metallicRough.x;
+    vec2 metallicRough  = texture(material_textures[nonuniformEXT(material_index+1)],inUV).gb;
+    //vec2 metallicRough  = texture(metalRoughTex, inUV).gb;
+    
+	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
     
     vec3 N = CalculateNormalFromMap();
@@ -214,7 +226,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * pow(texture(colorTex, inUV).rgb,vec3(2.2)) / PI + spec) * radiance * dotNL;
+		color += (kD * pow(texture(material_textures[nonuniformEXT(material_index)],inUV).rgb,vec3(2.2)) / PI + spec) * radiance * dotNL;
 	}
 
 	return color;
@@ -222,7 +234,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 
 vec3 CalculateNormalFromMap()
 {
-    vec3 tangentNormal = normalize(texture(normalTex,inUV).rgb * 2.0 - vec3(1.0));
+    vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(material_index+2)],inUV).rgb * 2.0 - vec3(1.0));
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;

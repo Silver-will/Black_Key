@@ -14,24 +14,12 @@ layout (location = 5) out vec2 outUV;
 layout (location = 6) out vec4 outTangent;
 layout (location = 7) out mat3 outTBN;
 
-struct Vertex {
-	vec3 position;
-	float uv_x;
-	vec3 normal;
-	float uv_y;
-	vec4 color;
-	vec4 tangent;
-}; 
-
-layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
-	Vertex vertices[];
-};
-
 //push constants block
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
+	uint material_index;
 } PushConstants;
 
 invariant gl_Position;
@@ -52,7 +40,8 @@ void main()
 
 	outTBN = mat3(T, B, N);
 	outNormal = normalMatrix * v.normal;
-	outColor = v.color.xyz * materialData.colorFactors.xyz;	
+	//outColor = v.color.xyz * materialData.colorFactors.xyz;	
+	outColor = v.color.xyz;
 	outFragPos = vec3(fragPos.xyz);
 	outViewPos = (sceneData.view * position).xyz;
 	outPos = v.position;

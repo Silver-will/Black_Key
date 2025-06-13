@@ -114,6 +114,8 @@ struct GLTFMetallic_Roughness {
         VkSampler occlusionSampler;
         //Flag if the occlusion texture is separate from the metallicRoughness one
         bool separate_occ_texture = false;
+        bool rough_metallic_texture_found = false;
+        bool normal_texture_found = false;
         AllocatedImage normalImage;
         VkSampler normalSampler;
         VkBuffer dataBuffer;

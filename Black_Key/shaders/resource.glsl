@@ -1,3 +1,7 @@
+//Scene resources to be updated once per frame
+#include "lights.glsl"
+#define MAX_MATERIAL_COUNT 65536
+
 layout(set = 0, binding = 0) uniform  SceneData{   
 	mat4 view;
 	mat4 proj;
@@ -15,17 +19,16 @@ layout(set = 0, binding = 0) uniform  SceneData{
 } sceneData;
 
 
-layout(set = 0, binding = 1) uniform sampler2DArray shadowMap;
-layout(set = 0, binding = 2) uniform samplerCube irradianceMap;
-layout(set = 0, binding = 3) uniform sampler2D BRDFLUT;
-layout(set = 0, binding = 4) uniform samplerCube preFilterMap;
+layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
+layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
+layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
+layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
 
-
-layout (set = 0, binding = 5) readonly buffer lightSSBO{
+layout (set = 0, binding = 6) readonly buffer lightSSBO{
     PointLight pointLight[];
 };
 
-layout (set = 0, binding = 6) buffer screenToView{
+layout (set = 0, binding = 7) buffer screenToView{
     mat4 inverseProjection;
     uvec4 tileSizes;
     uvec2 screenDimensions;
@@ -33,10 +36,10 @@ layout (set = 0, binding = 6) buffer screenToView{
     float bias;
 };
 
-layout (set = 0, binding = 7) buffer lightIndexSSBO{
+layout (set = 0, binding = 8) buffer lightIndexSSBO{
     uint globalLightIndexList[];
 };
-layout (set = 0, binding = 8) buffer lightGridSSBO{
+layout (set = 0, binding = 9) buffer lightGridSSBO{
     LightGrid lightGrid[];
 };
 
@@ -47,6 +50,8 @@ struct GLTFMaterialData{
 	int metalRoughTexID;
 };
 
-layout(set = 1, binding = 0) uniform GLTFMaterialData material_uniforms[];
+layout(set = 1, binding = 0) uniform GLTFMaterialDataBuffer{
+	GLTFMaterialData material_data[MAX_MATERIAL_COUNT];	
+};
 layout(set = 1, binding = 1) uniform sampler2D material_textures[];
-layout(set = 1, binding = 2) uniform image2D storage_image[];
+layout(rgba16, set = 1, binding = 2) uniform image2D storage_image[];
