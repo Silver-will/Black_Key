@@ -308,6 +308,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
             materialResources.metalRoughImage = images[img];
             materialResources.metalRoughSampler = file.samplers[sampler];
+            materialResources.rough_metallic_texture_found = true;
         }
 
         if (mat.normalTexture.has_value())
@@ -317,6 +318,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
             materialResources.normalImage = images[img];
             materialResources.normalSampler = file.samplers[sampler];
+            materialResources.normal_texture_found = true;
         }
 
         if (mat.occlusionTexture.has_value())
@@ -333,7 +335,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 #if USE_BINDLESS
         //Store each textures Materials
         bindless_resources.push_back(materialResources);
-        newMat->obj_count = data_index;
+        newMat->obj_count = data_index * 4;
         newMat->data = engine->metalRoughMaterial.set_material_properties(passType);
 #else
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);

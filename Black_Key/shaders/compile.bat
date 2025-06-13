@@ -27,4 +27,6 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe gen_brdf_lut.frag -o gen_brdf_lut.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe pre_filter_envmap.frag -o pre_filter_envmap.frag.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cluster_shader.comp -o cluster_shader.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe cluster_cull_light_shader.comp -o cluster_cull_light_shader.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe pbr_bindless.vert -o pbr_bindless.vert.spv
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe pbr_bindless.frag -o pbr_bindless.frag.spv
 pause
