@@ -65,8 +65,6 @@ VkDescriptorSet DescriptorAllocatorBindless::allocate(VkDevice device, VkDescrip
 
 void DescriptorAllocatorBindless::init_bindless_pool(VkDevice device, uint32_t MAX_BINDLESS_RESOURCES)
 {
-    //constexpr uint32_t MAX_BINDLESS_RESOURCES = 1024;
-
     std::vector<VkDescriptorPoolSize> pool_sizes_bindless = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_BINDLESS_RESOURCES},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES},
@@ -92,8 +90,10 @@ void DescriptorAllocatorBindless::destroy_pool(VkDevice device)
     vkDestroyDescriptorPool(device, pool, nullptr);
 }
 
-void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios)
+void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios, bool bindless)
 {
+    VkDescriptorPoolCreateInfo pool_info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+
     std::vector<VkDescriptorPoolSize> poolSizes;
     for (PoolSizeRatio ratio : poolRatios) {
         poolSizes.push_back(VkDescriptorPoolSize{
@@ -102,8 +102,9 @@ void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span
             });
     }
 
-    VkDescriptorPoolCreateInfo pool_info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     pool_info.flags = 0;
+    if (bindless)
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
     pool_info.maxSets = maxSets;
     pool_info.poolSizeCount = (uint32_t)poolSizes.size();
     pool_info.pPoolSizes = poolSizes.data();
@@ -247,7 +248,7 @@ VkDescriptorSet DescriptorAllocatorGrowable::allocate(VkDevice device, VkDescrip
 }
 
 
-void DescriptorWriter::write_buffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type)
+void DescriptorWriter::write_buffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type, int arr_index)
 {
     VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
         .buffer = buffer,
@@ -262,11 +263,13 @@ void DescriptorWriter::write_buffer(int binding, VkBuffer buffer, size_t size, s
     write.descriptorCount = 1;
     write.descriptorType = type;
     write.pBufferInfo = &info;
+    if (arr_index >= 0)
+        write.dstArrayElement = arr_index;
 
     writes.push_back(write);
 }
 
-void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
+void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type, int arr_index)
 {
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
         .sampler = sampler,
@@ -281,6 +284,10 @@ void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sam
     write.descriptorCount = 1;
     write.descriptorType = type;
     write.pImageInfo = &info;
+    if (arr_index >= 0)
+        write.dstArrayElement = arr_index;
+    
+    
 
     writes.push_back(write);
 }

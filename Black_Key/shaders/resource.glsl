@@ -54,4 +54,4 @@ layout(set = 1, binding = 0) uniform GLTFMaterialDataBuffer{
 	GLTFMaterialData material_data[MAX_MATERIAL_COUNT];	
 };
 layout(set = 1, binding = 1) uniform sampler2D material_textures[];
-layout(rgba16, set = 1, binding = 2) uniform image2D storage_image[];
+layout(rgba8, set = 1, binding = 2) uniform image2D storage_image[];

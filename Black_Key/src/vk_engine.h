@@ -46,6 +46,11 @@ public:
 	//run main loop
 	void run();
 
+
+
+	//> Refactor this into a resource manager please
+	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
+
 	Camera mainCamera;
 
 	VkInstance _instance;// Vulkan library handle
@@ -147,12 +152,14 @@ public:
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
-	VkDescriptorSetLayout _bindlessDescriptorLayout;
+	VkDescriptorSetLayout bindless_descriptor_layout;
+
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
+	AllocatedImage storage_image;
 	AllocatedImage _errorCheckerboardImage;
 
 	AllocatedImage _skyImage;

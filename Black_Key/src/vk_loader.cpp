@@ -20,9 +20,6 @@
 #include <iostream>
 #include <string>
 
-
-std::unordered_map<std::string, AllocatedImage> image_test;
-
 std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, const std::string& rootPath)
 {
     AllocatedImage newImage{};
@@ -252,7 +249,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     //< load_buffer
         //
     //> load_material
-    std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
+    //std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
     //bindless_resources.reserve(gltf.materials.size());
 
     for (fastgltf::Material& mat : gltf.materials) {
@@ -334,7 +331,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         // build material
 #if USE_BINDLESS
         //Store each textures Materials
-        bindless_resources.push_back(materialResources);
+        engine->bindless_resources.push_back(materialResources);
         newMat->obj_count = data_index * 4;
         newMat->data = engine->metalRoughMaterial.set_material_properties(passType);
 #else
@@ -536,7 +533,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     DescriptorLayoutBuilder layoutBuilder;
 #if USE_BINDLESS
-    constexpr uint32_t MAX_BINDLESS_RESOURCES = 1024;
+    constexpr uint32_t MAX_BINDLESS_RESOURCES = 65536;
     layoutBuilder.add_binding(10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_BINDLESS_RESOURCES);
     layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_BINDLESS_RESOURCES);
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
@@ -638,17 +635,18 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
     return matData;
 }
 
-void GLTFMetallic_Roughness::write_material_array(VkDevice device, LoadedGLTF& file, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
+void GLTFMetallic_Roughness::write_material_array(VulkanEngine* engine, MaterialPass pass, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     writer.clear();
     for (int i = 0; i < bindless_resources.size(); i++)
     {
         int offset = i * 4;
-        //writer.write_buffer(i + offset, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        //writer.write_image(i + offset + 1, bindless_resources[i].colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        //writer.write_image(i + offset + 2, bindless_resources[i].metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        //writer.write_image(i + offset + 3, bindless_resources[i].normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
+        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i);
+        writer.write_image(1, bindless_resources[i].colorImage.imageView, bindless_resources[i].colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset);
+        writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
+        writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
+        writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
+        writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE , VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 }
 

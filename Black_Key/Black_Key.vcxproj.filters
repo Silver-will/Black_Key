@@ -25,6 +25,9 @@
     <Filter Include="Source Files\Vulkan Backend">
       <UniqueIdentifier>{027d9716-6a5e-4654-9525-576475715969}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Engine">
+      <UniqueIdentifier>{a736528d-51a7-460d-b358-13c13b4fb1b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\camera.cpp">
@@ -121,6 +124,9 @@
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
     <ClCompile Include="PSO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resource_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -222,6 +228,9 @@
       <Filter>Source Files\Renderers</Filter>
     </ClInclude>
     <ClInclude Include="PSO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
