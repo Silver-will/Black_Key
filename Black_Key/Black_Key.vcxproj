@@ -226,6 +226,7 @@
     <ClCompile Include="src\Renderers\base_renderer.cpp" />
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp" />
     <ClCompile Include="src\resource_manager.cpp" />
+    <ClCompile Include="src\stb_definition.cpp" />
     <ClCompile Include="src\vk_material_system.cpp" />
     <ClCompile Include="src\UI.cpp" />
     <ClCompile Include="src\vk_device.cpp" />

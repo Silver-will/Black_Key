@@ -8,6 +8,7 @@
 #include "../vk_pipelines.h"
 #include "../vk_buffer.h"
 #include "../vk_loader.h"
+#include "../resource_manager.h"
 
 struct BaseRenderer
 {
@@ -22,7 +23,8 @@ struct BaseRenderer
 	virtual void UpdateScene() = 0;
 	virtual void LoadAssets() = 0;
 	virtual void InitImgui()=0;
-
+	ResourceManager resource_manager;
 	VulkanEngine* loaded_engine{ nullptr };
+
 };
 

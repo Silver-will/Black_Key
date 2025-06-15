@@ -85,24 +85,28 @@ void VulkanEngine::init()
 	load_assets();
 
 	pre_process_pass();
+
+	resource_manager.init(this);
 	_isInitialized = true;
 }
 
 void VulkanEngine::load_assets()
 {
 	std::string cubePath{ "assets/cube.gltf" };
-	auto cubeFile = loadGltf(this, cubePath);
-	loadedScenes["cube"] = *cubeFile;
+	auto cubeFile = resource_manager.loadGltf(this, cubePath);
+	assert(cubeFile.has_value());
 
 	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
 	std::string structurePath{ "assets/sponza/Sponza.gltf" };
 
-	auto structureFile = loadGltf(this, structurePath, true);
+	auto structureFile = resource_manager.loadGltf(this, structurePath, true);
 	assert(structureFile.has_value());
 
 	std::string planePath{ "assets/plane.glb" };
-	auto planeFile = loadGltf(this, planePath);
+	auto planeFile = resource_manager.loadGltf(this, planePath);
+	assert(planeFile.has_value());
 
+	loadedScenes["cube"] = *cubeFile;
 	loadedScenes["sponza"] = *structureFile;
 	loadedScenes["plane"] = *planeFile;
 }
@@ -416,10 +420,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
 	*sceneUniformData = sceneData;
 	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	//*sceneUniformData = sceneData;
-
-	//create a descriptor set that binds that buffer and update it
+	
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
 
 	DescriptorWriter writer;
@@ -908,6 +909,9 @@ void VulkanEngine::init_vulkan()
 	features12.descriptorIndexing = true;
 	features12.runtimeDescriptorArray = true;
 	features12.descriptorBindingPartiallyBound = true;
+	features12.descriptorBindingSampledImageUpdateAfterBind = true;
+	features12.descriptorBindingUniformBufferUpdateAfterBind = true;
+	features12.descriptorBindingStorageImageUpdateAfterBind = true;
 
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -1141,6 +1145,19 @@ void VulkanEngine::init_descriptors()
 	_mainDeletionQueue.push_function(
 		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
 
+
+	std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+	};
+
+	
+	bindless_material_allocator.init_pool(_device, 65536, bindless_sizes);
+	_mainDeletionQueue.push_function(
+		[&]() { vkDestroyDescriptorPool(_device, bindless_material_allocator.pool, nullptr); });
+
+	
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -1207,6 +1224,7 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _shadowSceneDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
