@@ -13,6 +13,7 @@
 #include "shadows.h"
 #include "Lights.h"
 #include <chrono>
+#include "resource_manager.h"
 #include <ktxvulkan.h>
 
 #define USE_BINDLESS 0
@@ -52,7 +53,7 @@ public:
 	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
 
 	Camera mainCamera;
-
+	ResourceManager resource_manager;
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
 	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
@@ -74,8 +75,10 @@ public:
 	EarlyDepthPipelineObject depthPrePassPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
+	DescriptorAllocator bindless_material_allocator;
 
 	VkDescriptorSet _drawImageDescriptors;
+	VkDescriptorSet bindless_descriptor;
 
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 

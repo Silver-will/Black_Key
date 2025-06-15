@@ -1,5 +1,4 @@
 #pragma once
-#include "vk_engine.h"
 
 #include <iostream>
 
@@ -7,6 +6,7 @@
 #include "vk_pipelines.h"
 #include "vk_types.h"
 #include "vk_images.h"
+#include "vk_loader.h"
 #include <glm/gtx/quaternion.hpp>
 
 
@@ -19,11 +19,19 @@
 #include <iostream>
 #include <string>
 
-class RESOURCEMANAGER
+class VulkanEngine;
+
+struct ResourceManager
 {
-	RESOURCEMANAGER(VulkanEngine* engine_ptr) : engine{engine_ptr}{}
+	ResourceManager() {}
+	ResourceManager(VulkanEngine* engine_ptr) : engine{engine_ptr}{}
+	void init(VulkanEngine* engine_ptr);
+	std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, const std::string& rootPath);
+	std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial = false);
+    VkFilter extract_filter(fastgltf::Filter filter);
+    VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
+private:
 	VulkanEngine* engine;
-	std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, const std::string& rootPath)
-
+	int last_material_index = 0;
+	VkDescriptorSet bindless_set;
 };
-
