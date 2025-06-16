@@ -28,6 +28,8 @@ struct FrameData {
 
 	DeletionQueue _deletionQueue;
 	DescriptorAllocatorGrowable _frameDescriptors;
+	
+	DescriptorAllocator bindless_material_descriptor;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -46,11 +48,6 @@ public:
 
 	//run main loop
 	void run();
-
-
-
-	//> Refactor this into a resource manager please
-	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources;
 
 	Camera mainCamera;
 	ResourceManager resource_manager;
@@ -75,7 +72,6 @@ public:
 	EarlyDepthPipelineObject depthPrePassPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
-	DescriptorAllocator bindless_material_allocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSet bindless_descriptor;
@@ -230,6 +226,7 @@ public:
 
 private:
 	void load_assets();
+	void write_bindless_materials();
 	void pre_process_pass();
 	void cull_lights(VkCommandBuffer cmd);
 	void draw_shadows(VkCommandBuffer cmd);

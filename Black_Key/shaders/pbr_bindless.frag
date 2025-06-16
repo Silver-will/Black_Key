@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_nonuniform_qualifier : require
 
 #include "resource.glsl"
 layout(early_fragment_tests) in;
@@ -45,6 +46,7 @@ layout( push_constant ) uniform constants
 
 void main() 
 {
+	uint material_index = PushConstants.material_index;
     //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(material_index)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
@@ -165,6 +167,7 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
+	uint material_index = PushConstants.material_index;
 	// Precalculate vectors and dot products	
 	vec3 H = normalize (V + L);
 	float dotNH = clamp(dot(N, H), 0.0, 1.0);
@@ -185,7 +188,7 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metalli
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * pow(texture(colorTex, inUV).rgb,vec3(2.2)) / PI + spec) * dotNL;
+		color += (kD * pow(texture(material_textures[nonuniformEXT(material_index)],inUV).rgb,vec3(2.2)) / PI + spec) * dotNL;
 		color *= C;
 	}
 
@@ -204,6 +207,7 @@ vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C)
 
 vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
+	uint material_index = PushConstants.material_index;
 	float distance = length(L);
 	L = normalize(L);
 	// Precalculate vectors and dot products	
@@ -234,6 +238,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 
 vec3 CalculateNormalFromMap()
 {
+	uint material_index = PushConstants.material_index;
     vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(material_index+2)],inUV).rgb * 2.0 - vec3(1.0));
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);

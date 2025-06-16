@@ -26,7 +26,7 @@ All the following scenes are rendered in engine:
 * Transparency
 
 # API Features
-* Buffer device addressing for programmable vertex pulling
+* Buffer device addressing and programmable vertex pulling
 * Dynamic Rendering
 
 ##  Roadmap
@@ -43,7 +43,4 @@ All the following scenes are rendered in engine:
 * [ ] shader hot reloading
 * [ ] editor
 
-## Things to look into
-* [ ] visibility buffer rendering
-* [ ] virtual shadow maps
-* [ ] Radiance cascades
+

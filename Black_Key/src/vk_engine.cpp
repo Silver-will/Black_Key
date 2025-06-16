@@ -85,13 +85,13 @@ void VulkanEngine::init()
 	load_assets();
 
 	pre_process_pass();
-
-	resource_manager.init(this);
 	_isInitialized = true;
 }
 
 void VulkanEngine::load_assets()
 {
+
+	resource_manager.init(this);
 	std::string cubePath{ "assets/cube.gltf" };
 	auto cubeFile = resource_manager.loadGltf(this, cubePath);
 	assert(cubeFile.has_value());
@@ -109,7 +109,17 @@ void VulkanEngine::load_assets()
 	loadedScenes["cube"] = *cubeFile;
 	loadedScenes["sponza"] = *structureFile;
 	loadedScenes["plane"] = *planeFile;
+
+#ifdef USE_BINDLESS 1
+	//resource_manager.write_material_array();
+#endif // USE_BINDLESS
 }
+
+void VulkanEngine::write_bindless_materials()
+{
+	
+}
+
 
 void VulkanEngine::pre_process_pass()
 {
@@ -632,11 +642,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 		destroy_buffer(gpuSceneDataBuffer);
 		});
 
-	//write the buffer
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	//*sceneUniformData = sceneData;
-
-
 	void* sceneDataPtr = nullptr;
 	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
@@ -660,6 +665,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
 	writer.update_set(_device, globalDescriptor);
+
+	//allocate bindless descriptor
 
 	MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
@@ -1145,18 +1152,6 @@ void VulkanEngine::init_descriptors()
 	_mainDeletionQueue.push_function(
 		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
 
-
-	std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-	};
-
-	
-	bindless_material_allocator.init_pool(_device, 65536, bindless_sizes);
-	_mainDeletionQueue.push_function(
-		[&]() { vkDestroyDescriptorPool(_device, bindless_material_allocator.pool, nullptr); });
-
 	
 	{
 		DescriptorLayoutBuilder builder;
@@ -1236,10 +1231,25 @@ void VulkanEngine::init_descriptors()
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
 		};
 
+		std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+		};
+
+
+		//bindless_material_allocator.init_pool(_device, 65536, bindless_sizes);
+	//	_mainDeletionQueue.push_function(
+		//	[&]() { vkDestroyDescriptorPool(_device, bindless_material_allocator.pool, nullptr); });
+
+
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
 		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
+		_frames[i].bindless_material_descriptor = DescriptorAllocator{};
+		_frames[i].bindless_material_descriptor.init_pool(_device, 65536, bindless_sizes);
 		_mainDeletionQueue.push_function([&, i]() {
 			_frames[i]._frameDescriptors.destroy_pools(_device);
+			_frames[i].bindless_material_descriptor.destroy_pool(_device);
 			});
 	}
 }
@@ -1534,7 +1544,7 @@ void VulkanEngine::init_default_data() {
 		VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	storage_image = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_STORAGE_BIT, this);
+		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	//Populate point light list
 	int numOfLights = 4;
