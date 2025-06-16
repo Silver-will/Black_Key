@@ -127,6 +127,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 vec3 CalculateNormalFromMap()
 {
     vec3 tangentNormal = normalize(texture(normalTex,inUV).rgb * 2.0 - vec3(1.0));
+	tangentNormal.xy *= 4.0f;
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;

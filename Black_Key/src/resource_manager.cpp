@@ -4,6 +4,14 @@
 
 void ResourceManager::init(VulkanEngine* engine_ptr) {
     engine = engine_ptr;
+
+    std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+    };
+    bindless_material_descriptor.init_pool(engine->_device, 65536, bindless_sizes, true);
+    
 }
 
 VkFilter ResourceManager::extract_filter(fastgltf::Filter filter)
@@ -508,4 +516,27 @@ buffer.data);
     }
 }
 
+void ResourceManager::cleanup()
+{
+    vkDestroyDescriptorPool(engine->_device, bindless_material_descriptor.pool, nullptr);
+}
 
+
+
+void ResourceManager::write_material_array()
+{
+    writer.clear();
+    for (int i = 0; i < bindless_resources.size(); i++)
+    {
+        int offset = i * 4;
+        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(GLTFMetallic_Roughness::MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i);
+        writer.write_image(1, bindless_resources[i].colorImage.imageView, bindless_resources[i].colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset);
+        writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
+        writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
+        writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
+        writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
+    }
+
+    bindless_set = bindless_material_descriptor.allocate(engine->_device, engine->bindless_descriptor_layout);
+    writer.update_set(engine->_device, bindless_set);
+}

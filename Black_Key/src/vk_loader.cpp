@@ -138,7 +138,8 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
     return matData;
 }
 
-void GLTFMetallic_Roughness::write_material_array(VulkanEngine* engine, MaterialPass pass, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocatorGrowable& descriptorAllocator)
+/*
+void GLTFMetallic_Roughness::write_material_array(VulkanEngine* engine, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocator& descriptorAllocator)
 {
     writer.clear();
     for (int i = 0; i < bindless_resources.size(); i++)
@@ -152,8 +153,11 @@ void GLTFMetallic_Roughness::write_material_array(VulkanEngine* engine, Material
         writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE , VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 
+    
+
     //writer.update_set(engine->_device, matData.materialSet);
 }
+*/
 
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
