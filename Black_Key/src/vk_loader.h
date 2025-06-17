@@ -126,7 +126,6 @@ struct GLTFMetallic_Roughness {
     void build_pipelines(VulkanEngine* engine);
     void clear_resources(VkDevice device);
 
-    MaterialInstance set_material_properties(const MaterialPass pass);
-    MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
-    void write_material_array(VulkanEngine* engine, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocator& descriptorAllocator);
+    MaterialInstance SetMaterialProperties(const MaterialPass pass, int mat_index = -1);
+    MaterialInstance WriteMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };

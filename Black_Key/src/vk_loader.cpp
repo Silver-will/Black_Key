@@ -22,19 +22,19 @@
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
     VkShaderModule meshFragShader;
-    if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", engine->_device, &meshFragShader)) {
+    if (!vkutil::load_shader_module("shaders/pbr_bindless.frag.spv", engine->_device, &meshFragShader)) {
         fmt::println("Error when building the triangle fragment shader module");
     }
 
     VkShaderModule meshVertexShader;
-    if (!vkutil::load_shader_module("shaders/pbr_cluster.vert.spv", engine->_device, &meshVertexShader)) {
+    if (!vkutil::load_shader_module("shaders/pbr_bindless.vert.spv", engine->_device, &meshVertexShader)) {
         fmt::println("Error when building the triangle vertex shader module");
     }
 
     VkPushConstantRange matrixRange{};
     matrixRange.offset = 0;
     matrixRange.size = sizeof(GPUDrawPushConstants);
-    matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     DescriptorLayoutBuilder layoutBuilder;
 
@@ -45,17 +45,15 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-#if USE_BINDLESS 1
-    VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-        engine->bindless_descriptor_layout };
-#else
-    VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-        materialLayout };
-#endif
+    std::vector<VkDescriptorSetLayout> layouts;
+    if(engine->use_bindless)
+     layouts = { engine->_gpuSceneDataDescriptorLayout, engine->bindless_descriptor_layout };
+    else
+    layouts = { engine->_gpuSceneDataDescriptorLayout, materialLayout };
     
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
     mesh_layout_info.setLayoutCount = 2;
-    mesh_layout_info.pSetLayouts = layouts;
+    mesh_layout_info.pSetLayouts = layouts.data();
     mesh_layout_info.pPushConstantRanges = &matrixRange;
     mesh_layout_info.pushConstantRangeCount = 1;
 
@@ -97,7 +95,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::set_material_properties(const MaterialPass pass)
+MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const MaterialPass pass, int mat_index)
 {
     MaterialInstance matData;
     matData.passType = pass;
@@ -107,10 +105,13 @@ MaterialInstance GLTFMetallic_Roughness::set_material_properties(const MaterialP
     else {
         matData.pipeline = &opaquePipeline;
     }
+
+    if (mat_index >= 0)
+        matData.material_index = mat_index;
     return matData;
 }
 
-MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
     matData.passType = pass;

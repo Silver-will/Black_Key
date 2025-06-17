@@ -9,6 +9,7 @@ layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
+	uint material_index;
 } PushConstants;
 
 invariant gl_Position;

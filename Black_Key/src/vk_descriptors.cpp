@@ -6,6 +6,7 @@ void DescriptorLayoutBuilder::add_binding(uint32_t binding, VkDescriptorType typ
     newbind.binding = binding;
     newbind.descriptorCount = count;
     newbind.descriptorType = type;
+    
 
     bindings.push_back(newbind);
 }
@@ -33,9 +34,12 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
         VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extended_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT };
         extended_info.pNext = nullptr;
         extended_info.bindingCount = (uint32_t)bindings.size();
-        VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+        VkDescriptorBindingFlagsEXT bindless_flags =
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
+            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT |
+            VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT;
         
-        VkDescriptorBindingFlags binding_flags[4];
+        VkDescriptorBindingFlagsEXT binding_flags[3];
         binding_flags[0] = bindless_flags;
         binding_flags[1] = bindless_flags;
         binding_flags[2] = bindless_flags;
@@ -287,8 +291,7 @@ void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sam
     if (arr_index >= 0)
         write.dstArrayElement = arr_index;
     
-    
-
+   
     writes.push_back(write);
 }
 

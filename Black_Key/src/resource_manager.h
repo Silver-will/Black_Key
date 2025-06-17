@@ -32,6 +32,7 @@ struct ResourceManager
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 	void write_material_array();
 	void cleanup();
+	VkDescriptorSet* GetBindlessSet();
 private:
 	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources{};
 	DescriptorAllocator bindless_material_descriptor;

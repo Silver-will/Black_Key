@@ -32,6 +32,9 @@ constexpr bool bUseValidationLayers = false;
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
 
+
+#define USE_BINDLESS
+
 VulkanEngine* loadedEngine = nullptr;
 
 
@@ -111,7 +114,7 @@ void VulkanEngine::load_assets()
 	loadedScenes["plane"] = *planeFile;
 
 #ifdef USE_BINDLESS 1
-	//resource_manager.write_material_array();
+	resource_manager.write_material_array();
 #endif // USE_BINDLESS
 }
 
@@ -520,6 +523,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
 			&globalDescriptor, 0, nullptr);
 
+		
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
@@ -536,8 +540,6 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		scissor.extent.width = _shadowDepthImage.imageExtent.width;
 		scissor.extent.height = _shadowDepthImage.imageExtent.height;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
-		//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
-			//&cascadedShadows.matData.materialSet, 0, nullptr);
 		if (r.indexBuffer != lastIndexBuffer)
 		{
 			lastIndexBuffer = r.indexBuffer;
@@ -698,10 +700,13 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 				scissor.extent.height = _windowExtent.height;
 
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
+
 			}
 
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
-				&r.material->materialSet, 0, nullptr);
+			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
+				//&r.material->materialSet, 0, nullptr);
 		}
 		if (r.indexBuffer != lastIndexBuffer) {
 			lastIndexBuffer = r.indexBuffer;
@@ -711,8 +716,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 		GPUDrawPushConstants push_constants;
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
+		push_constants.material_index = r.material->material_index;
 
-		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
 		stats.drawcall_count++;
 		stats.triangle_count += r.indexCount / 3;
@@ -919,6 +925,9 @@ void VulkanEngine::init_vulkan()
 	features12.descriptorBindingSampledImageUpdateAfterBind = true;
 	features12.descriptorBindingUniformBufferUpdateAfterBind = true;
 	features12.descriptorBindingStorageImageUpdateAfterBind = true;
+	features12.shaderSampledImageArrayNonUniformIndexing = true;
+	features12.descriptorBindingUpdateUnusedWhilePending = true;
+	features12.descriptorBindingVariableDescriptorCount = true;
 
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -1205,9 +1214,9 @@ void VulkanEngine::init_descriptors()
 
 	{
 		DescriptorLayoutBuilder builder;
-		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 65536);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
 		bindless_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
 
 	}
@@ -1223,7 +1232,7 @@ void VulkanEngine::init_descriptors()
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
-		// create a descriptor pool
+		// create a descriptor 
 		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
@@ -1236,12 +1245,6 @@ void VulkanEngine::init_descriptors()
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
 		};
-
-
-		//bindless_material_allocator.init_pool(_device, 65536, bindless_sizes);
-	//	_mainDeletionQueue.push_function(
-		//	[&]() { vkDestroyDescriptorPool(_device, bindless_material_allocator.pool, nullptr); });
-
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
 		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
