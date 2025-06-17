@@ -53,6 +53,7 @@ struct MaterialInstance {
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
     MaterialPass passType;
+    uint32_t material_index;
 };
 
 struct AllocatedImage {
@@ -155,10 +156,18 @@ struct GPUSceneData {
     float cascadePlaneDistances[8];
   };
 
+
+struct GPUDrawBindlessPushConstants {
+    glm::mat4 worldMatrix;
+    VkDeviceAddress vertexBuffer;
+    uint32_t material_index;
+};
+
 // push constants for our mesh object draws
 struct GPUDrawPushConstants {
     glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;
+    uint32_t material_index;
 };
 
 struct HDRDrawPushConstants {

@@ -84,6 +84,7 @@ public:
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
 	bool debugShadowMap = false;
+	bool use_bindless = true;
 
 	struct {
 		float lastFrame;

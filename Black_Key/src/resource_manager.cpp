@@ -2,6 +2,8 @@
 #include "stb_image.h"
 #include "vk_engine.h"
 
+#define USE_BINDLESS
+
 void ResourceManager::init(VulkanEngine* engine_ptr) {
     engine = engine_ptr;
 
@@ -247,9 +249,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         // build material
 #if USE_BINDLESS 1
         //Store each textures Materials
-        engine->bindless_resources.push_back(materialResources);
+        bindless_resources.push_back(materialResources);
         newMat->material_index = material_index * 4;
-        newMat->data = engine->metalRoughMaterial.set_material_properties(passType);
+        newMat->data = engine->metalRoughMaterial.SetMaterialProperties(passType, newMat->material_index);
 #else
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
 #endif
@@ -258,9 +260,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
     }
     last_material_index += material_index;
 
-#if USE_BINDLESS 1
-    newMat->data = engine->metalRoughMaterial.write_material_array(engine, );
-#endif
     //< load_material
 
         // use the same vectors for all meshes so that the memory doesnt reallocate as
@@ -529,14 +528,20 @@ void ResourceManager::write_material_array()
     for (int i = 0; i < bindless_resources.size(); i++)
     {
         int offset = i * 4;
-        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(GLTFMetallic_Roughness::MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i);
+        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(GLTFMetallic_Roughness::MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2);
         writer.write_image(1, bindless_resources[i].colorImage.imageView, bindless_resources[i].colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset);
         writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
         writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
         writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
-        writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
+            writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 
     bindless_set = bindless_material_descriptor.allocate(engine->_device, engine->bindless_descriptor_layout);
     writer.update_set(engine->_device, bindless_set);
+}
+
+VkDescriptorSet* ResourceManager::GetBindlessSet()
+{
+    VkDescriptorSet* desc = &bindless_set;
+    return desc;
 }

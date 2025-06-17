@@ -27,8 +27,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout/*,
-		materialLayout*/ };
+	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
