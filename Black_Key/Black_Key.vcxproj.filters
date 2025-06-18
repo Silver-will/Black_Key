@@ -81,7 +81,7 @@
     <ClCompile Include="src\UI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_material_system.cpp">
+    <ClCompile Include="src\material_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp">
@@ -130,6 +130,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\stb_definition.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_shaders.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
   </ItemGroup>
@@ -197,7 +200,7 @@
     <ClInclude Include="src\vk_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_material_system.h">
+    <ClInclude Include="src\material_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h">
@@ -235,6 +238,9 @@
     </ClInclude>
     <ClInclude Include="src\resource_manager.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_shaders.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
