@@ -933,6 +933,9 @@ void VulkanEngine::init_vulkan()
 	baseFeatures.geometryShader = true;
 	baseFeatures.samplerAnisotropy = true;
 	baseFeatures.sampleRateShading = true;
+	baseFeatures.drawIndirectFirstInstance = true;
+	baseFeatures.multiDrawIndirect = true;
+
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
