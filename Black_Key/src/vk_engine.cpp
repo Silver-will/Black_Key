@@ -118,12 +118,6 @@ void VulkanEngine::load_assets()
 #endif // USE_BINDLESS
 }
 
-void VulkanEngine::write_bindless_materials()
-{
-	
-}
-
-
 void VulkanEngine::pre_process_pass()
 {
 	black_key::generate_irradiance_cube(this);
@@ -1711,6 +1705,7 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 	VkBufferCreateInfo bufferInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	bufferInfo.pNext = nullptr;
 	bufferInfo.size = allocSize;
+	
 
 	bufferInfo.usage = usage;
 
@@ -1955,7 +1950,7 @@ void VulkanEngine::update_scene()
 	sceneData.ConfigData.x = mainCamera.getNearClip();
 	sceneData.ConfigData.y = mainCamera.getFarClip();
 
-	//Not an actual api Draw call
+	//Prepare Render objects
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);

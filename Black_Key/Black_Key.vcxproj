@@ -245,7 +245,7 @@
     <ClCompile Include="src\vk_loader.cpp" />
     <ClCompile Include="src\vk_pipelines.cpp" />
     <ClCompile Include="src\vk_renderer.cpp" />
-    <ClCompile Include="src\vk_scene.cpp" />
+    <ClCompile Include="src\scene_manager.cpp" />
     <ClCompile Include="src\vk_shaders.cpp" />
     <ClCompile Include="src\vma_definition.cpp" />
   </ItemGroup>
@@ -281,7 +281,7 @@
     <ClInclude Include="src\vk_loader.h" />
     <ClInclude Include="src\vk_pipelines.h" />
     <ClInclude Include="src\vk_renderer.h" />
-    <ClInclude Include="src\vk_scene.h" />
+    <ClInclude Include="src\scene_manager.h" />
     <ClInclude Include="src\vk_shaders.h" />
     <ClInclude Include="src\vk_types.h" />
     <ClInclude Include="src\vk_util.h" />

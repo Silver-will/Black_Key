@@ -108,7 +108,7 @@
     <ClCompile Include="src\vk_loader.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_scene.cpp">
+    <ClCompile Include="src\scene_manager.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
     <ClCompile Include="src\vk_pipelines.cpp">
@@ -194,7 +194,7 @@
     <ClInclude Include="src\UI.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_scene.h">
+    <ClInclude Include="src\scene_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\vk_util.h">

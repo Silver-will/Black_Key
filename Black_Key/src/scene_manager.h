@@ -3,6 +3,9 @@
 #include "vk_types.h"
 #include "vk_util.h"
 #include "vk_loader.h"
+
+class VulkanEngine;
+class ResourceManager;
 /*
 template <typename T>
 struct Handle {
@@ -199,4 +202,33 @@ struct RenderScene {
 */
 
 
+struct SceneManager {
+	SceneManager();
+	~SceneManager();
+	void Init(ResourceManager* rm,VulkanEngine* engine_ptr);
+	void MergeMeshes();
+	void PrepareIndirectBuffers();
+
+	struct GPUModelInformation {
+		glm::vec3 origin;
+		float sphereRadius;
+		uint32_t  texture_index = 0;
+		uint32_t  firstIndex = 0;
+		uint32_t  indexCount = 0;
+		uint32_t  _pad = 0;
+		glm::mat4 local_transform;
+	};
+private:
+	int mesh_count = 0;
+	bool is_initialized = false;
+	DeletionQueue queue;
+	AllocatedBuffer merged_vertex_buffer;
+	AllocatedBuffer merged_index_buffer;
+	AllocatedBuffer model_buffer;
+	AllocatedBuffer staging_address_buffer;
+	AllocatedBuffer address_buffer;
+	AllocatedBuffer indirect_command_buffer;
+	VulkanEngine* engine;
+	ResourceManager* resource_manager;
+};
 #endif

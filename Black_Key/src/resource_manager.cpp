@@ -54,9 +54,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
 {
     std::string rootPath(filePath.begin(), filePath.end());
     rootPath = rootPath.substr(0, rootPath.find_last_of('/') + 1);
+    auto name = filePath.substr(filePath.find_last_of('/') + 1, filePath.size() - (filePath.find_last_of('.') -1 ));
+   
 
     //> load_1
-    fmt::println("Loading GLTF: {}", filePath);
+    fmt::println("Loading GLTF: {}", std::string(name) + ".gltf");
 
     std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
     scene->creator = engine;
@@ -282,6 +284,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             newSurface.startIndex = (uint32_t)indices.size();
             newSurface.count = (uint32_t)gltf.accessors[p.indicesAccessor.value()].count;
 
+
             size_t initial_vtx = vertices.size();
 
             // load indexes
@@ -370,6 +373,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             newSurface.bounds.origin = (maxpos + minpos) / 2.f;
             newSurface.bounds.extents = (maxpos - minpos) / 2.f;
             newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+            newSurface.vertex_count = vertices.size() - initial_vtx; 
             newmesh->surfaces.push_back(newSurface);
         }
 
@@ -430,6 +434,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             node->refreshTransform(glm::mat4{ 1.f });
         }
     }
+    //loadedScenes[name] = scene;
     return scene;
 }
 
