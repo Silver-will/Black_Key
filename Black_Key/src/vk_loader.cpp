@@ -95,11 +95,11 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const MaterialPass pass, int mat_index)
+MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vk_util::MaterialPass pass, int mat_index)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
+    if (pass == vk_util::MaterialPass::Transparent) {
         matData.pipeline = &transparentPipeline;
     }
     else {
@@ -111,11 +111,11 @@ MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const MaterialPas
     return matData;
 }
 
-MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
+    if (pass == vk_util::MaterialPass::Transparent) {
         matData.pipeline = &transparentPipeline;
     }
     else {

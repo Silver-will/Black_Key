@@ -2,6 +2,7 @@
 #include "vk_engine.h"
 #include "resource_manager.h"
 #include <algorithm>
+#include <future>
 /*
 
 void RenderScene::init()
@@ -32,6 +33,21 @@ Handle<SceneMeshObject> RenderScene::register_object(SceneMeshObject* object) {
 }
 
 */
+
+void SceneManager::Init(ResourceManager* rm, VulkanEngine* engine_ptr)
+{
+	resource_manager = rm;
+	engine = engine_ptr;
+
+	forward_pass.type = vk_util::MeshPassType::Forward;
+	shadow_pass.type = vk_util::MeshPassType::Shadow;
+	early_depth_pass.type = vk_util::MeshPassType::EarlyDepth;
+	transparency_pass.type = vk_util::MeshPassType::Transparent;
+
+	//mesh render passes with no texture reads
+	early_depth_pass.needs_materials = false;
+	shadow_pass.needs_materials = false;
+}
 
 void SceneManager::MergeMeshes()
 {
@@ -90,7 +106,7 @@ void SceneManager::MergeMeshes()
 					{.origin = m.bounds.origin,
 					.sphereRadius = m.bounds.sphereRadius,
 					.texture_index = m.material->material_index,
-					.firstIndex = m.firstIndex / sizeof(uint32_t),
+					.firstIndex = m.firstIndex / ((uint32_t)sizeof(uint32_t)),
 					.indexCount = m.indexCount,
 					._pad = 0,
 					.local_transform = m.transform,
@@ -98,7 +114,6 @@ void SceneManager::MergeMeshes()
 			}
 			model_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(GPUModelInformation),
 				VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, scene_indirect_data.data());
-
 		}
 	);
 
@@ -108,6 +123,7 @@ void SceneManager::MergeMeshes()
 
 void SceneManager::PrepareIndirectBuffers()
 {
+	
 	auto indirect_buffer_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
 		| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
@@ -127,4 +143,44 @@ void SceneManager::PrepareIndirectBuffers()
 	*destPtr = srcPtr;
 	vmaUnmapMemory(engine->_allocator, staging_address_buffer.allocation);
 	*/
+}
+
+void SceneManager::RefreshPass(MeshPass* pass)
+{
+	pass->needsIndirectRefresh = true;
+	pass->needsInstanceRefresh = true;
+
+	std::vector<uint32_t> new_objects;
+	if (pass->objectsToDelete.size() > 0)
+	{
+		std::vector<RenderBatch> deletion_batches;
+		deletion_batches.reserve(new_objects.size());
+
+		for (auto i : pass->objectsToDelete)
+		{
+			pass->reusableObjects.push_back(i);
+			RenderBatch new_command;
+
+			auto obj = ;
+		}
+	}
+}
+
+void SceneManager::BuildBatches()
+{
+	auto fwd = std::async(std::launch::async, [&] {RefreshPass(&forward_pass); });
+	auto shadow = std::async(std::launch::async, [&] {RefreshPass(&shadow_pass); });
+	auto trans = std::async(std::launch::async, [&] {RefreshPass(&transparency_pass); });
+	auto early_z = std::async(std::launch::async, [&] {RefreshPass(&early_depth_pass); });
+
+
+	fwd.get();
+	shadow.get();
+	trans.get();
+	early_z.get();
+}
+
+void SceneManager::RegisterObjectBatch(DrawContext ctx)
+{
+	
 }

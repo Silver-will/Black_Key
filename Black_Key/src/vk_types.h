@@ -28,11 +28,6 @@
 #include <glm/vec4.hpp>
 #include <glm/gtx/transform.hpp>
 
-enum class MaterialPass :uint8_t {
-    MainColor,
-    Transparent,
-    Other
-};
 template<typename T>
 struct Handle {
     uint32_t handle;
@@ -52,7 +47,7 @@ struct MaterialPipeline {
 struct MaterialInstance {
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
-    MaterialPass passType;
+    vk_util::MaterialPass passType;
     uint32_t material_index;
 };
 
