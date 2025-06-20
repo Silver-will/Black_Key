@@ -3,6 +3,7 @@
 #include "vk_types.h"
 #include "vk_util.h"
 #include "vk_loader.h"
+#include "engine_util.h"
 
 class VulkanEngine;
 class ResourceManager;
@@ -201,13 +202,102 @@ struct RenderScene {
 };
 */
 
+struct DrawMesh {
+	uint32_t firstVertex;
+	uint32_t firstIndex;
+	uint32_t indexCount;
+	uint32_t vertexCount;
+	bool isMerged;
+
+	GPUMeshBuffers* original;
+};
+
 
 struct SceneManager {
+
+	struct IndirectRenderObject {
+		uint32_t indexCount;
+		uint32_t firstIndex;
+		uint32_t vertexCount;
+		uint32_t firstVertex;
+		VkBuffer indexBuffer;
+		VkBuffer vertexBuffer;
+		Handle<RenderObject> handle;
+
+		MaterialInstance* material;
+
+		glm::mat4 transform;
+		Bounds bounds;
+		VkDeviceAddress vertexBufferAddress;
+	};
+
+	struct PassObject {
+		Handle<DrawMesh> meshID;
+		Handle<RenderObject> original;
+		int32_t builtbatch;
+		uint32_t customKey;
+	};
+	
+	struct RenderBatch {
+		Handle<PassObject> object;
+		uint64_t sortKey;
+
+		bool operator==(const RenderBatch& other) const
+		{
+			return object.handle == other.object.handle && sortKey == other.sortKey;
+		}
+	};
+	struct IndirectBatch {
+		Handle<DrawMesh> meshID;
+		uint32_t first;
+		uint32_t count;
+	};
+
+	struct Multibatch {
+		uint32_t first;
+		uint32_t count;
+	};
+
+
+	struct MeshPass {
+		std::vector<SceneManager::Multibatch> multibatches;
+
+		std::vector<SceneManager::IndirectBatch> batches;
+
+		std::vector<Handle<RenderObject>> unbatchedObjects;
+
+		std::vector<SceneManager::RenderBatch> flat_batches;
+
+		std::vector<PassObject> objects;
+
+		std::vector<Handle<PassObject>> reusableObjects;
+
+		std::vector<Handle<PassObject>> objectsToDelete;
+
+
+		AllocatedBuffer compactedInstanceBuffer;
+		AllocatedBuffer passObjectsBuffer;
+
+		AllocatedBuffer drawIndirectBuffer;
+		AllocatedBuffer clearIndirectBuffer;
+
+		PassObject* get(Handle<PassObject> handle);
+
+		vk_util::MeshPassType type;
+
+		bool needsIndirectRefresh = true;
+		bool needsInstanceRefresh = true;
+		bool needs_materials = true;
+	};
+
 	SceneManager();
 	~SceneManager();
 	void Init(ResourceManager* rm,VulkanEngine* engine_ptr);
 	void MergeMeshes();
+	void BuildBatches();
+	void RefreshPass(MeshPass* pass);
 	void PrepareIndirectBuffers();
+	void RegisterObjectBatch(DrawContext ctx);
 
 	struct GPUModelInformation {
 		glm::vec3 origin;
@@ -219,6 +309,11 @@ struct SceneManager {
 		glm::mat4 local_transform;
 	};
 private:
+	MeshPass early_depth_pass;
+	MeshPass shadow_pass;
+	MeshPass forward_pass;
+	MeshPass transparency_pass;
+
 	int mesh_count = 0;
 	bool is_initialized = false;
 	DeletionQueue queue;
@@ -229,6 +324,7 @@ private:
 	AllocatedBuffer address_buffer;
 	AllocatedBuffer indirect_command_buffer;
 	VulkanEngine* engine;
+	std::vector<RenderObject> renderables;
 	ResourceManager* resource_manager;
 };
 #endif
