@@ -216,17 +216,38 @@ void SceneManager::BuildBatches()
 	early_z.get();
 }
 
+SceneManager::MeshPass* SceneManager::GetMeshPass(vkutil::MaterialPass passType)
+{
+	switch (passType)
+	{
+		case vkutil::MaterialPass::forward:
+			return &forward_pass;
+			break;
+		case vkutil::MaterialPass::early_depth:
+			return &early_depth_pass;
+		case vkutil::MaterialPass::shadow_pass:
+			return &shadow_pass;
+		case vkutil::MaterialPass::transparency:
+			return &transparency_pass;
+
+	}
+}
+
 void SceneManager::RegisterObjectBatch(DrawContext ctx)
 {
 	for (const auto& object: ctx.OpaqueSurfaces)
 	{
-		renderables.push_back(object);
+		//renderables.push_back(object);
+		forward_pass.flat_objects.push_back(object);
 	}
 	
 	for (const auto& object : ctx.TransparentSurfaces)
 	{
-		renderables.push_back(object);
+		transparency_pass.flat_objects.push_back(object);
+		//renderables.push_back(object);
 	}
+	std::merge(forward_pass.flat_objects.begin(), forward_pass.flat_objects.end(),
+		transparency_pass.flat_objects.begin(), transparency_pass.flat_objects.end(), renderables.begin());
 }
 
 AllocatedBuffer* SceneManager::GetObjectDataBuffer()

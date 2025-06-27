@@ -55,6 +55,52 @@ namespace vkutil{
         uint32_t  _pad = 0;
         glm::mat4 local_transform;
     };
+
+    struct /*alignas(16)*/DrawCullData
+    {
+        glm::mat4 viewMat;
+        float P00, P11, znear, zfar; // symmetric projection parameters
+        float frustum[4]; // data for left/right/top/bottom frustum planes
+        float lodBase, lodStep; // lod distance i = base * pow(step, i)
+        float pyramidWidth, pyramidHeight; // depth pyramid size in texels
+
+        uint32_t drawCount;
+
+        int cullingEnabled;
+        int lodEnabled;
+        int occlusionEnabled;
+        int distanceCheck;
+        int AABBcheck;
+        float aabbmin_x;
+        float aabbmin_y;
+        float aabbmin_z;
+        float aabbmax_x;
+        float aabbmax_y;
+        float aabbmax_z;
+    };
+
+    uint32_t PreviousPow2(uint32_t v)
+    {
+        uint32_t r = 1;
+        while (r * 2 < v)
+            r *= 2;
+
+        return r;
+    }
+
+    uint32_t GetImageMipLevels(uint32_t width, uint32_t height)
+    {
+        uint32_t result = 1;
+
+        while (width > 1 || height > 1)
+        {
+            result++;
+            width /= 2;
+            height /= 2;
+        }
+
+        return result;
+    }
 }
 
 template<typename T>
@@ -72,6 +118,8 @@ struct MaterialPipeline {
     VkPipeline pipeline;
     VkPipelineLayout layout;
 };
+
+using PipelineStateObject = MaterialPipeline;
 
 struct MaterialInstance {
     MaterialPipeline* pipeline;
@@ -139,7 +187,7 @@ struct Vertex {
     float uv_x;
     glm::vec3 normal;
     float uv_y;
-    glm::vec4 color;
+    glm::vec4 color; //rgb as color values a stores the indirect buffer index
     glm::vec4 tangents;
 };
 

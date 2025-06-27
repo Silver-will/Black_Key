@@ -48,7 +48,7 @@ layout(push_constant) uniform  constants{
    DrawCullData cullData;
 };
 
-layout(set = 0,binding = 4) uniform sampler2D depthPyramid;
+layout(set = 0,binding = 3) uniform sampler2D depthPyramid;
 struct ObjectData{
 	vec4 spherebounds;
 	uint texture_index;
@@ -65,18 +65,16 @@ layout(std140,set = 0, binding = 1) readonly buffer ObjectBuffer{
 
 struct DrawCommand
 {
-	
 	uint    indexCount;
     uint    instanceCount;
     uint    firstIndex;
     int     vertexOffset;
     uint    firstInstance;
-	uint objectID;
-	uint batchID;
+	uint	objectID;
+	uint	batchID;
 };
 //draw indirect buffer
-layout(set = 0, binding = 1)  buffer InstanceBuffer{   
-
+layout(set = 0, binding = 2)  buffer InstanceBuffer{   
 	DrawCommand Draws[];
 } drawBuffer;
 
@@ -85,16 +83,15 @@ struct GPUInstance {
 	uint batchID;
 };
 //draw indirect buffer
-layout(set = 0, binding = 2) readonly buffer InstanceBuffer2{   
+//layout(set = 0, binding = 2) readonly buffer InstanceBuffer2{   
 
-	GPUInstance Instances[];
-} compactInstanceBuffer;
+	//GPUInstance Instances[];
+//} compactInstanceBuffer;
 
 //draw indirect buffer
-layout(set = 0, binding = 3)  buffer InstanceBuffer3{   
-
-	uint IDs[];
-} finalInstanceBuffer;
+//layout(set = 0, binding = 3)  buffer InstanceBuffer3{   
+	//uint IDs[];
+//} finalInstanceBuffer;
 
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
@@ -194,14 +191,15 @@ void main()
 	uint gID = gl_GlobalInvocationID.x;
 	if(gID < cullData.drawCount)
 	{
-		uint objectID = compactInstanceBuffer.Instances[gID].objectID;
+		//uint objectID = compactInstanceBuffer.Instances[gID].objectID;
+		uint objectID = gID;
 		bool visible = false;
 		if(cullData.AABBcheck == 0)
 		{
-			visible = IsVisible(objectID);
+			visible = IsVisible(gID);
 		}
 		else{
-			visible = IsVisibleAABB(objectID);
+			visible = IsVisibleAABB(gID);
 		}
 		
 		if(visible)
@@ -209,9 +207,11 @@ void main()
 			uint batchIndex = compactInstanceBuffer.Instances[gID].batchID;
 			uint countIndex = atomicAdd(drawBuffer.Draws[batchIndex].instanceCount,1);
 
-			uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
+			//uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
 
-			finalInstanceBuffer.IDs[instanceIndex] = objectID;
+			//finalInstanceBuffer.IDs[instanceIndex] = objectID;
+
+			drawBuffer.Draws[objectID].instanceCount = 1;
 		}
 	}
 }

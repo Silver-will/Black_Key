@@ -27,7 +27,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout };
+	VkDescriptorSetLayout layouts[] = { engine->gpu_scene_data_descriptor_layout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
@@ -65,7 +65,7 @@ ShadowPipelineResources::MaterialResources ShadowPipelineResources::AllocateReso
 {
 	MaterialResources mat;
 	mat.shadowImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, engine, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, engine->shadows.getCascadeLevels());
-	mat.shadowSampler = engine->_defaultSamplerLinear;
+	mat.shadowSampler = engine->defaultSamplerLinear;
 	return mat;
 }
 
@@ -243,7 +243,7 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout };
+	VkDescriptorSetLayout layouts[] = { engine->gpu_scene_data_descriptor_layout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
