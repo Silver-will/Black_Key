@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-namespace vk_util {
+namespace vkutil {
 	enum class MeshPassType {
 		Forward,
 		Transparent,
@@ -11,20 +11,19 @@ namespace vk_util {
 		EarlyDepth
 	};
 
-
 	template<typename T>
 	struct PerPassData {
 
 	public:
-		T& operator[](vk_util::MeshPassType pass)
+		T& operator[](vkutil::MeshPassType pass)
 		{
 			switch (pass)
 			{
-			case vk_util::MeshPassType::Forward:
+			case vkutil::MeshPassType::Forward:
 				return data[0];
-			case vk_util::MeshPassType::Transparency:
+			case vkutil::MeshPassType::Transparency:
 				return data[1];
-			case vk_util::MeshPassType::DirectionalShadow:
+			case vkutil::MeshPassType::DirectionalShadow:
 				return data[2];
 			
 			}

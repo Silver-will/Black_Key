@@ -364,7 +364,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
 void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 {
-	CullData culling_information;
+	CullData cullingInformation;
 
 	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _cullLightsDescriptorLayout);
 
@@ -382,18 +382,53 @@ void VulkanEngine::cull_lights(VkCommandBuffer cmd)
 	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, cullingDescriptor);
 
-	culling_information.view = mainCamera.matrices.view;
-	culling_information.lightCount = pointData.pointLights.size();
+	cullingInformation.view = mainCamera.matrices.view;
+	cullingInformation.lightCount = pointData.pointLights.size();
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipeline);
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipelineLayout, 0, 1, &cullingDescriptor, 0, nullptr);
 
-	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
+	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &cullingInformation);
 	vkCmdDispatch(cmd, 16, 9, 24);
+}
+
+
+void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass meshPass)
+{
+
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
+	*sceneUniformData = sceneData;
+	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
+
+	VkDescriptorSet computeCullDescriptor = get_current_frame()._frameDescriptors.allocate(_device, compute_cull_descriptor_layout);
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, scene_manager.GetObjectDataBuffer()->buffer, sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(2, scene_manager.GetObjectDataBuffer()->buffer, sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+	//writer.write_buffer(0, );
 }
 
 void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 {
+	vkutil::cullParams earlyDepthCull;
+	earlyDepthCull.viewmat = mainCamera.matrices.view;
+	earlyDepthCull.projmat = sceneData.proj;
+	earlyDepthCull.frustrumCull = true;
+	earlyDepthCull.occlusionCull = true;
+	earlyDepthCull.aabb = false;
+	earlyDepthCull.drawDist = mainCamera.getFarClip();
+
 	//Quick frustum culling pass
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
@@ -1215,7 +1250,16 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
 		bindless_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
+	}
 
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		compute_cull_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
 	}
 
 	_mainDeletionQueue.push_function([&]() {
@@ -1226,6 +1270,7 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, compute_cull_descriptor_layout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -1743,6 +1788,17 @@ AllocatedBuffer VulkanEngine::create_and_upload(size_t allocSize, VkBufferUsageF
 	vmaUnmapMemory(_allocator, stagingBuffer.allocation);
 	destroy_buffer(stagingBuffer);
 	return DataBuffer;
+}
+
+
+void VulkanEngine::ready_mesh_draw(VkCommandBuffer cmd)
+{
+
+}
+
+void VulkanEngine::ready_cull_data(VkCommandBuffer cmd)
+{
+	
 }
 
 void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)

@@ -188,9 +188,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 
-        vk_util::MaterialPass passType = vk_util::MaterialPass::Forward;
+        vkutil::MaterialPass passType = vkutil::MaterialPass::forward;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
-            passType = vk_util::MaterialPass::Transparent;
+            passType = vkutil::MaterialPass::transparency;
         }
 
         GLTFMetallic_Roughness::MaterialResources materialResources;

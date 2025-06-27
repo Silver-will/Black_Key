@@ -25,7 +25,7 @@ class MaterialSystem
 {
 };
 
-namespace vk_util {
+namespace vkutil {
 	struct ShaderPass {
 		ShaderEffect* effect{ nullptr };
 		VkPipeline pipeline{ VK_NULL_HANDLE };

@@ -1,6 +1,7 @@
 #include "scene_manager.h"
 #include "vk_engine.h"
 #include "resource_manager.h"
+#include "engine_util.h"
 #include <algorithm>
 #include <future>
 /*
@@ -39,10 +40,10 @@ void SceneManager::Init(ResourceManager* rm, VulkanEngine* engine_ptr)
 	resource_manager = rm;
 	engine = engine_ptr;
 
-	forward_pass.type = vk_util::MeshPassType::Forward;
-	shadow_pass.type = vk_util::MeshPassType::Shadow;
-	early_depth_pass.type = vk_util::MeshPassType::EarlyDepth;
-	transparency_pass.type = vk_util::MeshPassType::Transparent;
+	forward_pass.type = vkutil::MeshPassType::Forward;
+	shadow_pass.type = vkutil::MeshPassType::Shadow;
+	early_depth_pass.type = vkutil::MeshPassType::EarlyDepth;
+	transparency_pass.type = vkutil::MeshPassType::Transparent;
 
 	//mesh render passes with no texture reads
 	early_depth_pass.needs_materials = false;
@@ -54,13 +55,9 @@ void SceneManager::MergeMeshes()
 	size_t total_vertices = 0;
 	size_t total_indices = 0;
 
-	//merge opaque and transparent render objects into one 
-	std::vector<RenderObject> scene_meshes(engine->drawCommands.OpaqueSurfaces.size() + engine->drawCommands.TransparentSurfaces.size());
-	std::merge(engine->drawCommands.OpaqueSurfaces.begin(), engine->drawCommands.OpaqueSurfaces.end(),
-		engine->drawCommands.TransparentSurfaces.begin(), engine->drawCommands.TransparentSurfaces.end(), scene_meshes.begin());
 
-	mesh_count = scene_meshes.size();
-	for (auto& m : scene_meshes)
+	mesh_count = renderables.size();
+	for (auto& m : renderables)
 	{
 		m.firstIndex = static_cast<uint32_t>(total_indices);
 		m.firstVertex = static_cast<uint32_t>(total_vertices);
@@ -70,7 +67,7 @@ void SceneManager::MergeMeshes()
 	}
 	assert(total_vertices && total_indices);
 
-	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 
 	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -78,8 +75,8 @@ void SceneManager::MergeMeshes()
 
 	engine->immediate_submit([&](VkCommandBuffer cmd)
 		{
-			std::vector<GPUModelInformation> scene_indirect_data;
-			for (auto& m : scene_meshes)
+			std::vector<vkutil::GPUModelInformation> scene_indirect_data;
+			for (auto& m : renderables)
 			{
 				VkBufferCopy vertex_copy;
 				vertex_copy.dstOffset = sizeof(Vertex) * m.firstVertex;
@@ -102,9 +99,9 @@ void SceneManager::MergeMeshes()
 				scene_indirect_data.emplace_back(model_info);
 				*/
 
-				scene_indirect_data.emplace_back(GPUModelInformation
-					{.origin = m.bounds.origin,
-					.sphereRadius = m.bounds.sphereRadius,
+				scene_indirect_data.emplace_back(vkutil::GPUModelInformation
+					{
+					.sphereBounds = BlackKey::Vec3Tovec4(m.bounds.origin, m.bounds.sphereRadius),
 					.texture_index = m.material->material_index,
 					.firstIndex = m.firstIndex / ((uint32_t)sizeof(uint32_t)),
 					.indexCount = m.indexCount,
@@ -112,7 +109,7 @@ void SceneManager::MergeMeshes()
 					.local_transform = m.transform,
 					});
 			}
-			model_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(GPUModelInformation),
+			object_data_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(vkutil::GPUModelInformation),
 				VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, scene_indirect_data.data());
 		}
 	);
@@ -129,25 +126,63 @@ void SceneManager::PrepareIndirectBuffers()
 
 	indirect_command_buffer = engine->create_buffer(sizeof(VkDrawIndexedIndirectCommand) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
 
+	forward_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+	shadow_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+	transparency_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+
 	VkBufferDeviceAddressInfoKHR address_info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR };
 	address_info.buffer = indirect_command_buffer.buffer;
-	VkDeviceAddress srcPtr = vkGetBufferDeviceAddressKHR(engine->_device, &address_info);
+	VkDeviceAddress srcPtr = vkGetBufferDeviceAddress(engine->_device, &address_info);
 	
 	const size_t address_buffer_size = sizeof(VkDeviceAddress);
-	//auto staging_address_buffer = engine->create_buffer(address_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
 	address_buffer = engine->create_and_upload(address_buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &srcPtr);
 	
-	/*void* dst = nullptr;
-	vmaMapMemory(engine->_allocator, staging_address_buffer.allocation, &dst);
-	auto destPtr = (uint64_t*)dst;
-	*destPtr = srcPtr;
-	vmaUnmapMemory(engine->_allocator, staging_address_buffer.allocation);
-	*/
+	
 }
 
 void SceneManager::RefreshPass(MeshPass* pass)
 {
-	pass->needsIndirectRefresh = true;
+	if (pass->needs_materials == false)
+	{
+		pass->multibatches.push_back(Multibatch{
+			.first = 0,
+			.count = (uint32_t)renderables.size()
+			});
+
+		pass->batches.push_back(IndirectBatch{
+			.first = 0,
+			.count = (uint32_t)renderables.size()
+			});
+		return;
+	}
+
+	MaterialInstance* last_mat = nullptr;
+	size_t first = pass->batches.size();
+	//size_t count = 0;
+
+	IndirectBatch indirect_draw_call;
+	indirect_draw_call.count = 0;
+	indirect_draw_call.first = 0;
+	size_t last_index = 0;
+	for (auto& render_object : renderables)
+	{
+		if (last_mat != render_object.material)
+		{
+			indirect_draw_call.material = *render_object.material;
+			indirect_draw_call.count = 1;
+			indirect_draw_call.first = pass->batches.size();
+			last_index = pass->batches.size();
+
+			pass->batches.push_back(indirect_draw_call);
+			last_mat = render_object.material;
+			
+		}
+		else
+			pass->batches[last_index].count++;
+	}
+
+	/*pass->needsIndirectRefresh = true;
 	pass->needsInstanceRefresh = true;
 
 	std::vector<uint32_t> new_objects;
@@ -161,9 +196,10 @@ void SceneManager::RefreshPass(MeshPass* pass)
 			pass->reusableObjects.push_back(i);
 			RenderBatch new_command;
 
-			auto obj = ;
+			//auto obj = ;
 		}
 	}
+	*/
 }
 
 void SceneManager::BuildBatches()
@@ -182,5 +218,27 @@ void SceneManager::BuildBatches()
 
 void SceneManager::RegisterObjectBatch(DrawContext ctx)
 {
+	for (const auto& object: ctx.OpaqueSurfaces)
+	{
+		renderables.push_back(object);
+	}
 	
+	for (const auto& object : ctx.TransparentSurfaces)
+	{
+		renderables.push_back(object);
+	}
+}
+
+AllocatedBuffer* SceneManager::GetObjectDataBuffer()
+{
+	return &object_data_buffer;
+}
+
+AllocatedBuffer* SceneManager::GetIndirectCommandBuffer()
+{
+	return &indirect_command_buffer;
+}
+size_t SceneManager::GetModelCount()
+{
+	return renderables.size();
 }

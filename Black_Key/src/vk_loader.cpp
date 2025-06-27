@@ -95,11 +95,11 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vk_util::MaterialPass pass, int mat_index)
+MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == vk_util::MaterialPass::Transparent) {
+    if (pass == vkutil::MaterialPass::transparency) {
         matData.pipeline = &transparentPipeline;
     }
     else {
@@ -111,11 +111,11 @@ MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vk_util::Ma
     return matData;
 }
 
-MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == vk_util::MaterialPass::Transparent) {
+    if (pass == vkutil::MaterialPass::transparency) {
         matData.pipeline = &transparentPipeline;
     }
     else {
@@ -225,7 +225,7 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
         def.vertexBuffer = mesh->meshBuffers.vertexBuffer.buffer;
         def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
 
-        if (s.material->data.passType == MaterialPass::Transparent) {
+        if (s.material->data.passType == vkutil::MaterialPass::transparency) {
             ctx.TransparentSurfaces.push_back(def);
         }
         else {

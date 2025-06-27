@@ -17,12 +17,6 @@ namespace vk_util { struct Material; }
 namespace vk_util { struct ShaderPass; }
 
 
-struct GPUIndirectObject {
-	VkDrawIndexedIndirectCommand command;
-	uint32_t objectID;
-	uint32_t batchID;
-};
-
 struct DrawMesh {
 	uint32_t firstVertex;
 	uint32_t firstIndex;
@@ -247,8 +241,14 @@ struct SceneManager {
 			return object.handle == other.object.handle && sortKey == other.sortKey;
 		}
 	};
+	struct GPUIndirectObject {
+		VkDrawIndexedIndirectCommand command;
+		uint32_t objectID;
+		uint32_t batchID;
+	};
+
 	struct IndirectBatch {
-		Handle<DrawMesh> meshID;
+		MaterialInstance material;
 		uint32_t first;
 		uint32_t count;
 	};
@@ -283,7 +283,7 @@ struct SceneManager {
 
 		PassObject* get(Handle<PassObject> handle);
 
-		vk_util::MeshPassType type;
+		vkutil::MeshPassType type;
 
 		bool needsIndirectRefresh = true;
 		bool needsInstanceRefresh = true;
@@ -298,33 +298,31 @@ struct SceneManager {
 	void RefreshPass(MeshPass* pass);
 	void PrepareIndirectBuffers();
 	void RegisterObjectBatch(DrawContext ctx);
+	size_t GetModelCount();
+	AllocatedBuffer* GetObjectDataBuffer();
+	AllocatedBuffer* GetIndirectCommandBuffer();
 
-	struct GPUModelInformation {
-		glm::vec3 origin;
-		float sphereRadius;
-		uint32_t  texture_index = 0;
-		uint32_t  firstIndex = 0;
-		uint32_t  indexCount = 0;
-		uint32_t  _pad = 0;
-		glm::mat4 local_transform;
-	};
 private:
 	MeshPass early_depth_pass;
 	MeshPass shadow_pass;
 	MeshPass forward_pass;
 	MeshPass transparency_pass;
+	MeshPass voxelization_pass;
+	MeshPass cone_tracing_pass;
 
 	int mesh_count = 0;
 	bool is_initialized = false;
 	DeletionQueue queue;
 	AllocatedBuffer merged_vertex_buffer;
 	AllocatedBuffer merged_index_buffer;
-	AllocatedBuffer model_buffer;
+	AllocatedBuffer object_data_buffer;
 	AllocatedBuffer staging_address_buffer;
 	AllocatedBuffer address_buffer;
 	AllocatedBuffer indirect_command_buffer;
+
 	VulkanEngine* engine;
-	std::vector<RenderObject> renderables;
 	ResourceManager* resource_manager;
+
+	std::vector<RenderObject> renderables;
 };
 #endif
