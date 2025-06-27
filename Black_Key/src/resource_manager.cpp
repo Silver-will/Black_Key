@@ -151,7 +151,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         else {
             // we failed to load, so lets give the slot a default white texture to not
             // completely break loading
-            images.push_back(engine->_errorCheckerboardImage);
+            images.push_back(engine->errorCheckerboardImage);
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
@@ -196,13 +196,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         GLTFMetallic_Roughness::MaterialResources materialResources;
         // default the material textures
         materialResources.colorImage = engine->_whiteImage;
-        materialResources.colorSampler = engine->_defaultSamplerLinear;
+        materialResources.colorSampler = engine->defaultSamplerLinear;
         materialResources.metalRoughImage = engine->_whiteImage;
-        materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
+        materialResources.metalRoughSampler = engine->defaultSamplerLinear;
         materialResources.normalImage = engine->_whiteImage;
-        materialResources.normalSampler = engine->_defaultSamplerLinear;
+        materialResources.normalSampler = engine->defaultSamplerLinear;
         materialResources.occlusionImage = engine->_whiteImage;
-        materialResources.occlusionSampler = engine->_defaultSamplerLinear;
+        materialResources.occlusionSampler = engine->defaultSamplerLinear;
 
 
         // set the uniform buffer for the material data
@@ -538,7 +538,7 @@ void ResourceManager::write_material_array()
         writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
         writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
         writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
-        writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
+        writer.write_image(2, engine->storageImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 
     bindless_set = bindless_material_descriptor.allocate(engine->_device, engine->bindless_descriptor_layout);

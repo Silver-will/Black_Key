@@ -115,6 +115,7 @@ public:
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
+	AllocatedImage _depthPyramid;
 
 	struct {
 		AllocatedImage _lutBRDF;
@@ -143,12 +144,13 @@ public:
 	VkPipeline _meshPipeline;
 	VkPipeline _cullLightsPipeline;
 	VkPipelineLayout _cullLightsPipelineLayout;
+	PipelineStateObject cull_objects_pipeline;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
-	GPUSceneData sceneData;
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	GPUSceneData scene_data;
+	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
@@ -162,21 +164,24 @@ public:
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
-	AllocatedImage storage_image;
-	AllocatedImage _errorCheckerboardImage;
+	AllocatedImage storageImage;
+	AllocatedImage errorCheckerboardImage;
 
 	AllocatedImage _skyImage;
 	ktxVulkanTexture _skyBoxImage;
 
-	VkSampler _defaultSamplerLinear;
-	VkSampler _defaultSamplerNearest;
-	VkSampler _cubeMapSampler;
-	VkSampler _depthSampler;
+	VkSampler defaultSamplerLinear;
+	VkSampler defaultSamplerNearest;
+	VkSampler cubeMapSampler;
+	VkSampler depthSampler;
+	VkSampler depthReductionSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;
 	ShadowCascades shadows;
 
+	uint32_t depthPyramidWidth;
+	uint32_t depthPyramidHeight;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
@@ -232,7 +237,8 @@ private:
 	void ready_cull_data(VkCommandBuffer cmd);
 	void ready_mesh_draw(VkCommandBuffer cmd);
 	void load_assets();
-	void execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass meshPass);
+	void execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
+	void reduce_depth(VkCommandBuffer cmd);
 	void pre_process_pass();
 	void cull_lights(VkCommandBuffer cmd);
 	void draw_shadows(VkCommandBuffer cmd);

@@ -267,6 +267,7 @@ struct SceneManager {
 		std::vector<Handle<RenderObject>> unbatchedObjects;
 
 		std::vector<SceneManager::RenderBatch> flat_batches;
+		std::vector<RenderObject>flat_objects;
 
 		std::vector<PassObject> objects;
 
@@ -299,6 +300,7 @@ struct SceneManager {
 	void PrepareIndirectBuffers();
 	void RegisterObjectBatch(DrawContext ctx);
 	size_t GetModelCount();
+	MeshPass* GetMeshPass(vkutil::MaterialPass passType);
 	AllocatedBuffer* GetObjectDataBuffer();
 	AllocatedBuffer* GetIndirectCommandBuffer();
 

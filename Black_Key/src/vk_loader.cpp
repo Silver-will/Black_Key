@@ -47,9 +47,9 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     std::vector<VkDescriptorSetLayout> layouts;
     if(engine->use_bindless)
-     layouts = { engine->_gpuSceneDataDescriptorLayout, engine->bindless_descriptor_layout };
+     layouts = { engine->gpu_scene_data_descriptor_layout, engine->bindless_descriptor_layout };
     else
-    layouts = { engine->_gpuSceneDataDescriptorLayout, materialLayout };
+    layouts = { engine->gpu_scene_data_descriptor_layout, materialLayout };
     
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
     mesh_layout_info.setLayoutCount = 2;
@@ -189,7 +189,7 @@ void LoadedGLTF::clearAll()
 
     for (auto& [k, v] : images) {
 
-        if (v.image == creator->_errorCheckerboardImage.image) {
+        if (v.image == creator->errorCheckerboardImage.image) {
             // dont destroy the default images
             continue;
         }
