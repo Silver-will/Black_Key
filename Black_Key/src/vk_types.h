@@ -28,6 +28,35 @@
 #include <glm/vec4.hpp>
 #include <glm/gtx/transform.hpp>
 
+namespace vkutil{
+    enum class MaterialPass{
+        transparency,
+        forward,
+        early_depth,
+        shadow_pass
+    };
+
+    struct cullParams {
+        glm::mat4 viewmat;
+        glm::mat4 projmat;
+        bool occlusionCull;
+        bool frustrumCull;
+        float drawDist;
+        bool aabb;
+        glm::vec3 aabbmin;
+        glm::vec3 aabbmax;
+    };
+
+    struct GPUModelInformation {
+        glm::vec4 sphereBounds;
+        uint32_t  texture_index = 0;
+        uint32_t  firstIndex = 0;
+        uint32_t  indexCount = 0;
+        uint32_t  _pad = 0;
+        glm::mat4 local_transform;
+    };
+}
+
 template<typename T>
 struct Handle {
     uint32_t handle;
@@ -47,7 +76,7 @@ struct MaterialPipeline {
 struct MaterialInstance {
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
-    vk_util::MaterialPass passType;
+    vkutil::MaterialPass passType;
     uint32_t material_index;
 };
 
@@ -135,6 +164,12 @@ struct GPUMeshBuffers {
     VkDeviceAddress vertexBufferAddress;
 };
 
+struct GPUObjectData {
+    glm::mat4 model;
+    glm::vec4 origin;
+    glm::vec4 extents;
+};
+
 struct GPUSceneData {
     glm::mat4 view;
     glm::mat4 proj;
@@ -170,14 +205,6 @@ struct HDRDrawPushConstants {
     VkDeviceAddress vertexBuffer;
     glm::vec4 TexCoordScale;
 };
-
-struct GPUObjectData {
-    glm::mat4 modelMatrix;
-    glm::vec4 origin_rad; // bounds
-    glm::vec4 extents;  // bounds
-};
-
-
 
 struct MeshObject {
     GPUMeshBuffers* mesh{ nullptr };

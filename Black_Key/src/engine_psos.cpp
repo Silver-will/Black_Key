@@ -69,7 +69,7 @@ ShadowPipelineResources::MaterialResources ShadowPipelineResources::AllocateReso
 	return mat;
 }
 
-void ShadowPipelineResources::write_material(VkDevice device, vk_util::MaterialPass pass, VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+void ShadowPipelineResources::write_material(VkDevice device, vkutil::MaterialPass pass, VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	matData.passType = pass;
 	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
@@ -145,7 +145,7 @@ void SkyBoxPipelineResources::clear_resources(VkDevice device)
 	vkDestroyPipeline(device, skyPipeline.pipeline, nullptr);
 }
 
-MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	MaterialInstance newmat;
 	return newmat;
@@ -162,7 +162,7 @@ void BloomBlurPipelineObject::clear_resources(VkDevice device)
 
 }
 
-MaterialInstance BloomBlurPipelineObject::write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance BloomBlurPipelineObject::write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	MaterialInstance newmat;
 	return newmat;

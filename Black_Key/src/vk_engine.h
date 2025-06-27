@@ -13,6 +13,7 @@
 #include "shadows.h"
 #include "Lights.h"
 #include <chrono>
+#include "scene_manager.h"
 #include "resource_manager.h"
 #include <ktxvulkan.h>
 
@@ -51,6 +52,7 @@ public:
 
 	Camera mainCamera;
 	ResourceManager resource_manager;
+	SceneManager scene_manager;
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
 	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
@@ -153,6 +155,7 @@ public:
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
 	VkDescriptorSetLayout bindless_descriptor_layout;
+	VkDescriptorSetLayout compute_cull_descriptor_layout;
 
 	//VkDescriptorSetLayout _
 
@@ -226,8 +229,10 @@ public:
 	void destroy_image(const AllocatedImage& img);
 
 private:
+	void ready_cull_data(VkCommandBuffer cmd);
+	void ready_mesh_draw(VkCommandBuffer cmd);
 	void load_assets();
-	void write_bindless_materials();
+	void execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass meshPass);
 	void pre_process_pass();
 	void cull_lights(VkCommandBuffer cmd);
 	void draw_shadows(VkCommandBuffer cmd);

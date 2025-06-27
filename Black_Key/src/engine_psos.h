@@ -28,7 +28,7 @@ struct ShadowPipelineResources {
 	MaterialResources AllocateResources(VulkanEngine* engine);
 	void clear_resources(VkDevice device);
 
-	void write_material(VkDevice device, vk_util::MaterialPass pass, VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	void write_material(VkDevice device, vkutil::MaterialPass pass, VulkanEngine* engine, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct EarlyDepthPipelineObject {
@@ -47,7 +47,7 @@ struct EarlyDepthPipelineObject {
 
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct SkyBoxPipelineResources {
@@ -68,7 +68,7 @@ struct SkyBoxPipelineResources {
 
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct BloomBlurPipelineObject {
@@ -88,7 +88,7 @@ struct BloomBlurPipelineObject {
 
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct RenderImagePipelineObject {
@@ -107,5 +107,5 @@ struct RenderImagePipelineObject {
 
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, vk_util::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
