@@ -100,11 +100,9 @@ public:
 	static VulkanEngine& Get();
 
 	FrameData _frames[FRAME_OVERLAP];
-	std::vector<glm::mat4> lightMatrices;
-	std::vector<float>cascades;
-
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
+	Cascade cascadeData;
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
 	DeletionQueue _mainDeletionQueue;
@@ -166,6 +164,7 @@ public:
 	AllocatedImage _greyImage;
 	AllocatedImage storageImage;
 	AllocatedImage errorCheckerboardImage;
+	VkImageView depthPyramidMips[16];
 
 	AllocatedImage _skyImage;
 	ktxVulkanTexture _skyBoxImage;

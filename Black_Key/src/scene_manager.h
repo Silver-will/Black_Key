@@ -291,16 +291,18 @@ struct SceneManager {
 		bool needs_materials = true;
 	};
 
-	SceneManager();
-	~SceneManager();
+	SceneManager() {}
+	~SceneManager() {}
 	void Init(ResourceManager* rm,VulkanEngine* engine_ptr);
 	void MergeMeshes();
 	void BuildBatches();
 	void RefreshPass(MeshPass* pass);
 	void PrepareIndirectBuffers();
 	void RegisterObjectBatch(DrawContext ctx);
+	void UpdateObjectDataBuffers();
 	size_t GetModelCount();
 	MeshPass* GetMeshPass(vkutil::MaterialPass passType);
+	void ClearIndirectBuffers(MeshPass* pass);
 	AllocatedBuffer* GetObjectDataBuffer();
 	AllocatedBuffer* GetIndirectCommandBuffer();
 
@@ -320,7 +322,9 @@ private:
 	AllocatedBuffer object_data_buffer;
 	AllocatedBuffer staging_address_buffer;
 	AllocatedBuffer address_buffer;
+	AllocatedBuffer clear_indirect_command_buffer;
 	AllocatedBuffer indirect_command_buffer;
+
 
 	VulkanEngine* engine;
 	ResourceManager* resource_manager;

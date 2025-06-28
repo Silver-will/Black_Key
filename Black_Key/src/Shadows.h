@@ -8,6 +8,8 @@ class VulkanEngine;
 struct Cascade{
     std::vector<glm::mat4> lightSpaceMatrix;
     std::vector<float> cascadeDistances;
+    std::vector<glm::mat4> lightViewMatrices;
+    std::vector<glm::mat4> lightProjMatrices;
 };
 
 struct ShadowCascades
@@ -20,4 +22,5 @@ struct ShadowCascades
 private:
     float cascadeSplitLambda = 0.95f;
     int cascadeCount = 4;
+
 };
