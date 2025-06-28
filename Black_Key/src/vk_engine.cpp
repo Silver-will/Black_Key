@@ -95,6 +95,11 @@ void VulkanEngine::load_assets()
 {
 
 	resource_manager.init(this);
+	scene_manager.Init(&resource_manager, this);
+
+	//Load in skyBox image
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+
 	std::string cubePath{ "assets/cube.gltf" };
 	auto cubeFile = resource_manager.loadGltf(this, cubePath);
 	assert(cubeFile.has_value());
@@ -113,10 +118,10 @@ void VulkanEngine::load_assets()
 	loadedScenes["sponza"] = *structureFile;
 	loadedScenes["plane"] = *planeFile;
 
-
-	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, this, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-
+	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
+	//Register render objects for draw indirect
+	scene_manager.RegisterObjectBatch(drawCommands);
+	scene_manager.MergeMeshes();
 
 #ifdef USE_BINDLESS 1
 	resource_manager.write_material_array();
@@ -181,6 +186,9 @@ void VulkanEngine::draw()
 	auto start_update = std::chrono::system_clock::now();
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
+
+
+	scene_manager.BuildBatches();
 
 	auto end_update = std::chrono::system_clock::now();
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
@@ -307,6 +315,31 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	ZoneScoped;
 	auto main_start = std::chrono::system_clock::now();
 
+	//Begin Compute shader culling passes
+	vkutil::cullParams earlyDepthCull;
+	earlyDepthCull.viewmat = mainCamera.matrices.view;
+	earlyDepthCull.projmat = scene_data.proj;
+	earlyDepthCull.frustrumCull = true;
+	earlyDepthCull.occlusionCull = true;
+	earlyDepthCull.aabb = false;
+	earlyDepthCull.drawDist = mainCamera.getFarClip();
+
+	execute_compute_cull(cmd, earlyDepthCull, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth));
+
+	vkutil::cullParams shadowCull;
+	shadowCull.viewmat = cascadeData.lightViewMatrices.back();
+	shadowCull.projmat = cascadeData.lightProjMatrices.back();
+	shadowCull.frustrumCull = true;
+	shadowCull.occlusionCull = false;
+	shadowCull.aabb = true;
+	glm::vec3 aabbCenter = glm::vec3(0);
+	glm::vec3 aabbExtent = glm::vec3(400);
+	shadowCull.aabbmin = aabbCenter - aabbExtent;
+	shadowCull.aabbmax = aabbCenter + aabbExtent;
+	shadowCull.drawDist = mainCamera.getFarClip();
+	execute_compute_cull(cmd, shadowCull, scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass));
+
+
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
 	vkCmdBeginRendering(cmd, &earlyDepthRenderInfo);
@@ -353,6 +386,8 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	auto end = std::chrono::system_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
+
+	reduce_depth(cmd);
 
 	auto main_end = std::chrono::system_clock::now();
 	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
@@ -421,7 +456,6 @@ void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams&
 	writer.write_buffer(1, scene_manager.GetObjectDataBuffer()->buffer, sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(2, meshPass->drawIndirectBuffer.buffer, sizeof(SceneManager::GPUIndirectObject) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_image(3, _depthPyramid.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
 	writer.update_set(_device, computeCullDescriptor);
 
 	glm::mat4 projection = cullParams.projmat;
@@ -439,7 +473,7 @@ void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams&
 	cullData.frustum[1] = frustumX.z;
 	cullData.frustum[2] = frustumY.y;
 	cullData.frustum[3] = frustumY.z;
-	cullData.drawCount = static_cast<uint32_t>(meshPass->flat_batches.size());
+	cullData.drawCount = static_cast<uint32_t>(meshPass->flat_objects.size());
 	cullData.cullingEnabled = cullParams.frustrumCull;
 	cullData.lodEnabled = false;
 	cullData.occlusionEnabled = cullParams.occlusionCull;
@@ -483,15 +517,6 @@ void VulkanEngine::reduce_depth(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 {
-	vkutil::cullParams earlyDepthCull;
-	earlyDepthCull.viewmat = mainCamera.matrices.view;
-	earlyDepthCull.projmat = scene_data.proj;
-	earlyDepthCull.frustrumCull = true;
-	earlyDepthCull.occlusionCull = true;
-	earlyDepthCull.aabb = false;
-	earlyDepthCull.drawDist = mainCamera.getFarClip();
-
-	execute_compute_cull(cmd, earlyDepthCull, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth));
 
 	//Quick frustum culling pass
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
@@ -1021,6 +1046,7 @@ void VulkanEngine::init_vulkan()
 	features12.shaderSampledImageArrayNonUniformIndexing = true;
 	features12.descriptorBindingUpdateUnusedWhilePending = true;
 	features12.descriptorBindingVariableDescriptorCount = true;
+	features12.samplerFilterMinmax = true;
 
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -1682,13 +1708,27 @@ void VulkanEngine::init_default_data() {
 	storageImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
-	depthPyramidWidth = vkutil::PreviousPow2(_windowExtent.width);
-	depthPyramidHeight = vkutil::PreviousPow2(_windowExtent.height);
-	auto pyarmid_mip_levels = vkutil::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
+	depthPyramidWidth = BlackKey::PreviousPow2(_windowExtent.width);
+	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
+	auto pyramid_mip_levels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
 
 	_depthPyramid = vkutil::create_image_empty(VkExtent3D(depthPyramidWidth, depthPyramidHeight,1),VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		this, VK_IMAGE_VIEW_TYPE_2D, true);
+		this, VK_IMAGE_VIEW_TYPE_2D, true, 1,VK_SAMPLE_COUNT_1_BIT, pyramid_mip_levels);
+
+	for (int i = 0; i < pyramid_mip_levels; i++)
+	{
+
+		VkImageViewCreateInfo level_info = vkinit::imageview_create_info(VK_FORMAT_R32_SFLOAT, _depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+		level_info.subresourceRange.levelCount = 1;
+		level_info.subresourceRange.baseMipLevel = i;
+
+		VkImageView pyramid;
+		vkCreateImageView(_device, &level_info, nullptr, &pyramid);
+
+		depthPyramidMips[i] = pyramid;
+		assert(depthPyramidMips[i]);
+	}
 
 	//Populate point light list
 	int numOfLights = 4;
@@ -2104,12 +2144,9 @@ void VulkanEngine::update_scene()
 	vmaUnmapMemory(_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation);
 
 	
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	//*sceneUniformData = sceneData;
-	auto cascadeData = shadows.getCascades(this);
+	cascadeData = shadows.getCascades(this);
 	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
 	{
-		auto cascadeData = shadows.getCascades(this);
 		memcpy(&scene_data.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
 		memcpy(&scene_data.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
 		scene_data.distances.x = cascadeData.cascadeDistances[0];
@@ -2132,6 +2169,9 @@ void VulkanEngine::update_scene()
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
+
+	//Register render objects for draw indirect
+	scene_manager.RegisterObjectBatch(drawCommands);
 }
 
 void VulkanEngine::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)

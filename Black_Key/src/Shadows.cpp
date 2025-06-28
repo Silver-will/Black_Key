@@ -84,6 +84,8 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		// Store split distance and matrix in cascade
 		cascades.cascadeDistances[i] = (engine->mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
 		cascades.lightSpaceMatrix[i] = lightOrthoMatrix * lightViewMatrix;
+		cascades.lightViewMatrices.push_back(lightViewMatrix);
+		cascades.lightProjMatrices.push_back(lightOrthoMatrix);
 
 		lastSplitDist = cascadeSplits[i];
 	}
