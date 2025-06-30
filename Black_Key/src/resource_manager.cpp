@@ -550,3 +550,27 @@ VkDescriptorSet* ResourceManager::GetBindlessSet()
     VkDescriptorSet* desc = &bindless_set;
     return desc;
 }
+
+void ResourceManager::ReadBackBufferData(VkCommandBuffer cmd, AllocatedBuffer* buffer)
+{
+    if (readBackBufferInitialized == true)
+    {
+        engine->destroy_buffer(readableBuffer);
+    }
+
+    readableBuffer = engine->create_buffer(buffer->info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    readBackBufferInitialized = true;
+
+    VkBufferCopy dataCopy{ 0 };
+    dataCopy.dstOffset = 0;
+    dataCopy.srcOffset = 0;
+    dataCopy.size = buffer->info.size;
+
+    vkCmdCopyBuffer(cmd, buffer->buffer, readableBuffer.buffer, 1, &dataCopy);
+
+}
+
+AllocatedBuffer* ResourceManager::GetReadBackBuffer()
+{
+    return &readableBuffer;
+}

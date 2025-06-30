@@ -27,21 +27,21 @@ All the following scenes are rendered in engine:
 * FXAA
 
 # API Features
-* Buffer device addressing and programmable vertex pulling
+* Buffer device addressing allowing programmable vertex pulling
 * Dynamic Rendering
+* Bindless resources via descriptor indexing
 
 ##  Roadmap
 * [ ] Clustered forward shading
 * [ ] GPU driven rendering
 * [ ] Move Frustum culling to a compute shader
 * [ ] occlusion culling
-* [ ] Async compute
-* [x] Bindless Resources
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
 * [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
-* [ ] Render graph
-* [ ] shader hot reloading
-* [ ] editor
+* [ ] Async compute
+
+## Things to look into
+* Render Graph
 
 

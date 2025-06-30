@@ -32,6 +32,7 @@ constexpr bool bUseValidationLayers = false;
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
 
+#include <iostream>
 
 #define USE_BINDLESS
 
@@ -122,6 +123,8 @@ void VulkanEngine::load_assets()
 	//Register render objects for draw indirect
 	scene_manager.RegisterObjectBatch(drawCommands);
 	scene_manager.MergeMeshes();
+	scene_manager.PrepareIndirectBuffers();
+	scene_manager.BuildBatches();
 
 #ifdef USE_BINDLESS 1
 	resource_manager.write_material_array();
@@ -188,8 +191,6 @@ void VulkanEngine::draw()
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
 
 
-	scene_manager.BuildBatches();
-
 	auto end_update = std::chrono::system_clock::now();
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
 	stats.update_time = elapsed_update.count() / 1000.f;
@@ -230,6 +231,8 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthPyramid.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
 	draw_main(cmd);
 
 	draw_post_process(cmd);
@@ -314,16 +317,16 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	auto main_start = std::chrono::system_clock::now();
+	cullBarriers.clear();
 
 	//Begin Compute shader culling passes
 	vkutil::cullParams earlyDepthCull;
-	earlyDepthCull.viewmat = mainCamera.matrices.view;
+	earlyDepthCull.viewmat = scene_data.view;
 	earlyDepthCull.projmat = scene_data.proj;
 	earlyDepthCull.frustrumCull = true;
-	earlyDepthCull.occlusionCull = true;
+	earlyDepthCull.occlusionCull = false;
 	earlyDepthCull.aabb = false;
 	earlyDepthCull.drawDist = mainCamera.getFarClip();
-
 	execute_compute_cull(cmd, earlyDepthCull, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth));
 
 	vkutil::cullParams shadowCull;
@@ -339,6 +342,13 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	shadowCull.drawDist = mainCamera.getFarClip();
 	execute_compute_cull(cmd, shadowCull, scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass));
 
+
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, nullptr, cullBarriers.size(), cullBarriers.data(), 0, nullptr);
+	if (readDebugBuffer)
+	{
+		resource_manager.ReadBackBufferData(cmd, &scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer);
+		readDebugBuffer = false;
+	}
 
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
@@ -367,7 +377,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
-	//Cull lights
+	//Compute shader pass for clustered light culling
 	cull_lights(cmd);
 
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
@@ -454,7 +464,7 @@ void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams&
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_buffer(1, scene_manager.GetObjectDataBuffer()->buffer, sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(2, meshPass->drawIndirectBuffer.buffer, sizeof(SceneManager::GPUIndirectObject) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(2, meshPass->drawIndirectBuffer.buffer, sizeof(SceneManager::GPUIndirectObject) * meshPass->flat_objects.size(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_image(3, _depthPyramid.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(_device, computeCullDescriptor);
 
@@ -501,17 +511,33 @@ void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams&
 		cullData.distanceCheck = true;
 	}
 
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pipeline.pipeline);
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pso.pipeline);
 
-	vkCmdPushConstants(cmd, cull_objects_pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(vkutil::DrawCullData), &cullData);
+	vkCmdPushConstants(cmd, cull_objects_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(vkutil::DrawCullData), &cullData);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pipeline.layout, 0, 1, &computeCullDescriptor, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pso.layout, 0, 1, &computeCullDescriptor, 0, nullptr);
 
-	vkCmdDispatch(cmd, static_cast<uint32_t>((meshPass->objects.size() / 256) + 1), 1, 1);
+	vkCmdDispatch(cmd, static_cast<uint32_t>((meshPass->flat_objects.size() / 256) + 1), 1, 1);
+
+	{
+		VkBufferMemoryBarrier barrier = vkinit::buffer_barrier(meshPass->drawIndirectBuffer.buffer, _graphicsQueueFamily);
+		barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+
+		cullBarriers.push_back(barrier);
+	}
 }
 
 void VulkanEngine::reduce_depth(VkCommandBuffer cmd)
 {
+	VkImageMemoryBarrier depthReadBarriers[] =
+	{
+		vkinit::image_barrier(_depthImage.image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT),
+	};
+	
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, depthReadBarriers);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, depth_reduce_pso.pipeline);
 
 }
 
@@ -1347,9 +1373,15 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		compute_cull_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		depth_reduce_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
 	}
 
 	_mainDeletionQueue.push_function([&]() {
@@ -1361,6 +1393,7 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, compute_cull_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, depth_reduce_descriptor_layout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -1487,10 +1520,10 @@ void VulkanEngine::init_compute_pipelines()
 	cullObjectsLayoutInfo.pPushConstantRanges = &pushConstant;
 	cullObjectsLayoutInfo.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &cullObjectsLayoutInfo, nullptr, &cull_objects_pipeline.layout));
+	VK_CHECK(vkCreatePipelineLayout(_device, &cullObjectsLayoutInfo, nullptr, &cull_objects_pso.layout));
 
 	VkShaderModule cullObjectsShader;
-	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", _device, &cullObjectsShader)) {
+	if (!vkutil::load_shader_module("shaders/indirect_cull.comp.spv", _device, &cullObjectsShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -1501,15 +1534,53 @@ void VulkanEngine::init_compute_pipelines()
 	stageinfoObj.module = cullObjectsShader;
 	stageinfoObj.pName = "main";
 
-	computePipelineCreateInfo.layout = cull_objects_pipeline.layout;
+	computePipelineCreateInfo.layout = cull_objects_pso.layout;
 	computePipelineCreateInfo.stage = stageinfoObj;
 
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_objects_pipeline.pipeline));
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_objects_pso.pipeline));
+
+	VkPipelineLayoutCreateInfo depthReduceLayoutInfo = {};
+	depthReduceLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	depthReduceLayoutInfo.pNext = nullptr;
+	depthReduceLayoutInfo.pSetLayouts = &depth_reduce_descriptor_layout;
+	depthReduceLayoutInfo.setLayoutCount = 1;
+
+	pushConstant.size = sizeof(glm::vec2);
+	depthReduceLayoutInfo.pPushConstantRanges = &pushConstant;
+	depthReduceLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &depthReduceLayoutInfo, nullptr, &depth_reduce_pso.layout));
+
+	VkShaderModule depthReduceShader;
+	if (!vkutil::load_shader_module("shaders/depth_reduce.comp.spv", _device, &depthReduceShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+
+	VkPipelineShaderStageCreateInfo depthReduceStageinfo{};
+	depthReduceStageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	depthReduceStageinfo.pNext = nullptr;
+	depthReduceStageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	depthReduceStageinfo.module = depthReduceShader;
+	depthReduceStageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo depthComputePipelineCreateInfo{};
+	depthComputePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	depthComputePipelineCreateInfo.pNext = nullptr;
+	depthComputePipelineCreateInfo.layout = depth_reduce_pso.layout;
+	depthComputePipelineCreateInfo.stage = depthReduceStageinfo;
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &depthComputePipelineCreateInfo, nullptr, &depth_reduce_pso.pipeline));
+
 
 
 	_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(_device, cull_objects_pipeline.layout, nullptr);
-		vkDestroyPipeline(_device, cull_objects_pipeline.pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, depth_reduce_pso.layout, nullptr);
+		vkDestroyPipeline(_device, depth_reduce_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, cull_objects_pso.layout, nullptr);
+		vkDestroyPipeline(_device, cull_objects_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, _cullLightsPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _cullLightsPipeline, nullptr);
 		});
 }
 
@@ -1975,14 +2046,14 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 
 	GPUMeshBuffers newSurface;
 
-	newSurface.vertexBuffer = create_buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+	newSurface.vertexBuffer = create_buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
 
 
 	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = newSurface.vertexBuffer.buffer };
 	newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
 
-	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
 
 	AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
@@ -2171,7 +2242,7 @@ void VulkanEngine::update_scene()
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
 
 	//Register render objects for draw indirect
-	scene_manager.RegisterObjectBatch(drawCommands);
+	//scene_manager.RegisterObjectBatch(drawCommands);
 }
 
 void VulkanEngine::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)

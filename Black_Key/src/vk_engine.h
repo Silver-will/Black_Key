@@ -95,6 +95,9 @@ public:
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
+	bool debugBuffer = false;
+	bool readDebugBuffer = false;
+
 	GLFWwindow* window{ nullptr };
 
 	static VulkanEngine& Get();
@@ -142,7 +145,8 @@ public:
 	VkPipeline _meshPipeline;
 	VkPipeline _cullLightsPipeline;
 	VkPipelineLayout _cullLightsPipelineLayout;
-	PipelineStateObject cull_objects_pipeline;
+	PipelineStateObject cull_objects_pso;
+	PipelineStateObject depth_reduce_pso;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -156,7 +160,7 @@ public:
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
 	VkDescriptorSetLayout bindless_descriptor_layout;
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
-
+	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
@@ -183,6 +187,8 @@ public:
 	uint32_t depthPyramidHeight;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
+
+	std::vector<VkBufferMemoryBarrier> cullBarriers;
 
 	//Clustered culling  values
 	struct {
