@@ -24,7 +24,7 @@ VkSubmitInfo2 submit_info(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo*
     VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 VkPresentInfoKHR present_info();
 
-VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout);
+VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout, bool clear_on_load = false);
 
 VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout, VkAttachmentLoadOp loadMode = VK_ATTACHMENT_LOAD_OP_CLEAR, VkAttachmentStoreOp storeMode = VK_ATTACHMENT_STORE_OP_STORE);
 

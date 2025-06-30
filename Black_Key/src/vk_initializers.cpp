@@ -124,7 +124,7 @@ VkPresentInfoKHR vkinit::present_info()
 
 //> color_info
 VkRenderingAttachmentInfo vkinit::attachment_info(
-    VkImageView view, VkImageView* resolve, VkClearValue* clear ,VkImageLayout layout)
+    VkImageView view, VkImageView* resolve, VkClearValue* clear ,VkImageLayout layout, bool clear_on_load)
 {
 
     VkRenderingAttachmentInfo colorAttachment {};
@@ -133,7 +133,7 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
 
     colorAttachment.imageView = view;
     colorAttachment.imageLayout = layout;
-    colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAttachment.loadOp = clear_on_load ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     
     //MSAA resolve settings
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -159,6 +159,7 @@ VkRenderingAttachmentInfo vkinit::depth_attachment_info(
     VkRenderingAttachmentInfo depthAttachment {};
     depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depthAttachment.pNext = nullptr;
+   
 
     depthAttachment.imageView = view;
     depthAttachment.imageLayout = layout;

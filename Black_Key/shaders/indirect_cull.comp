@@ -58,13 +58,27 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	float cascadeDistances[8];
 } sceneData;
 
+struct Vertex {
+	vec3 position;
+	float uv_x;
+	vec3 normal;
+	float uv_y;
+	vec4 color;
+	vec4 tangent;
+}; 
+
+layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
+	Vertex vertices[];
+};
+
 struct ObjectData{
 	vec4 spherebounds;
 	uint texture_index;
     uint firstIndex;
     uint indexCount;
-    uint _pad;
     mat4 model;
+	VertexBuffer vertexBuffer;
+	vec3 pad;
 }; 
 
 layout(std140,set = 0, binding = 1) readonly buffer ObjectBuffer{   

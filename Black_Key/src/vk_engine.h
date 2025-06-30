@@ -112,6 +112,7 @@ public:
 	VmaAllocator _allocator;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+	AllocatedImage _depthResolveImage;
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
@@ -185,6 +186,7 @@ public:
 
 	uint32_t depthPyramidWidth;
 	uint32_t depthPyramidHeight;
+	uint32_t depthPyramidLevels;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
