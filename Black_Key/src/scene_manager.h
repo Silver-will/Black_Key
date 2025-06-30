@@ -330,5 +330,6 @@ private:
 	ResourceManager* resource_manager;
 
 	std::vector<RenderObject> renderables;
+	std::vector<GPUIndirectObject> object_commands;
 };
 #endif

@@ -298,7 +298,7 @@
     <None Include="shaders\cluster_info.glsl" />
     <None Include="shaders\cluster_shader.comp" />
     <None Include="shaders\cluster_cull_light_shader.comp" />
-    <None Include="shaders\depthReduce.comp" />
+    <None Include="shaders\depth_reduce.comp" />
     <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\filter_cube.vert" />
     <None Include="shaders\FXAA.glsl" />

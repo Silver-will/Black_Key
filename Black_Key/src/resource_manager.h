@@ -31,8 +31,12 @@ struct ResourceManager
 	void write_material_array();
 	void cleanup();
 	VkDescriptorSet* GetBindlessSet();
+	//Displays the contents of a GPU only buffer
+	void ReadBackBufferData(VkCommandBuffer cmd, AllocatedBuffer* buffer);
+	AllocatedBuffer* GetReadBackBuffer();
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 private:
+	bool readBackBufferInitialized = false;
 	VkFilter extract_filter(fastgltf::Filter filter);
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources{};
@@ -41,5 +45,5 @@ private:
 	VulkanEngine* engine = nullptr;
 	int last_material_index{ 0 };
 	VkDescriptorSet bindless_set;
-
+	AllocatedBuffer readableBuffer;
 };

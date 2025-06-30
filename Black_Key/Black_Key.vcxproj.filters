@@ -334,7 +334,7 @@
     <None Include="shaders\sparse_upload.comp">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\depthReduce.comp">
+    <None Include="shaders\depth_reduce.comp">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\cluster_shader.comp">
