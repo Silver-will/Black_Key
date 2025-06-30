@@ -100,8 +100,9 @@ void SceneManager::MergeMeshes()
 			.texture_index = m.material->material_index,
 			.firstIndex = m.firstIndex / ((uint32_t)sizeof(uint32_t)),
 			.indexCount = m.indexCount,
-			._pad = 0,
 			.local_transform = m.transform,
+			.vertexBuffer = m.vertexBufferAddress,
+			._pad = glm::vec3(0)
 			});
 	}
 	object_data_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(vkutil::GPUModelInformation),
@@ -109,7 +110,15 @@ void SceneManager::MergeMeshes()
 
 }
 
+AllocatedBuffer* SceneManager::GetMergedIndexBuffer()
+{
+	return &merged_index_buffer;
+}
 
+AllocatedBuffer* SceneManager::GetMergedVertexBuffer()
+{
+	return &merged_vertex_buffer;
+}
 
 void SceneManager::PrepareIndirectBuffers()
 {

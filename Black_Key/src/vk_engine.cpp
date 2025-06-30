@@ -227,8 +227,9 @@ void VulkanEngine::draw()
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _depthPyramid.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -324,7 +325,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	earlyDepthCull.viewmat = scene_data.view;
 	earlyDepthCull.projmat = scene_data.proj;
 	earlyDepthCull.frustrumCull = true;
-	earlyDepthCull.occlusionCull = false;
+	earlyDepthCull.occlusionCull = true;
 	earlyDepthCull.aabb = false;
 	earlyDepthCull.drawDist = mainCamera.getFarClip();
 	execute_compute_cull(cmd, earlyDepthCull, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth));
@@ -346,7 +347,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, nullptr, cullBarriers.size(), cullBarriers.data(), 0, nullptr);
 	if (readDebugBuffer)
 	{
-		resource_manager.ReadBackBufferData(cmd, &scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer);
+		resource_manager.ReadBackBufferData(cmd, &scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer);
 		readDebugBuffer = false;
 	}
 
@@ -381,8 +382,10 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	cull_lights(cmd);
 
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment2 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+	VkClearValue depthClear;
+	depthClear.depthStencil.depth = 1.0f;
+	VkRenderingAttachmentInfo depthAttachment2 = vkinit::attachment_info(_depthImage.imageView,&_depthResolveImage.imageView,&depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
@@ -397,8 +400,6 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
 
-	reduce_depth(cmd);
-
 	auto main_end = std::chrono::system_clock::now();
 	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
 	//stats.frametime = main_elapsed.count() / 1000.f;
@@ -410,6 +411,8 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	draw_background(cmd);
 
 	vkCmdEndRendering(cmd);
+
+	reduce_depth(cmd);
 }
 
 void VulkanEngine::cull_lights(VkCommandBuffer cmd)
@@ -528,16 +531,55 @@ void VulkanEngine::execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams&
 	}
 }
 
+inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize)
+{
+	return (threadCount + localSize - 1) / localSize;
+}
+
 void VulkanEngine::reduce_depth(VkCommandBuffer cmd)
 {
 	VkImageMemoryBarrier depthReadBarriers[] =
 	{
-		vkinit::image_barrier(_depthImage.image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT),
+		vkinit::image_barrier(_depthResolveImage.image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT),
 	};
 	
 	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, depthReadBarriers);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, depth_reduce_pso.pipeline);
+
+	for (int32_t i = 0; i < depthPyramidLevels; ++i)
+	{
+		VkDescriptorSet depthDescriptor = get_current_frame()._frameDescriptors.allocate(_device, depth_reduce_descriptor_layout);
+
+		DescriptorWriter writer;
+		
+		writer.write_image(0, depthPyramidMips[i], depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		if (i == 0)
+			writer.write_image(1, _depthResolveImage.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		else
+			writer.write_image(1, depthPyramidMips[i - 1], depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		writer.update_set(_device, depthDescriptor);
+
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, depth_reduce_pso.layout, 0, 1, &depthDescriptor, 0, nullptr);
+
+		uint32_t levelWidth = depthPyramidWidth >> i;
+		uint32_t levelHeight = depthPyramidHeight >> i;
+		if (levelHeight < 1) levelHeight = 1;
+		if (levelWidth < 1) levelWidth = 1;
+
+		glm::vec2 reduceData = { glm::vec2(levelWidth, levelHeight) };
+
+		vkCmdPushConstants(cmd, depth_reduce_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(reduceData), &reduceData);
+		vkCmdDispatch(cmd, getGroupCount(levelWidth, 32), getGroupCount(levelHeight, 32), 1);
+
+
+		VkImageMemoryBarrier reduceBarrier = vkinit::image_barrier(_depthPyramid.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &reduceBarrier);
+	}
+	VkImageMemoryBarrier depthWriteBarrier = vkinit::image_barrier(_depthResolveImage.image, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthWriteBarrier);
 
 }
 
@@ -584,8 +626,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
-	MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
+	
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
@@ -626,6 +667,41 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
+
+	{
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		
+		vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+		
+		// calculate final mesh matrix
+		//push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		//vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+	};
+	
+	// vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+	//	scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->flat_objects.size() * sizeof(SceneManager::GPUIndirectObject), sizeof(SceneManager::GPUIndirectObject));
+	
 }
 
 
@@ -809,7 +885,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_buffer(7, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(8, ClusterValues.lightIndexListSSBO.buffer, totalLightCount * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
 	writer.update_set(_device, globalDescriptor);
 
 	//allocate bindless descriptor
@@ -1217,6 +1292,17 @@ void VulkanEngine::init_swapchain()
 	_depthImage.imageExtent = drawImageExtent;
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	VkImageCreateInfo dresolve_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages | VK_IMAGE_USAGE_SAMPLED_BIT, drawImageExtent, 1);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dresolve_info, &rimg_allocinfo, &_depthResolveImage.image, &_depthResolveImage.allocation, nullptr);
+
+	//build a image-view for the draw image to use for rendering
+	VkImageViewCreateInfo dRview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthResolveImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
+
+	VK_CHECK(vkCreateImageView(_device, &dRview_info, nullptr, &_depthResolveImage.imageView));
+
 	depthImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 
 	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
@@ -1242,6 +1328,9 @@ void VulkanEngine::init_swapchain()
 
 		vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
 		vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
+
+		vkDestroyImageView(_device, _depthResolveImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _depthResolveImage.image, _depthResolveImage.allocation);
 		});
 }
 
@@ -1781,13 +1870,13 @@ void VulkanEngine::init_default_data() {
 
 	depthPyramidWidth = BlackKey::PreviousPow2(_windowExtent.width);
 	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
-	auto pyramid_mip_levels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
+	depthPyramidLevels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
 
 	_depthPyramid = vkutil::create_image_empty(VkExtent3D(depthPyramidWidth, depthPyramidHeight,1),VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		this, VK_IMAGE_VIEW_TYPE_2D, true, 1,VK_SAMPLE_COUNT_1_BIT, pyramid_mip_levels);
+		this, VK_IMAGE_VIEW_TYPE_2D, true, 1,VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
 
-	for (int i = 0; i < pyramid_mip_levels; i++)
+	for (int i = 0; i < depthPyramidLevels; i++)
 	{
 
 		VkImageViewCreateInfo level_info = vkinit::imageview_create_info(VK_FORMAT_R32_SFLOAT, _depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);

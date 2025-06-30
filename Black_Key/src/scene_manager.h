@@ -305,6 +305,8 @@ struct SceneManager {
 	void ClearIndirectBuffers(MeshPass* pass);
 	AllocatedBuffer* GetObjectDataBuffer();
 	AllocatedBuffer* GetIndirectCommandBuffer();
+	AllocatedBuffer* GetMergedVertexBuffer();
+	AllocatedBuffer* GetMergedIndexBuffer();
 
 private:
 	MeshPass early_depth_pass;

@@ -52,8 +52,9 @@ namespace vkutil{
         uint32_t  texture_index = 0;
         uint32_t  firstIndex = 0;
         uint32_t  indexCount = 0;
-        uint32_t  _pad = 0;
         glm::mat4 local_transform;
+        VkDeviceAddress vertexBuffer;
+        glm::vec3  _pad;
     };
 
     struct /*alignas(16)*/DrawCullData
