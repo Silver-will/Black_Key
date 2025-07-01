@@ -311,6 +311,8 @@
     <None Include="shaders\helper_functions.glsl" />
     <None Include="shaders\ibl_helpers.glsl" />
     <None Include="shaders\indirect_cull.comp" />
+    <None Include="shaders\indirect_forward.frag" />
+    <None Include="shaders\indirect_forward.vert" />
     <None Include="shaders\input_structures.glsl" />
     <None Include="shaders\pbr_bindless.frag" />
     <None Include="shaders\pbr_bindless.vert" />

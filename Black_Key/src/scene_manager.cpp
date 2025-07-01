@@ -70,6 +70,9 @@ void SceneManager::MergeMeshes()
 	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
+	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = merged_vertex_buffer.buffer };
+	mergedVertexAddress = vkGetBufferDeviceAddress(engine->_device, &deviceAdressInfo);
+
 
 	engine->immediate_submit([&](VkCommandBuffer cmd)
 		{
@@ -284,4 +287,8 @@ AllocatedBuffer* SceneManager::GetIndirectCommandBuffer()
 size_t SceneManager::GetModelCount()
 {
 	return renderables.size();
+}
+
+VkDeviceAddress* SceneManager::GetMergedDeviceAddress() {
+	return &mergedVertexAddress;
 }
