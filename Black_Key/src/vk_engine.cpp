@@ -624,6 +624,8 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(5, scene_manager.GetObjectDataBuffer()->buffer,
+		sizeof(SceneManager::GPUIndirectObject) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
 	
@@ -740,7 +742,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
-	/*auto draw = [&](const RenderObject& r) {
+	auto draw = [&](const RenderObject& r) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
 			&globalDescriptor, 0, nullptr);
@@ -780,9 +782,9 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
-	*/
+	
 
-
+	/*
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
@@ -815,6 +817,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 			scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 		//vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 	};
+	*/
 }
 
 

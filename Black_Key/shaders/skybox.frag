@@ -1,4 +1,4 @@
-#version 450
+#version 460 core
 
 layout(early_fragment_tests) in;
 layout (set = 0, binding = 1) uniform samplerCube samplerCubeMap;
