@@ -627,7 +627,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	writer.update_set(_device, globalDescriptor);
 
 	
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+	/*VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
@@ -655,6 +655,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 			lastIndexBuffer = r.indexBuffer;
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
+
 		// calculate final mesh matrix
 		GPUDrawPushConstants push_constants;
 		push_constants.worldMatrix = r.transform;
@@ -667,6 +668,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
+	*/
 
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
@@ -691,12 +693,14 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 		
 		vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+		//calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.vertexBuffer = *scene_manager.GetMergedDeviceAddress();
+		vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 		
-		// calculate final mesh matrix
-		//push_constants.vertexBuffer = r.vertexBufferAddress;
-
-		//vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+			scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+		//vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 	};
 	
 	// vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
@@ -734,11 +738,9 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
-	MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
-	auto draw = [&](const RenderObject& r) {
+	/*auto draw = [&](const RenderObject& r) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
 			&globalDescriptor, 0, nullptr);
@@ -778,6 +780,41 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
+	*/
+
+
+	{
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+		//calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.vertexBuffer = *scene_manager.GetMergedDeviceAddress();
+		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer.buffer, 0,
+			scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+		//vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+	};
 }
 
 

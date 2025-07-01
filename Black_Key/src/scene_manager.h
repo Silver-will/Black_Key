@@ -307,6 +307,7 @@ struct SceneManager {
 	AllocatedBuffer* GetIndirectCommandBuffer();
 	AllocatedBuffer* GetMergedVertexBuffer();
 	AllocatedBuffer* GetMergedIndexBuffer();
+	VkDeviceAddress* GetMergedDeviceAddress();
 
 private:
 	MeshPass early_depth_pass;
@@ -330,7 +331,8 @@ private:
 
 	VulkanEngine* engine;
 	ResourceManager* resource_manager;
-
+	VkDeviceAddress mergedVertexAddress;
+	
 	std::vector<RenderObject> renderables;
 	std::vector<GPUIndirectObject> object_commands;
 };
