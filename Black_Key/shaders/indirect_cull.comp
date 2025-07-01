@@ -2,6 +2,7 @@
 
 
 layout (local_size_x = 256) in;
+#extension GL_EXT_buffer_reference : require
 
 struct DrawCullData
 {

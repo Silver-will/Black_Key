@@ -21,7 +21,7 @@ All the following scenes are rendered in engine:
 * HDR + options for Filmic/Uncharted/unreal tonemappers
 * CPU side Frustum culling
 * Multisampling anti-aliasing
-* normal mapping
+* Normal mapping
 * Ktx Texture support for skybox
 * Transparency
 * FXAA
@@ -38,10 +38,10 @@ All the following scenes are rendered in engine:
 * [ ] occlusion culling
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
-* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/RSM/Deep G-buffers/light propagation volumes)
-* [ ] Async compute
+* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Deep G-buffers/Radiance Cascades/DDGI)
+
 
 ## Things to look into
 * Render Graph
-
+* Async compute
 
