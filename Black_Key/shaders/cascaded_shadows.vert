@@ -14,6 +14,24 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
+
+struct ObjectData{
+	mat4 model;
+	vec4 spherebounds;
+	uint texture_index;
+    uint firstIndex;
+    uint indexCount;
+	uint firstVertex;
+	uint vertexCount;
+	uint firstInstance;
+	VertexBuffer vertexBuffer;
+	vec4 pad;
+}; 
+
+layout(set = 0, binding = 6) readonly buffer ObjectBuffer{   
+	ObjectData objects[];
+} objectBuffer;
+
 //push constants block
 layout( push_constant ) uniform constants
 {
@@ -25,6 +43,7 @@ layout( push_constant ) uniform constants
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	ObjectData obj = objectBuffer.objects[gl_BaseInstance];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = PushConstants.render_matrix * position;
+	gl_Position = obj.model * position;
 }

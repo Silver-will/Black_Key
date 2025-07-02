@@ -224,6 +224,7 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
         def.transform = nodeMatrix;
         def.vertexBuffer = mesh->meshBuffers.vertexBuffer.buffer;
         def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+        def.meshBuffer = &mesh->meshBuffers;
 
         if (s.material->data.passType == vkutil::MaterialPass::transparency) {
             ctx.TransparentSurfaces.push_back(def);
