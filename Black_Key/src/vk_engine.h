@@ -190,6 +190,8 @@ public:
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
+	bool debugDepthTexture = false;
+
 	std::vector<VkBufferMemoryBarrier> cullBarriers;
 
 	//Clustered culling  values

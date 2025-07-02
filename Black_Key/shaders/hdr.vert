@@ -3,6 +3,7 @@
 #extension GL_EXT_buffer_reference : require
 
 layout (location = 0)out vec2 TexCoords;
+layout (location = 1)flat out uint debug_texture;
 
 struct Vertex {
 	vec3 position;
@@ -22,6 +23,7 @@ layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
+	uint debug_texture;
 } PushConstants;
 
 void main()
@@ -32,6 +34,7 @@ void main()
 	TexCoords = vec2(v.uv_x,v.uv_y);
 	gl_Position = position;
 	*/
+	debug_texture = PushConstants.debug_texture;
 	TexCoords = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(TexCoords * 2.0f + -1.0f, 0.0f, 1.0f);
 }

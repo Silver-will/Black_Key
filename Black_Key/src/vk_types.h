@@ -48,13 +48,16 @@ namespace vkutil{
     };
 
     struct GPUModelInformation {
+        glm::mat4 local_transform;
         glm::vec4 sphereBounds;
         uint32_t  texture_index = 0;
         uint32_t  firstIndex = 0;
         uint32_t  indexCount = 0;
-        glm::mat4 local_transform;
+        uint32_t  firstVertex = 0;
+        uint32_t  vertexCount = 0;
+        uint32_t  firstInstance = 0;
         VkDeviceAddress vertexBuffer;
-        glm::vec3  _pad;
+        glm::vec4 pad;
     };
 
     struct /*alignas(16)*/DrawCullData
@@ -182,9 +185,13 @@ struct IndirectMesh {
     AllocatedBuffer vertexBuffer;
 };
 
+struct MeshAssetInfo {
+    uint32_t mesh_vert_count = 0;
+    uint32_t mesh_indice_count = 0;
+};
 // holds the resources needed for a mesh
 struct GPUMeshBuffers {
-
+    MeshAssetInfo mesh_info;//Turns out VMA adds padding to certain allocations so the info struct is incorrect
     AllocatedBuffer indexBuffer;
     AllocatedBuffer vertexBuffer;
     VkDeviceAddress vertexBufferAddress;

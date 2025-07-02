@@ -4,36 +4,6 @@
 #include "engine_util.h"
 #include <algorithm>
 #include <future>
-/*
-
-void RenderScene::init()
-{
-	_forwardPass.type = vk_util::MeshPassType::Forward;
-	_shadowPass.type = vk_util::MeshPassType::Shadow;
-	_transparentForwardPass.type = vk_util::MeshPassType::Transparent;
-}
-
-Handle<SceneMeshObject> RenderScene::register_object(SceneMeshObject* object) {
-	SceneRenderObject new_obj;
-	new_obj.bounds = object->bounds;
-	new_obj.transformMatrix = object->transformMatrix;
-	new_obj.material = GetMaterialHandle(object->material);
-	new_obj.meshID = GetMeshHandle(object->mesh);
-	new_obj.updateIndex = (uint32_t)-1;
-	new_obj.customSortKey = object->customSortKey;
-	new_obj.passIndices.clear(-1);
-	Handle<SceneRenderObject> handle;
-	handle.handle = static_cast<uint32_t>(renderables.size());
-
-	renderables.push_back(new_obj);
-
-	if (object->bDrawForwardPass)
-	{
-		//if(object->material->)
-	}
-}
-
-*/
 
 void SceneManager::Init(ResourceManager* rm, VulkanEngine* engine_ptr)
 {
@@ -55,8 +25,11 @@ void SceneManager::MergeMeshes()
 	size_t total_vertices = 0;
 	size_t total_indices = 0;
 
-
+	size_t last_mesh_vert_size = 0;
+	size_t last_mesh_indice_size = 0;
 	mesh_count = renderables.size();
+	GPUMeshBuffers* mesh_buffer = renderables[0].meshBuffer;
+	RenderObject* previous_obj = nullptr;
 	for (auto& m : renderables)
 	{
 		m.firstIndex = static_cast<uint32_t>(total_indices);
@@ -64,11 +37,27 @@ void SceneManager::MergeMeshes()
 
 		total_vertices += m.vertexCount;
 		total_indices += m.indexCount;
+		if (mesh_buffer == m.meshBuffer)
+		{
+			last_mesh_vert_size += m.vertexCount;
+			last_mesh_indice_size += m.indexCount;
+
+			m.meshBuffer->mesh_info.mesh_vert_count = last_mesh_vert_size;
+			m.meshBuffer->mesh_info.mesh_indice_count = last_mesh_indice_size;
+			//m.meshAssetVertexCount += last_mesh_vert_size;
+			//m.meshAssetIndexCount += last_mesh_indice_size;
+		}
+		else
+		{
+			last_mesh_vert_size = 0;
+			last_mesh_indice_size = 0;
+		}
+		mesh_buffer = m.meshBuffer;
 	}
 	assert(total_vertices && total_indices);
 
-	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = merged_vertex_buffer.buffer };
 	mergedVertexAddress = vkGetBufferDeviceAddress(engine->_device, &deviceAdressInfo);
@@ -76,20 +65,64 @@ void SceneManager::MergeMeshes()
 
 	engine->immediate_submit([&](VkCommandBuffer cmd)
 		{
-			std::vector<vkutil::GPUModelInformation> scene_indirect_data;
+			GPUMeshBuffers* last_mesh_buffer = nullptr;
+			uint32_t vert_dst_off = 0;
+			uint32_t index_dst_off = 0;
+			int same_buffer_count = 0;
+			
 			for (auto& m : renderables)
 			{
-				VkBufferCopy vertex_copy;
+				
+				
+				/*VkBufferCopy vertex_copy;
 				vertex_copy.dstOffset = sizeof(Vertex) * m.firstVertex;
 				vertex_copy.size = sizeof(Vertex) * m.vertexCount;
 				vertex_copy.srcOffset = 0;
 				vkCmdCopyBuffer(cmd, m.vertexBuffer, merged_vertex_buffer.buffer, 1, &vertex_copy);
-
+				
+				
 				VkBufferCopy index_copy;
 				index_copy.dstOffset = sizeof(uint32_t) * m.firstIndex;
 				index_copy.size = sizeof(uint32_t) * m.indexCount;
 				index_copy.srcOffset = 0;
 				vkCmdCopyBuffer(cmd, m.indexBuffer, merged_index_buffer.buffer, 1, &index_copy);
+				*/
+
+				if (last_mesh_buffer != m.meshBuffer)
+				{
+					//m.meshBuffer->vertexBuffer.info.size;
+					/*VkBufferCopy vertex_copy;
+					vertex_copy.dstOffset = sizeof(Vertex) * m.firstVertex;
+					vertex_copy.size = sizeof(Vertex) * m.vertexCount;
+					vertex_copy.srcOffset = 0;
+					vkCmdCopyBuffer(cmd, m.vertexBuffer, merged_vertex_buffer.buffer, 1, &vertex_copy);
+
+					VkBufferCopy index_copy;
+					index_copy.dstOffset = sizeof(uint32_t) * m.firstIndex;
+					index_copy.size = sizeof(uint32_t) * m.indexCount;
+					index_copy.srcOffset = 0;
+					vkCmdCopyBuffer(cmd, m.indexBuffer, merged_index_buffer.buffer, 1, &index_copy);*/
+					//last_vertex_buffer = &m.vertexBuffer;
+					
+
+					
+					VkBufferCopy vertex_copy;
+					vertex_copy.dstOffset = vert_dst_off;
+					vertex_copy.size = m.meshBuffer->mesh_info.mesh_vert_count * sizeof(Vertex);
+					vertex_copy.srcOffset = 0;
+					vkCmdCopyBuffer(cmd, m.vertexBuffer, merged_vertex_buffer.buffer, 1, &vertex_copy);
+					
+					VkBufferCopy index_copy;
+					index_copy.dstOffset = index_dst_off;
+					index_copy.size = m.meshBuffer->mesh_info.mesh_indice_count * sizeof(uint32_t);
+					index_copy.srcOffset = 0;
+					vkCmdCopyBuffer(cmd, m.indexBuffer, merged_index_buffer.buffer, 1, &index_copy);
+					
+
+					vert_dst_off += vertex_copy.size;
+					index_dst_off += m.meshBuffer->indexBuffer.info.size;
+				}
+				last_mesh_buffer = m.meshBuffer;
 			}
 		}
 	);
@@ -99,17 +132,20 @@ void SceneManager::MergeMeshes()
 	{
 		scene_indirect_data.emplace_back(vkutil::GPUModelInformation
 			{
+			.local_transform = m.transform,
 			.sphereBounds = BlackKey::Vec3Tovec4(m.bounds.origin, m.bounds.sphereRadius),
 			.texture_index = m.material->material_index,
 			.firstIndex = m.firstIndex / ((uint32_t)sizeof(uint32_t)),
 			.indexCount = m.indexCount,
-			.local_transform = m.transform,
+			.firstVertex = m.firstVertex,
+			.vertexCount = m.vertexCount,
+			.firstInstance = 0,
 			.vertexBuffer = m.vertexBufferAddress,
-			._pad = glm::vec3(0)
+			.pad = glm::vec4(0)
 			});
 	}
 	object_data_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(vkutil::GPUModelInformation),
-		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, scene_indirect_data.data());
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, scene_indirect_data.data());
 
 }
 
@@ -134,7 +170,7 @@ void SceneManager::PrepareIndirectBuffers()
 		indirectCommand.objectID = index;
 		indirectCommand.command.instanceCount = 0;
 		indirectCommand.command.firstIndex = r.firstIndex;
-		indirectCommand.command.vertexOffset = r.firstVertex;
+		indirectCommand.command.vertexOffset = 0;
 		indirectCommand.command.firstInstance = index;
 		index++;
 		object_commands.push_back(indirectCommand);
@@ -146,15 +182,10 @@ void SceneManager::PrepareIndirectBuffers()
 
 	clear_indirect_command_buffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
 	
-	forward_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	shadow_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	transparency_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	early_depth_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-
-	//forward_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
-	//shadow_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
-	//transparency_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
-	//early_depth_pass.drawIndirectBuffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+	forward_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	shadow_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	transparency_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	early_depth_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
 
 	VkBufferDeviceAddressInfoKHR address_info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR };
 	address_info.buffer = indirect_command_buffer.buffer;
@@ -268,7 +299,12 @@ void SceneManager::RegisterObjectBatch(DrawContext ctx)
 	std::copy(forward_pass.flat_objects.begin(), forward_pass.flat_objects.end(), std::back_inserter(renderables));
 	std::copy(transparency_pass.flat_objects.begin(), transparency_pass.flat_objects.end(), std::back_inserter(renderables));
 	early_depth_pass.flat_objects = renderables;
-	shadow_pass.flat_objects = renderables;
+	shadow_pass.flat_objects = forward_pass.flat_objects;
+}
+
+void SceneManager::RegisterMeshAssetReference(std::string_view mesh_reference)
+{
+	mesh_assets.push_back(std::string(mesh_reference));
 }
 void SceneManager::UpdateObjectDataBuffers()
 {

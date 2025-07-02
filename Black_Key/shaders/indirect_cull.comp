@@ -73,16 +73,19 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 };
 
 struct ObjectData{
+	mat4 model;
 	vec4 spherebounds;
 	uint texture_index;
     uint firstIndex;
     uint indexCount;
-    mat4 model;
+	uint firstVertex;
+	uint vertexCount;
+	uint firstInstance;
 	VertexBuffer vertexBuffer;
-	vec3 pad;
+	vec4 pad;
 }; 
 
-layout(std140,set = 0, binding = 1) readonly buffer ObjectBuffer{   
+layout(set = 0, binding = 1) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
 
