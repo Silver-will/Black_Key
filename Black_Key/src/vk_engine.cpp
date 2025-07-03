@@ -706,7 +706,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 		
 		vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
 			scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
-	};
+	}
 }
 
 
@@ -730,12 +730,12 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_buffer(6, scene_manager.GetObjectDataBuffer()->buffer,
-		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	//writer.write_buffer(6, scene_manager.GetObjectDataBuffer()->buffer,
+		//sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
 	
-	/*
+	
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
@@ -778,9 +778,9 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
-	*/
-
 	
+
+	/*
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
@@ -813,7 +813,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 			scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 	};
 	
-	
+	*/
 }
 
 
@@ -921,11 +921,14 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_buffer(7, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(8, ClusterValues.lightIndexListSSBO.buffer, totalLightCount * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(10, scene_manager.GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
+	
 	//allocate bindless descriptor
 
-	MaterialPipeline* lastPipeline = nullptr;
+	/*MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
@@ -979,6 +982,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 		stats.triangle_count += r.indexCount / 3;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 		};
+	
 
 	stats.drawcall_count = 0;
 	stats.triangle_count = 0;
@@ -990,7 +994,49 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	for (auto& r : drawCommands.TransparentSurfaces) {
 		draw(r);
 	}
+	*/
 
+
+	{
+		for (auto pass_enum : forward_passes)
+		{
+			auto pass = scene_manager.GetMeshPass(pass_enum);
+			if(pass->flat_objects.size() > 0)
+			{ 
+			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
+				&globalDescriptor, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
+
+
+			VkViewport viewport = {};
+			viewport.x = 0;
+			viewport.y = 0;
+			viewport.width = (float)_windowExtent.width;
+			viewport.height = (float)_windowExtent.height;
+			viewport.minDepth = 0.f;
+			viewport.maxDepth = 1.f;
+
+			vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+			VkRect2D scissor = {};
+			scissor.offset.x = 0;
+			scissor.offset.y = 0;
+			scissor.extent.width = _windowExtent.width;
+			scissor.extent.height = _windowExtent.height;
+			vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+			vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+			//calculate final mesh matrix
+			GPUDrawPushConstants push_constants;
+			push_constants.vertexBuffer = *scene_manager.GetMergedDeviceAddress();
+			vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+			vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+				pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+
+			}
+		}
+	}
 	// we delete the draw commands now that we processed them
 	drawCommands.OpaqueSurfaces.clear();
 	drawCommands.TransparentSurfaces.clear();
@@ -1463,6 +1509,7 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -1894,6 +1941,8 @@ void VulkanEngine::init_buffers()
 		});
 }
 void VulkanEngine::init_default_data() {
+	forward_passes.push_back(vkutil::MaterialPass::forward);
+	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//Create Shadow render target
