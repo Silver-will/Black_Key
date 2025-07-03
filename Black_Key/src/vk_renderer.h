@@ -3,11 +3,14 @@
 
 struct RenderObject {
     uint32_t indexCount;
+    uint32_t meshAssetIndexCount;
     uint32_t firstIndex;
     uint32_t vertexCount;
+    uint32_t meshAssetVertexCount;
     uint32_t firstVertex;
     VkBuffer indexBuffer;
     VkBuffer vertexBuffer;
+    GPUMeshBuffers* meshBuffer;
 
     MaterialInstance* material;
 
