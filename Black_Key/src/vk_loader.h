@@ -16,6 +16,7 @@ struct GLTFMaterial {
 struct GeoSurface {
     uint32_t startIndex;
     uint32_t count;
+    uint32_t vertex_count;
     Bounds bounds;
     std::shared_ptr<GLTFMaterial> material;
 };
@@ -126,6 +127,6 @@ struct GLTFMetallic_Roughness {
     void build_pipelines(VulkanEngine* engine);
     void clear_resources(VkDevice device);
 
-    MaterialInstance SetMaterialProperties(const MaterialPass pass, int mat_index = -1);
-    MaterialInstance WriteMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+    MaterialInstance SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index = -1);
+    MaterialInstance WriteMaterial(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };

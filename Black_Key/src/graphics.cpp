@@ -248,7 +248,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	VkDescriptorSet globalDescriptor = engine->get_current_frame()._frameDescriptors.allocate(engine->_device, irradianceSetLayout);
 
 	DescriptorWriter writer;
-	writer.write_image(0, engine->_skyImage.imageView, engine->_cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(0, engine->_skyImage.imageView, engine->cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(engine->_device, globalDescriptor);
 
 	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY,engine->_frames[0]._commandPool,engine);

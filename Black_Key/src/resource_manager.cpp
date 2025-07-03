@@ -54,9 +54,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
 {
     std::string rootPath(filePath.begin(), filePath.end());
     rootPath = rootPath.substr(0, rootPath.find_last_of('/') + 1);
+    auto name = filePath.substr(filePath.find_last_of('/') + 1, filePath.size() - (filePath.find_last_of('.') -1 ));
+   
 
     //> load_1
-    fmt::println("Loading GLTF: {}", filePath);
+    fmt::println("Loading GLTF: {}", std::string(name) + ".gltf");
 
     std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
     scene->creator = engine;
@@ -149,7 +151,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         else {
             // we failed to load, so lets give the slot a default white texture to not
             // completely break loading
-            images.push_back(engine->_errorCheckerboardImage);
+            images.push_back(engine->errorCheckerboardImage);
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
@@ -186,21 +188,21 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 
-        MaterialPass passType = MaterialPass::MainColor;
+        vkutil::MaterialPass passType = vkutil::MaterialPass::forward;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
-            passType = MaterialPass::Transparent;
+            passType = vkutil::MaterialPass::transparency;
         }
 
         GLTFMetallic_Roughness::MaterialResources materialResources;
         // default the material textures
         materialResources.colorImage = engine->_whiteImage;
-        materialResources.colorSampler = engine->_defaultSamplerLinear;
+        materialResources.colorSampler = engine->defaultSamplerLinear;
         materialResources.metalRoughImage = engine->_whiteImage;
-        materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
+        materialResources.metalRoughSampler = engine->defaultSamplerLinear;
         materialResources.normalImage = engine->_whiteImage;
-        materialResources.normalSampler = engine->_defaultSamplerLinear;
+        materialResources.normalSampler = engine->defaultSamplerLinear;
         materialResources.occlusionImage = engine->_whiteImage;
-        materialResources.occlusionSampler = engine->_defaultSamplerLinear;
+        materialResources.occlusionSampler = engine->defaultSamplerLinear;
 
 
         // set the uniform buffer for the material data
@@ -281,6 +283,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             GeoSurface newSurface;
             newSurface.startIndex = (uint32_t)indices.size();
             newSurface.count = (uint32_t)gltf.accessors[p.indicesAccessor.value()].count;
+
 
             size_t initial_vtx = vertices.size();
 
@@ -370,6 +373,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             newSurface.bounds.origin = (maxpos + minpos) / 2.f;
             newSurface.bounds.extents = (maxpos - minpos) / 2.f;
             newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+            newSurface.vertex_count = vertices.size() - initial_vtx; 
             newmesh->surfaces.push_back(newSurface);
         }
 
@@ -430,6 +434,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             node->refreshTransform(glm::mat4{ 1.f });
         }
     }
+    //loadedScenes[name] = scene;
     return scene;
 }
 
@@ -533,7 +538,7 @@ void ResourceManager::write_material_array()
         writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
         writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
         writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
-            writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
+        writer.write_image(2, engine->storageImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 
     bindless_set = bindless_material_descriptor.allocate(engine->_device, engine->bindless_descriptor_layout);
@@ -544,4 +549,28 @@ VkDescriptorSet* ResourceManager::GetBindlessSet()
 {
     VkDescriptorSet* desc = &bindless_set;
     return desc;
+}
+
+void ResourceManager::ReadBackBufferData(VkCommandBuffer cmd, AllocatedBuffer* buffer)
+{
+    if (readBackBufferInitialized == true)
+    {
+        engine->destroy_buffer(readableBuffer);
+    }
+
+    readableBuffer = engine->create_buffer(buffer->info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    readBackBufferInitialized = true;
+
+    VkBufferCopy dataCopy{ 0 };
+    dataCopy.dstOffset = 0;
+    dataCopy.srcOffset = 0;
+    dataCopy.size = buffer->info.size;
+
+    vkCmdCopyBuffer(cmd, buffer->buffer, readableBuffer.buffer, 1, &dataCopy);
+
+}
+
+AllocatedBuffer* ResourceManager::GetReadBackBuffer()
+{
+    return &readableBuffer;
 }
