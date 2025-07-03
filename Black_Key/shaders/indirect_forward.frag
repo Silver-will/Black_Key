@@ -8,13 +8,14 @@
 layout(early_fragment_tests) in;
 
 layout (location = 0) in vec3 inNormal;
-layout (location = 1) in vec3 inColor;
-layout (location = 2) in vec3 inFragPos;
-layout (location = 3) in vec3 inViewPos;
-layout (location = 4) in vec3 inPos;
-layout (location = 5) in vec2 inUV;
-layout (location = 6) in vec4 inTangent;
-layout (location = 7) in mat3 inTBN;
+layout (location = 1) flat in uint inMaterialIndex;
+layout (location = 2) in vec3 inColor;
+layout (location = 3) in vec3 inFragPos;
+layout (location = 4) in vec3 inViewPos;
+layout (location = 5) in vec3 inPos;
+layout (location = 6) in vec2 inUV;
+layout (location = 7) in vec4 inTangent;
+layout (location = 8) in mat3 inTBN;
 
 
 layout (location = 0) out vec4 outFragColor;
@@ -40,19 +41,18 @@ layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
-	uint material_index;
+	uint inMaterialIndex;
 } PushConstants;
 
 
 void main() 
 {
-	uint material_index = PushConstants.material_index;
     //vec4 colorVal = texture(colorTex, inUV).rgba;
-    vec4 colorVal = texture(material_textures[nonuniformEXT(material_index)],inUV).rgba;
+    vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     float ao = colorVal.a;
 
-    vec2 metallicRough  = texture(material_textures[nonuniformEXT(material_index+1)],inUV).gb;
+    vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
     //vec2 metallicRough  = texture(metalRoughTex, inUV).gb;
     
 	float roughness = metallicRough.x;
@@ -118,7 +118,7 @@ void main()
 		}
 	}
 
-    vec4 shadowCoord = (biasMat * sceneData.lightMatrices[layer]) * vec4(inFragPos, 1.0);	
+    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
     //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
@@ -167,7 +167,6 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
-	uint material_index = PushConstants.material_index;
 	// Precalculate vectors and dot products	
 	vec3 H = normalize (V + L);
 	float dotNH = clamp(dot(N, H), 0.0, 1.0);
@@ -188,7 +187,7 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metalli
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * pow(texture(material_textures[nonuniformEXT(material_index)],inUV).rgb,vec3(2.2)) / PI + spec) * dotNL;
+		color += (kD * pow(texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgb,vec3(2.2)) / PI + spec) * dotNL;
 		color *= C;
 	}
 
@@ -207,7 +206,6 @@ vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C)
 
 vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
-	uint material_index = PushConstants.material_index;
 	float distance = length(L);
 	L = normalize(L);
 	// Precalculate vectors and dot products	
@@ -230,7 +228,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * pow(texture(material_textures[nonuniformEXT(material_index)],inUV).rgb,vec3(2.2)) / PI + spec) * radiance * dotNL;
+		color += (kD * pow(texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgb,vec3(2.2)) / PI + spec) * radiance * dotNL;
 	}
 
 	return color;
@@ -238,8 +236,7 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 
 vec3 CalculateNormalFromMap()
 {
-	uint material_index = PushConstants.material_index;
-    vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(material_index+2)],inUV).rgb * 2.0 - vec3(1.0));
+    vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(inMaterialIndex+2)],inUV).rgb * 2.0 - vec3(1.0));
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;

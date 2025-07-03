@@ -564,7 +564,7 @@ void ResourceManager::ReadBackBufferData(VkCommandBuffer cmd, AllocatedBuffer* b
     VkBufferCopy dataCopy{ 0 };
     dataCopy.dstOffset = 0;
     dataCopy.srcOffset = 0;
-    dataCopy.size = buffer->info.size;
+    dataCopy.size = buffer->info.size -64;
 
     vkCmdCopyBuffer(cmd, buffer->buffer, readableBuffer.buffer, 1, &dataCopy);
 

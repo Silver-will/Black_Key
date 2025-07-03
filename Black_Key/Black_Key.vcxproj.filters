@@ -361,5 +361,11 @@
     <None Include="shaders\pbr_bindless.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\indirect_forward.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\indirect_forward.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -4,6 +4,7 @@
 #include "vk_util.h"
 #include "vk_loader.h"
 #include "engine_util.h"
+#include <string_view>
 
 class VulkanEngine;
 class ResourceManager;
@@ -299,6 +300,7 @@ struct SceneManager {
 	void RefreshPass(MeshPass* pass);
 	void PrepareIndirectBuffers();
 	void RegisterObjectBatch(DrawContext ctx);
+	void RegisterMeshAssetReference(std::string_view mesh_reference);
 	void UpdateObjectDataBuffers();
 	size_t GetModelCount();
 	MeshPass* GetMeshPass(vkutil::MaterialPass passType);
@@ -307,6 +309,7 @@ struct SceneManager {
 	AllocatedBuffer* GetIndirectCommandBuffer();
 	AllocatedBuffer* GetMergedVertexBuffer();
 	AllocatedBuffer* GetMergedIndexBuffer();
+	VkDeviceAddress* GetMergedDeviceAddress();
 
 private:
 	MeshPass early_depth_pass;
@@ -326,11 +329,12 @@ private:
 	AllocatedBuffer address_buffer;
 	AllocatedBuffer clear_indirect_command_buffer;
 	AllocatedBuffer indirect_command_buffer;
-
+	std::vector<std::string> mesh_assets;
 
 	VulkanEngine* engine;
 	ResourceManager* resource_manager;
-
+	VkDeviceAddress mergedVertexAddress;
+	
 	std::vector<RenderObject> renderables;
 	std::vector<GPUIndirectObject> object_commands;
 };

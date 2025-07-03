@@ -22,12 +22,12 @@
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
     VkShaderModule meshFragShader;
-    if (!vkutil::load_shader_module("shaders/pbr_bindless.frag.spv", engine->_device, &meshFragShader)) {
+    if (!vkutil::load_shader_module("shaders/indirect_forward.frag.spv", engine->_device, &meshFragShader)) {
         fmt::println("Error when building the triangle fragment shader module");
     }
 
     VkShaderModule meshVertexShader;
-    if (!vkutil::load_shader_module("shaders/pbr_bindless.vert.spv", engine->_device, &meshVertexShader)) {
+    if (!vkutil::load_shader_module("shaders/indirect_forward.vert.spv", engine->_device, &meshVertexShader)) {
         fmt::println("Error when building the triangle vertex shader module");
     }
 
@@ -224,6 +224,7 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
         def.transform = nodeMatrix;
         def.vertexBuffer = mesh->meshBuffers.vertexBuffer.buffer;
         def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+        def.meshBuffer = &mesh->meshBuffers;
 
         if (s.material->data.passType == vkutil::MaterialPass::transparency) {
             ctx.TransparentSurfaces.push_back(def);

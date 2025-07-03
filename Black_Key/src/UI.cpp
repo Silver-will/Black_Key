@@ -113,6 +113,7 @@ void RenderUI(VulkanEngine* engine)
         ImGui::Checkbox("Visualize shadow cascades", &engine->debugShadowMap);
         ImGui::Checkbox("Read buffer", &engine->readDebugBuffer);
         ImGui::Checkbox("Display buffer", &engine->debugBuffer);
+        ImGui::Checkbox("Visualize depth texure", &engine->debugDepthTexture);
         
         std::string breh;
         if (engine->debugBuffer)
@@ -126,7 +127,7 @@ void RenderUI(VulkanEngine* engine)
             memcpy(buffer_values.data(), buffer_ptr, buffer->info.size);
             vmaUnmapMemory(engine->_allocator, buffer->allocation);
             
-
+            
             for (size_t i = 0; i < buffer_values.size(); i++)
             {
                 auto string = std::to_string((double)buffer_values[i]);

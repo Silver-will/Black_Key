@@ -1,4 +1,4 @@
-#version 450
+#version 460 core
 
 layout (location = 0) out vec2 outUV;
 
