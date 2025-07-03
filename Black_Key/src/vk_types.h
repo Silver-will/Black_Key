@@ -209,16 +209,17 @@ struct GPUSceneData {
     glm::mat4 viewproj;
     glm::mat4 skyMat;
     glm::vec4 cameraPos;
-    glm::vec4 ambientColor;
     glm::vec4 sunlightDirection; // w for sun power
     glm::vec4 sunlightColor;
     glm::vec3 ConfigData; //x for nearPlane, y for farPlane
     uint32_t lightCount;
     glm::vec4 distances;
-    glm::mat4 lightSpaceMatrices[8];
-    float cascadePlaneDistances[8];
   };
 
+struct shadowData {
+    glm::mat4 lightSpaceMatrices[4];
+   // glm::vec4 distances;
+};
 
 struct GPUDrawBindlessPushConstants {
     glm::mat4 worldMatrix;

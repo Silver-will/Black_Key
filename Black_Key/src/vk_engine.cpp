@@ -712,30 +712,31 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 {
-	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		destroy_buffer(gpuSceneDataBuffer);
+		destroy_buffer(shadowDataBuffer);
 		});
 
 	//write the buffer
 	void* sceneDataPtr = nullptr;
-	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
-	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
-	*sceneUniformData = scene_data;
-	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
+	vmaMapMemory(_allocator, shadowDataBuffer.allocation, &sceneDataPtr);
+	shadowData* ptr = (shadowData*)sceneDataPtr;
+	*ptr = shadow_data;
+	//memcpy(sceneDataPtr, &shadow_data.lightSpaceMatrices, sizeof(shadowData));
+	vmaUnmapMemory(_allocator, shadowDataBuffer.allocation);
 
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, gpu_scene_data_descriptor_layout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, cascaded_shadows_descriptor_layout);
 
 	DescriptorWriter writer;
-	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	//writer.write_buffer(6, scene_manager.GetObjectDataBuffer()->buffer,
-		//sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(0, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, scene_manager.GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
 	
-	
+	/*
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
@@ -778,9 +779,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
-	
-
-	/*
+	*/
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
@@ -789,8 +788,8 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)_windowExtent.width;
-		viewport.height = (float)_windowExtent.height;
+		viewport.width = (float)_shadowDepthImage.imageExtent.width;
+		viewport.height = (float)_shadowDepthImage.imageExtent.height;
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 
@@ -799,8 +798,8 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		VkRect2D scissor = {};
 		scissor.offset.x = 0;
 		scissor.offset.y = 0;
-		scissor.extent.width = _windowExtent.width;
-		scissor.extent.height = _windowExtent.height;
+		scissor.extent.width = _shadowDepthImage.imageExtent.width;
+		scissor.extent.height = _shadowDepthImage.imageExtent.height;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -813,7 +812,6 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 			scene_manager.GetMeshPass(vkutil::MaterialPass::shadow_pass)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 	};
 	
-	*/
 }
 
 
@@ -894,12 +892,24 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	ZoneScoped;
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	
+	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
 		destroy_buffer(gpuSceneDataBuffer);
+		destroy_buffer(shadowDataBuffer);
 		});
 
+
+	//write the buffer
+	void* shadowDataPtr = nullptr;
+	vmaMapMemory(_allocator, shadowDataBuffer.allocation, &shadowDataPtr);
+	shadowData* ptr = (shadowData*)shadowDataPtr;
+	*ptr = shadow_data;
+	//memcpy(sceneDataPtr, &shadow_data.lightSpaceMatrices, sizeof(shadowData));
+	vmaUnmapMemory(_allocator, shadowDataBuffer.allocation);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
 	void* sceneDataPtr = nullptr;
 	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
@@ -923,6 +933,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(10, scene_manager.GetObjectDataBuffer()->buffer,
 		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData),0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(_device, globalDescriptor);
 
 	
@@ -1510,14 +1521,17 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_shadowSceneDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		cascaded_shadows_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT |VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1571,7 +1585,7 @@ void VulkanEngine::init_descriptors()
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, gpu_scene_data_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _shadowSceneDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, cascaded_shadows_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
@@ -2380,7 +2394,6 @@ void VulkanEngine::update_scene()
 	scene_data.skyMat = scene_data.proj * glm::mat4(glm::mat3(scene_data.view));
 
 	//some default lighting parameters
-	scene_data.ambientColor = glm::vec4(.1f);
 	scene_data.sunlightColor = directLight.color;
 	scene_data.sunlightDirection = directLight.direction;
 	scene_data.lightCount = pointData.pointLights.size();
@@ -2403,12 +2416,13 @@ void VulkanEngine::update_scene()
 	cascadeData = shadows.getCascades(this);
 	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
 	{
-		memcpy(&scene_data.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
-		memcpy(&scene_data.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
+		memcpy(&shadow_data.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
 		scene_data.distances.x = cascadeData.cascadeDistances[0];
 		scene_data.distances.y = cascadeData.cascadeDistances[1];
 		scene_data.distances.z = cascadeData.cascadeDistances[2];
 		scene_data.distances.w = cascadeData.cascadeDistances[3];
+		
+		//shadow_data.distances = scene_data.distances;
 		directLight.lastDirection = directLight.direction;
 		render_shadowMap = true;
 		mainCamera.updated = false;
