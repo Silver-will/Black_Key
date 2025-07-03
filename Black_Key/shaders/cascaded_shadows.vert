@@ -27,8 +27,12 @@ struct ObjectData{
 	VertexBuffer vertexBuffer;
 	vec4 pad;
 }; 
+layout(set = 0, binding = 0) uniform  ShadowData{   
+	mat4 shadowMatrices[4];
+} shadowData;
 
-layout(set = 0, binding = 6) readonly buffer ObjectBuffer{   
+
+layout(set = 0, binding = 1) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
 
@@ -45,7 +49,7 @@ invariant gl_Position;
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-	//ObjectData obj = objectBuffer.objects[0];
+	ObjectData obj = objectBuffer.objects[0];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = PushConstants.render_matrix * position;
+	gl_Position = obj.model * position;
 }

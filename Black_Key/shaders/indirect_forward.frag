@@ -118,7 +118,7 @@ void main()
 		}
 	}
 
-    vec4 shadowCoord = (biasMat * sceneData.lightMatrices[layer]) * vec4(inFragPos, 1.0);	
+    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
     //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);

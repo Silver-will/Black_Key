@@ -154,6 +154,7 @@ public:
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData scene_data;
+	shadowData shadow_data;
 	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
@@ -163,6 +164,7 @@ public:
 	VkDescriptorSetLayout bindless_descriptor_layout;
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
 	VkDescriptorSetLayout depth_reduce_descriptor_layout;
+	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
