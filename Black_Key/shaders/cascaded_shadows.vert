@@ -40,10 +40,12 @@ layout( push_constant ) uniform constants
 	uint material_index;
 } PushConstants;
 
+invariant gl_Position;
+
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-	ObjectData obj = objectBuffer.objects[gl_BaseInstance];
+	//ObjectData obj = objectBuffer.objects[0];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = obj.model * position;
+	gl_Position = PushConstants.render_matrix * position;
 }

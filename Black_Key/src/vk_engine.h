@@ -79,6 +79,7 @@ public:
 	VkDescriptorSet bindless_descriptor;
 
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
+	std::vector<vkutil::MaterialPass> forward_passes;
 
 	bool resize_requested = false;
 	bool _isInitialized{ false };
