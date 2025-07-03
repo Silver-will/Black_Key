@@ -203,7 +203,7 @@ void main()
 	{
 		uint objectID = gID;
 		//Reset instance value
-		drawBuffer.Draws[objectID].instanceCount = 1;
+		drawBuffer.Draws[objectID].instanceCount = 0;
 		bool visible = false;
 		
 		if(cullData.AABBcheck == 0)
