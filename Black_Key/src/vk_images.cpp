@@ -144,7 +144,7 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ima
     transition_image(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VulkanEngine* engine, VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples)
+AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VulkanEngine* engine, VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples, int mipLevels)
 {
     AllocatedImage newImage;
     newImage.imageFormat = format;
@@ -152,7 +152,7 @@ AllocatedImage vkutil::create_image_empty(VkExtent3D size, VkFormat format, VkIm
 
     VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size, layers, msaaSamples);
     if (mipmapped) {
-        img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+        img_info.mipLevels = mipLevels != -1 ? mipLevels : static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
     }
 
     // always allocate images on dedicated GPU memory

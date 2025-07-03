@@ -225,9 +225,10 @@
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\Renderers\base_renderer.cpp" />
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp" />
+    <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp" />
     <ClCompile Include="src\resource_manager.cpp" />
     <ClCompile Include="src\stb_definition.cpp" />
-    <ClCompile Include="src\vk_material_system.cpp" />
+    <ClCompile Include="src\material_system.cpp" />
     <ClCompile Include="src\UI.cpp" />
     <ClCompile Include="src\vk_device.cpp" />
     <ClCompile Include="src\engine_psos.cpp" />
@@ -245,7 +246,8 @@
     <ClCompile Include="src\vk_loader.cpp" />
     <ClCompile Include="src\vk_pipelines.cpp" />
     <ClCompile Include="src\vk_renderer.cpp" />
-    <ClCompile Include="src\vk_scene.cpp" />
+    <ClCompile Include="src\scene_manager.cpp" />
+    <ClCompile Include="src\vk_shaders.cpp" />
     <ClCompile Include="src\vma_definition.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -262,8 +264,9 @@
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\Renderers\base_renderer.h" />
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h" />
+    <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h" />
     <ClInclude Include="src\resource_manager.h" />
-    <ClInclude Include="src\vk_material_system.h" />
+    <ClInclude Include="src\material_system.h" />
     <ClInclude Include="src\UI.h" />
     <ClInclude Include="src\vk_device.h" />
     <ClInclude Include="src\engine_psos.h" />
@@ -280,7 +283,8 @@
     <ClInclude Include="src\vk_loader.h" />
     <ClInclude Include="src\vk_pipelines.h" />
     <ClInclude Include="src\vk_renderer.h" />
-    <ClInclude Include="src\vk_scene.h" />
+    <ClInclude Include="src\scene_manager.h" />
+    <ClInclude Include="src\vk_shaders.h" />
     <ClInclude Include="src\vk_types.h" />
     <ClInclude Include="src\vk_util.h" />
   </ItemGroup>
@@ -294,7 +298,7 @@
     <None Include="shaders\cluster_info.glsl" />
     <None Include="shaders\cluster_shader.comp" />
     <None Include="shaders\cluster_cull_light_shader.comp" />
-    <None Include="shaders\depthReduce.comp" />
+    <None Include="shaders\depth_reduce.comp" />
     <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\filter_cube.vert" />
     <None Include="shaders\FXAA.glsl" />

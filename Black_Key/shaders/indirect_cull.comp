@@ -3,12 +3,6 @@
 
 layout (local_size_x = 256) in;
 
-layout(set = 0, binding = 5) uniform  CameraBuffer{   
-    mat4 view;
-    mat4 proj;
-	mat4 viewproj;
-} cameraData;
-
 struct DrawCullData
 {
 	mat4 view;
@@ -30,58 +24,81 @@ struct DrawCullData
 	float aabbmax_x;
 	float aabbmax_y;
 	float aabbmax_z;
+};
 
+
+struct DrawCommand
+{
+	uint    indexCount;
+    uint    instanceCount;
+    uint    firstIndex;
+    int     vertexOffset;
+    uint    firstInstance;
+	uint	objectID;
+	uint	batchID;
 };
 
 layout(push_constant) uniform  constants{   
    DrawCullData cullData;
 };
 
-layout(set = 0,binding = 4) uniform sampler2D depthPyramid;
-struct ObjectData{
-	mat4 model;
-	vec4 spherebounds;
-	vec4 extents;
-}; 
-//all object matrices
-layout(std140,set = 0, binding = 0) readonly buffer ObjectBuffer{   
+layout(set = 0, binding = 0) uniform  SceneData{   
+	mat4 view;
+	mat4 proj;
+	mat4 viewproj;
+	mat4 skyMat;
+	vec4 cameraPos;
+	vec4 ambientColor;
+	vec4 sunlightDirection; //w for sun power
+	vec4 sunlightColor;
+	vec3 cascadeConfigData;
+	uint lightCount;
+	vec4 distances;
+	mat4 lightMatrices[8];
+	float cascadeDistances[8];
+} sceneData;
 
+struct Vertex {
+	vec3 position;
+	float uv_x;
+	vec3 normal;
+	float uv_y;
+	vec4 color;
+	vec4 tangent;
+}; 
+
+layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
+	Vertex vertices[];
+};
+
+struct ObjectData{
+	vec4 spherebounds;
+	uint texture_index;
+    uint firstIndex;
+    uint indexCount;
+    mat4 model;
+	VertexBuffer vertexBuffer;
+	vec3 pad;
+}; 
+
+layout(std140,set = 0, binding = 1) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
 
-struct DrawCommand
-{
-	
-	uint    indexCount;
-    uint    instanceCount;
-    uint    firstIndex;
-    int     vertexOffset;
-    uint    firstInstance;
-	uint objectID;
-	uint batchID;
-};
 //draw indirect buffer
-layout(set = 0, binding = 1)  buffer InstanceBuffer{   
-
+layout(set = 0, binding = 2)  buffer InstanceBuffer{   
 	DrawCommand Draws[];
 } drawBuffer;
+
+layout(set = 0,binding = 3) uniform sampler2D depthPyramid;
+//all object matrices
+
+
 
 struct GPUInstance {
 	uint objectID;
 	uint batchID;
 };
-//draw indirect buffer
-layout(set = 0, binding = 2) readonly buffer InstanceBuffer2{   
-
-	GPUInstance Instances[];
-} compactInstanceBuffer;
-
-//draw indirect buffer
-layout(set = 0, binding = 3)  buffer InstanceBuffer3{   
-
-	uint IDs[];
-} finalInstanceBuffer;
-
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
 bool projectSphere(vec3 C, float r, float znear, float P00, float P11, out vec4 aabb)
@@ -180,24 +197,29 @@ void main()
 	uint gID = gl_GlobalInvocationID.x;
 	if(gID < cullData.drawCount)
 	{
-		uint objectID = compactInstanceBuffer.Instances[gID].objectID;
+		uint objectID = gID;
+		//Reset instance value
+		drawBuffer.Draws[objectID].instanceCount = 0;
 		bool visible = false;
+		
 		if(cullData.AABBcheck == 0)
 		{
-			visible = IsVisible(objectID);
+			visible = IsVisible(gID);
 		}
 		else{
-			visible = IsVisibleAABB(objectID);
+			visible = IsVisibleAABB(gID);
 		}
 		
 		if(visible)
 		{
-			uint batchIndex = compactInstanceBuffer.Instances[gID].batchID;
-			uint countIndex = atomicAdd(drawBuffer.Draws[batchIndex].instanceCount,1);
+			//uint batchIndex = compactInstanceBuffer.Instances[gID].batchID;
+			//uint countIndex = atomicAdd(drawBuffer.Draws[batchIndex].instanceCount,1);
 
-			uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
+			//uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
 
-			finalInstanceBuffer.IDs[instanceIndex] = objectID;
+			//finalInstanceBuffer.IDs[instanceIndex] = objectID;
+
+			drawBuffer.Draws[objectID].instanceCount = 1;
 		}
 	}
 }

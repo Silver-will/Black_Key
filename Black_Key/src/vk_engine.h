@@ -13,6 +13,7 @@
 #include "shadows.h"
 #include "Lights.h"
 #include <chrono>
+#include "scene_manager.h"
 #include "resource_manager.h"
 #include <ktxvulkan.h>
 
@@ -51,6 +52,7 @@ public:
 
 	Camera mainCamera;
 	ResourceManager resource_manager;
+	SceneManager scene_manager;
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
 	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
@@ -93,26 +95,29 @@ public:
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
+	bool debugBuffer = false;
+	bool readDebugBuffer = false;
+
 	GLFWwindow* window{ nullptr };
 
 	static VulkanEngine& Get();
 
 	FrameData _frames[FRAME_OVERLAP];
-	std::vector<glm::mat4> lightMatrices;
-	std::vector<float>cascades;
-
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
+	Cascade cascadeData;
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
 	DeletionQueue _mainDeletionQueue;
 	VmaAllocator _allocator;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+	AllocatedImage _depthResolveImage;
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
+	AllocatedImage _depthPyramid;
 
 	struct {
 		AllocatedImage _lutBRDF;
@@ -141,41 +146,51 @@ public:
 	VkPipeline _meshPipeline;
 	VkPipeline _cullLightsPipeline;
 	VkPipelineLayout _cullLightsPipelineLayout;
+	PipelineStateObject cull_objects_pso;
+	PipelineStateObject depth_reduce_pso;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
-	GPUSceneData sceneData;
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	GPUSceneData scene_data;
+	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
 	VkDescriptorSetLayout bindless_descriptor_layout;
-
+	VkDescriptorSetLayout compute_cull_descriptor_layout;
+	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
-	AllocatedImage storage_image;
-	AllocatedImage _errorCheckerboardImage;
+	AllocatedImage storageImage;
+	AllocatedImage errorCheckerboardImage;
+	VkImageView depthPyramidMips[16];
 
 	AllocatedImage _skyImage;
 	ktxVulkanTexture _skyBoxImage;
 
-	VkSampler _defaultSamplerLinear;
-	VkSampler _defaultSamplerNearest;
-	VkSampler _cubeMapSampler;
-	VkSampler _depthSampler;
+	VkSampler defaultSamplerLinear;
+	VkSampler defaultSamplerNearest;
+	VkSampler cubeMapSampler;
+	VkSampler depthSampler;
+	VkSampler depthReductionSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;
 	ShadowCascades shadows;
 
+	uint32_t depthPyramidWidth;
+	uint32_t depthPyramidHeight;
+	uint32_t depthPyramidLevels;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
+
+	std::vector<VkBufferMemoryBarrier> cullBarriers;
 
 	//Clustered culling  values
 	struct {
@@ -226,8 +241,11 @@ public:
 	void destroy_image(const AllocatedImage& img);
 
 private:
+	void ready_cull_data(VkCommandBuffer cmd);
+	void ready_mesh_draw(VkCommandBuffer cmd);
 	void load_assets();
-	void write_bindless_materials();
+	void execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
+	void reduce_depth(VkCommandBuffer cmd);
 	void pre_process_pass();
 	void cull_lights(VkCommandBuffer cmd);
 	void draw_shadows(VkCommandBuffer cmd);

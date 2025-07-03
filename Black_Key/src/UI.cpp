@@ -111,6 +111,33 @@ void RenderUI(VulkanEngine* engine)
     if (ImGui::CollapsingHeader("Debugging"))
     {
         ImGui::Checkbox("Visualize shadow cascades", &engine->debugShadowMap);
+        ImGui::Checkbox("Read buffer", &engine->readDebugBuffer);
+        ImGui::Checkbox("Display buffer", &engine->debugBuffer);
+        
+        std::string breh;
+        if (engine->debugBuffer)
+        {
+            auto buffer = engine->resource_manager.GetReadBackBuffer();
+            void* data_ptr = nullptr;
+            std::vector<uint32_t> buffer_values;
+            buffer_values.resize(buffer->info.size);
+            vmaMapMemory(engine->_allocator, buffer->allocation, &data_ptr);
+            uint32_t* buffer_ptr = (uint32_t*)data_ptr;
+            memcpy(buffer_values.data(), buffer_ptr, buffer->info.size);
+            vmaUnmapMemory(engine->_allocator, buffer->allocation);
+            
+
+            for (size_t i = 0; i < buffer_values.size(); i++)
+            {
+                auto string = std::to_string((double)buffer_values[i]);
+                breh += string + " ";
+
+                if (i % 10 == 0)
+                    breh += "\n";
+            }
+            
+        }
+        ImGui::Text(breh.c_str());
     }
 
     if (ImGui::CollapsingHeader("Engine Stats"))

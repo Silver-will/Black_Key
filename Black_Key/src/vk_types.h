@@ -28,11 +28,59 @@
 #include <glm/vec4.hpp>
 #include <glm/gtx/transform.hpp>
 
-enum class MaterialPass :uint8_t {
-    MainColor,
-    Transparent,
-    Other
-};
+namespace vkutil{
+    enum class MaterialPass{
+        transparency,
+        forward,
+        early_depth,
+        shadow_pass
+    };
+
+    struct cullParams {
+        glm::mat4 viewmat;
+        glm::mat4 projmat;
+        bool occlusionCull;
+        bool frustrumCull;
+        float drawDist;
+        bool aabb;
+        glm::vec3 aabbmin;
+        glm::vec3 aabbmax;
+    };
+
+    struct GPUModelInformation {
+        glm::vec4 sphereBounds;
+        uint32_t  texture_index = 0;
+        uint32_t  firstIndex = 0;
+        uint32_t  indexCount = 0;
+        glm::mat4 local_transform;
+        VkDeviceAddress vertexBuffer;
+        glm::vec3  _pad;
+    };
+
+    struct /*alignas(16)*/DrawCullData
+    {
+        glm::mat4 viewMat;
+        float P00, P11, znear, zfar; // symmetric projection parameters
+        float frustum[4]; // data for left/right/top/bottom frustum planes
+        float lodBase, lodStep; // lod distance i = base * pow(step, i)
+        float pyramidWidth, pyramidHeight; // depth pyramid size in texels
+
+        uint32_t drawCount;
+
+        int cullingEnabled;
+        int lodEnabled;
+        int occlusionEnabled;
+        int distanceCheck;
+        int AABBcheck;
+        float aabbmin_x;
+        float aabbmin_y;
+        float aabbmin_z;
+        float aabbmax_x;
+        float aabbmax_y;
+        float aabbmax_z;
+    };
+}
+
 template<typename T>
 struct Handle {
     uint32_t handle;
@@ -49,10 +97,12 @@ struct MaterialPipeline {
     VkPipelineLayout layout;
 };
 
+using PipelineStateObject = MaterialPipeline;
+
 struct MaterialInstance {
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
-    MaterialPass passType;
+    vkutil::MaterialPass passType;
     uint32_t material_index;
 };
 
@@ -115,7 +165,7 @@ struct Vertex {
     float uv_x;
     glm::vec3 normal;
     float uv_y;
-    glm::vec4 color;
+    glm::vec4 color; //rgb as color values a stores the indirect buffer index
     glm::vec4 tangents;
 };
 
@@ -138,6 +188,12 @@ struct GPUMeshBuffers {
     AllocatedBuffer indexBuffer;
     AllocatedBuffer vertexBuffer;
     VkDeviceAddress vertexBufferAddress;
+};
+
+struct GPUObjectData {
+    glm::mat4 model;
+    glm::vec4 origin;
+    glm::vec4 extents;
 };
 
 struct GPUSceneData {
@@ -175,14 +231,6 @@ struct HDRDrawPushConstants {
     VkDeviceAddress vertexBuffer;
     glm::vec4 TexCoordScale;
 };
-
-struct GPUObjectData {
-    glm::mat4 modelMatrix;
-    glm::vec4 origin_rad; // bounds
-    glm::vec4 extents;  // bounds
-};
-
-
 
 struct MeshObject {
     GPUMeshBuffers* mesh{ nullptr };

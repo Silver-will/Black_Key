@@ -76,7 +76,7 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::vec3 lightDir = glm::normalize(engine->sceneData.sunlightDirection);
+		glm::vec3 lightDir = glm::normalize(engine->scene_data.sunlightDirection);
 		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
@@ -84,6 +84,8 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		// Store split distance and matrix in cascade
 		cascades.cascadeDistances[i] = (engine->mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
 		cascades.lightSpaceMatrix[i] = lightOrthoMatrix * lightViewMatrix;
+		cascades.lightViewMatrices.push_back(lightViewMatrix);
+		cascades.lightProjMatrices.push_back(lightOrthoMatrix);
 
 		lastSplitDist = cascadeSplits[i];
 	}

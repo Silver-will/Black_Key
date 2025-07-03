@@ -9,6 +9,8 @@ namespace vkinit {
 //> init_cmd
 VkCommandPoolCreateInfo command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
 VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool pool, uint32_t count = 1);
+VkBufferMemoryBarrier buffer_barrier(VkBuffer buffer, uint32_t queue);
+VkImageMemoryBarrier image_barrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
 //< init_cmd
 
 VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags flags = 0);
@@ -22,7 +24,7 @@ VkSubmitInfo2 submit_info(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo*
     VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 VkPresentInfoKHR present_info();
 
-VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout);
+VkRenderingAttachmentInfo attachment_info(VkImageView view, VkImageView* resolve, VkClearValue* clear, VkImageLayout layout, bool clear_on_load = false);
 
 VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout, VkAttachmentLoadOp loadMode = VK_ATTACHMENT_LOAD_OP_CLEAR, VkAttachmentStoreOp storeMode = VK_ATTACHMENT_STORE_OP_STORE);
 

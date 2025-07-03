@@ -47,9 +47,9 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     std::vector<VkDescriptorSetLayout> layouts;
     if(engine->use_bindless)
-     layouts = { engine->_gpuSceneDataDescriptorLayout, engine->bindless_descriptor_layout };
+     layouts = { engine->gpu_scene_data_descriptor_layout, engine->bindless_descriptor_layout };
     else
-    layouts = { engine->_gpuSceneDataDescriptorLayout, materialLayout };
+    layouts = { engine->gpu_scene_data_descriptor_layout, materialLayout };
     
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
     mesh_layout_info.setLayoutCount = 2;
@@ -95,11 +95,11 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const MaterialPass pass, int mat_index)
+MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
+    if (pass == vkutil::MaterialPass::transparency) {
         matData.pipeline = &transparentPipeline;
     }
     else {
@@ -111,11 +111,11 @@ MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const MaterialPas
     return matData;
 }
 
-MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
     matData.passType = pass;
-    if (pass == MaterialPass::Transparent) {
+    if (pass == vkutil::MaterialPass::transparency) {
         matData.pipeline = &transparentPipeline;
     }
     else {
@@ -189,7 +189,7 @@ void LoadedGLTF::clearAll()
 
     for (auto& [k, v] : images) {
 
-        if (v.image == creator->_errorCheckerboardImage.image) {
+        if (v.image == creator->errorCheckerboardImage.image) {
             // dont destroy the default images
             continue;
         }
@@ -220,10 +220,12 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
         def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
         def.material = &s.material->data;
         def.bounds = s.bounds;
+        def.vertexCount = s.vertex_count;
         def.transform = nodeMatrix;
+        def.vertexBuffer = mesh->meshBuffers.vertexBuffer.buffer;
         def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
 
-        if (s.material->data.passType == MaterialPass::Transparent) {
+        if (s.material->data.passType == vkutil::MaterialPass::transparency) {
             ctx.TransparentSurfaces.push_back(def);
         }
         else {

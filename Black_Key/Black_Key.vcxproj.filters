@@ -81,7 +81,7 @@
     <ClCompile Include="src\UI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_material_system.cpp">
+    <ClCompile Include="src\material_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp">
@@ -108,7 +108,7 @@
     <ClCompile Include="src\vk_loader.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_scene.cpp">
+    <ClCompile Include="src\scene_manager.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
     <ClCompile Include="src\vk_pipelines.cpp">
@@ -131,6 +131,12 @@
     </ClCompile>
     <ClCompile Include="src\stb_definition.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_shaders.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -191,13 +197,13 @@
     <ClInclude Include="src\UI.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_scene.h">
+    <ClInclude Include="src\scene_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\vk_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_material_system.h">
+    <ClInclude Include="src\material_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h">
@@ -234,6 +240,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\resource_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_shaders.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -322,7 +334,7 @@
     <None Include="shaders\sparse_upload.comp">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\depthReduce.comp">
+    <None Include="shaders\depth_reduce.comp">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\cluster_shader.comp">
