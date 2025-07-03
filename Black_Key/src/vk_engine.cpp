@@ -333,8 +333,8 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	execute_compute_cull(cmd, earlyDepthCull, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth));
 
 	vkutil::cullParams shadowCull;
-	shadowCull.viewmat = cascadeData.lightViewMatrices[3];
-	shadowCull.projmat = cascadeData.lightProjMatrices[3];
+	shadowCull.viewmat = cascadeData.lightViewMatrices[1];
+	shadowCull.projmat = cascadeData.lightProjMatrices[1];
 	shadowCull.frustrumCull = true;
 	shadowCull.occlusionCull = false;
 	shadowCull.aabb = true;
