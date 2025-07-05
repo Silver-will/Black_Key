@@ -79,8 +79,19 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		glm::vec3 lightDir = glm::normalize(engine->scene_data.sunlightDirection);
 		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
-
 		lightOrthoMatrix[1][1] *= -1;
+
+		//Quick rounding code 
+		auto lightSpaceMatrix = lightOrthoMatrix * lightViewMatrix;
+		auto shadowOrigin = lightSpaceMatrix * glm::vec4(0, 0, 0, 1.0f);
+		shadowOrigin *= (float)shadowMapTextureSize/2.0f;
+		auto roundedOrigin = BlackKey::roundVec4(shadowOrigin);
+		auto roundedOffset = roundedOrigin - shadowOrigin;
+		roundedOffset *= 2.0f/(float)shadowMapTextureSize;
+		roundedOffset = glm::vec4(roundedOffset.r, roundedOffset.g, 0.0f, 0.0f);
+		lightOrthoMatrix[3][0] += roundedOffset.r;
+		lightOrthoMatrix[3][1] += roundedOffset.g;
+
 		// Store split distance and matrix in cascade
 		cascades.cascadeDistances[i] = (engine->mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
 		cascades.lightSpaceMatrix[i] = lightOrthoMatrix * lightViewMatrix;
@@ -90,4 +101,9 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		lastSplitDist = cascadeSplits[i];
 	}
 	return cascades;
+}
+
+void ShadowCascades::SetShadowMapTextureSize(uint32_t size)
+{
+	this->shadowMapTextureSize = size;
 }

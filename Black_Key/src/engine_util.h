@@ -3,6 +3,7 @@
 #include "vk_types.h"
 namespace BlackKey{
 	glm::vec4 Vec3Tovec4(glm::vec3 v, float fill = FLT_MAX);
+	glm::vec4 roundVec4(glm::vec4 v);
 	glm::vec4 NormalizePlane(glm::vec4 p);
     uint32_t PreviousPow2(uint32_t v);
     uint32_t GetImageMipLevels(uint32_t width, uint32_t height);

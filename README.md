@@ -16,7 +16,7 @@ All the following scenes are rendered in engine:
 * Physically based rendering using a cook-torrence brdf
 * Image based lighting
 * Cascaded shadow maps + PCF filtering
-* GLTF loading suppport via Fastgltf
+* GLTF loading support via Fastgltf
 * Early depth testing via Z-prepass
 * HDR + options for Filmic/Uncharted/unreal tonemappers
 * CPU side Frustum culling
@@ -32,10 +32,10 @@ All the following scenes are rendered in engine:
 * Bindless resources via descriptor indexing
 
 ##  Roadmap
-* [ ] Clustered forward shading
-* [ ] GPU driven rendering
-* [ ] Move Frustum culling to a compute shader
-* [ ] occlusion culling
+* [-] Clustered forward shading
+* [x] GPU driven rendering
+* [x] Move Frustum culling to a compute shader
+* [x] occlusion culling
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
 * [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Deep G-buffers/Radiance Cascades/DDGI)

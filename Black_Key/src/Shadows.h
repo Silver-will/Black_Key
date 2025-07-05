@@ -16,11 +16,13 @@ struct ShadowCascades
 {
 
     Cascade getCascades(VulkanEngine* engine);
+    void SetShadowMapTextureSize(uint32_t size);
     int getCascadeLevels() {
         return cascadeCount;
     };
 private:
     float cascadeSplitLambda = 0.95f;
     int cascadeCount = 4;
+    uint32_t shadowMapTextureSize;
 
 };
