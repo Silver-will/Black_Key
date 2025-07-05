@@ -37,3 +37,16 @@ uint32_t BlackKey::GetImageMipLevels(uint32_t width, uint32_t height)
 
     return result;
 }
+
+glm::vec4 BlackKey::roundVec4(glm::vec4 v)
+{
+    for (size_t i = 0; i < 4; i++)
+    {
+        auto val = v[i];
+        auto lower_bound = floorf(val);
+        auto decimal_val = val - lower_bound;
+        val = decimal_val < 0.5 ? lower_bound : lower_bound + 1;
+        v[i] = val;
+    }
+    return v;
+}

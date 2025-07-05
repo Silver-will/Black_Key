@@ -335,9 +335,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 	vkutil::cullParams shadowCull;
 	shadowCull.viewmat = cascadeData.lightViewMatrices[1];
 	shadowCull.projmat = cascadeData.lightProjMatrices[1];
-	shadowCull.frustrumCull = true;
+	shadowCull.frustrumCull = false;
 	shadowCull.occlusionCull = false;
-	shadowCull.aabb = true;
+	shadowCull.aabb = false;
 	glm::vec3 aabbCenter = glm::vec3(0);
 	glm::vec3 aabbExtent = glm::vec3(1000);
 	shadowCull.aabbmin = aabbCenter - aabbExtent;
@@ -1960,7 +1960,8 @@ void VulkanEngine::init_default_data() {
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//Create Shadow render target
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	shadows.SetShadowMapTextureSize(shadowMapSize);
 
 	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));

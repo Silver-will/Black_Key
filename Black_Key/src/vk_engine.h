@@ -190,6 +190,8 @@ public:
 	uint32_t depthPyramidWidth;
 	uint32_t depthPyramidHeight;
 	uint32_t depthPyramidLevels;
+
+	uint32_t shadowMapSize = 2048;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
