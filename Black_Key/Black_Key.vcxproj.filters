@@ -30,18 +30,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\camera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\engine_util.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\input_handler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="external\imgui\imgui.cpp">
       <Filter>Extern\Imgui</Filter>
     </ClCompile>
@@ -63,25 +51,10 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp">
       <Filter>Extern\Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="src\graphics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\engine_psos.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\shadows.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Lights.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\tracy\public\TracyClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\UI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\material_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp">
@@ -123,26 +96,50 @@
     <ClCompile Include="src\vma_definition.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
-    <ClCompile Include="PSO.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\resource_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\stb_definition.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
     <ClCompile Include="src\vk_shaders.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
+    <ClCompile Include="src\camera.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine_psos.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine_util.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\input_handler.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Lights.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\material_system.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="PSO.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resource_manager.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shadows.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Renderers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\camera.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\vk_engine.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -175,18 +172,6 @@
     </ClInclude>
     <ClInclude Include="external\imgui\imstb_truetype.h">
       <Filter>Extern\Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\graphics.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\engine_psos.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shadows.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Lights.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\vk_device.h">
       <Filter>Header Files</Filter>
@@ -245,8 +230,23 @@
     <ClInclude Include="src\vk_shaders.h">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClInclude>
+    <ClInclude Include="src\camera.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine_psos.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\graphics.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Lights.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shadows.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files\Renderers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
