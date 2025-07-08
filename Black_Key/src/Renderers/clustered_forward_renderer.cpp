@@ -1,4 +1,3 @@
-/*
 #include "clustered_forward_renderer.h"
 #include "../graphics.h"
 #include "../UI.h"
@@ -65,6 +64,39 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 	_isInitialized = true;
 }
 
+void ClusteredForwardRenderer::InitEngine()
+{
+	//vulkan 1.3 features
+	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+	features.dynamicRendering = true;
+	features.synchronization2 = true;
+	//vulkan 1.2 features
+	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+	features12.bufferDeviceAddress = true;
+	features12.descriptorIndexing = true;
+	features12.runtimeDescriptorArray = true;
+	features12.descriptorBindingPartiallyBound = true;
+	features12.descriptorBindingSampledImageUpdateAfterBind = true;
+	features12.descriptorBindingUniformBufferUpdateAfterBind = true;
+	features12.descriptorBindingStorageImageUpdateAfterBind = true;
+	features12.shaderSampledImageArrayNonUniformIndexing = true;
+	features12.descriptorBindingUpdateUnusedWhilePending = true;
+	features12.descriptorBindingVariableDescriptorCount = true;
+	features12.samplerFilterMinmax = true;
+
+
+	VkPhysicalDeviceVulkan11Features features11{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+	features11.shaderDrawParameters = true;
+
+	VkPhysicalDeviceFeatures baseFeatures{};
+	baseFeatures.geometryShader = true;
+	baseFeatures.samplerAnisotropy = true;
+	baseFeatures.sampleRateShading = true;
+	baseFeatures.drawIndirectFirstInstance = true;
+	baseFeatures.multiDrawIndirect = true;
+
+	loaded_engine->init_vulkan(baseFeatures, features11, features12, features);
+}
 
 void ClusteredForwardRenderer::InitSwapchain()
 {
@@ -74,18 +106,13 @@ void ClusteredForwardRenderer::InitSwapchain()
 void ClusteredForwardRenderer::InitRenderTargets()
 {
 	VkExtent3D drawImageExtent = {
-		_windowExtent.width,
-		_windowExtent.height,
-		1
+	_windowExtent.width,
+	_windowExtent.height,
+	1
 	};
-
-	//Grab current Sample count from engine
-	msaa_samples = loaded_engine->GetMSAASampleCount();
-
 
 	//Allocate images larger than swapchain to avoid 
 	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-
 
 	/*VkExtent3D drawImageExtent = {
 		mode->width,
@@ -93,7 +120,6 @@ void ClusteredForwardRenderer::InitRenderTargets()
 		1
 	};*/
 
-	/*
 	//hardcoding the draw format to 16 bit float
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
@@ -120,58 +146,73 @@ void ClusteredForwardRenderer::InitRenderTargets()
 	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	//allocate and create the image
-	vmaCreateImage(loaded_engine->_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
-	vmaSetAllocationName(loaded_engine->_allocator, _drawImage.allocation, "Draw image");
+	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _drawImage.allocation, "Draw image");
 
 	//Create resolve image for multisampling
 	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, resolveImageUsages, drawImageExtent, 1);
-	vmaCreateImage(loaded_engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
-	vmaSetAllocationName(loaded_engine->_allocator, _resolveImage.allocation, "resolve image");
+	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _resolveImage.allocation, "resolve image");
 
-	vmaCreateImage(loaded_engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
-	vmaSetAllocationName(loaded_engine->_allocator, _hdrImage.allocation, "hdr image");
+	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
+	vmaSetAllocationName(_allocator, _hdrImage.allocation, "hdr image");
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo resolve_view_info = vkinit::imageview_create_info(_resolveImage.imageFormat, _resolveImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo hdr_view_info = vkinit::imageview_create_info(_hdrImage.imageFormat, _hdrImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
-	VK_CHECK(vkCreateImageView(loaded_engine->_device, &rview_info, nullptr, &_drawImage.imageView));
-	VK_CHECK(vkCreateImageView(loaded_engine->_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
-	VK_CHECK(vkCreateImageView(loaded_engine->_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
 
 
 	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 	_depthImage.imageExtent = drawImageExtent;
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	VkImageCreateInfo dresolve_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages | VK_IMAGE_USAGE_SAMPLED_BIT, drawImageExtent, 1);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dresolve_info, &rimg_allocinfo, &_depthResolveImage.image, &_depthResolveImage.allocation, nullptr);
+
+	//build a image-view for the draw image to use for rendering
+	VkImageViewCreateInfo dRview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthResolveImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
+
+	VK_CHECK(vkCreateImageView(_device, &dRview_info, nullptr, &_depthResolveImage.imageView));
+
 	depthImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 
 	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
 
 	//allocate and create the image
-	vmaCreateImage(loaded_engine->_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
-	VK_CHECK(vkCreateImageView(loaded_engine->_device, &dview_info, nullptr, &_depthImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 
+	//add to deletion queues
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(loaded_engine->_device, _drawImage.imageView, nullptr);
-		vmaDestroyImage(loaded_engine->_allocator, _drawImage.image, _drawImage.allocation);
+		vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
 
-		vkDestroyImageView(loaded_engine->_device, _depthImage.imageView, nullptr);
-		vmaDestroyImage(loaded_engine->_allocator, _depthImage.image, _depthImage.allocation);
+		vkDestroyImageView(_device, _resolveImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _resolveImage.image, _resolveImage.allocation);
 
-		vkDestroyImageView(loaded_engine->_device, _resolveImage.imageView, nullptr);
-		vmaDestroyImage(loaded_engine->_allocator, _resolveImage.image, _resolveImage.allocation);
+		vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
 
-		vkDestroyImageView(loaded_engine->_device, _hdrImage.imageView, nullptr);
-		vmaDestroyImage(loaded_engine->_allocator, _hdrImage.image, _hdrImage.allocation);
+		vkDestroyImageView(_device, _depthResolveImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _depthResolveImage.image, _depthResolveImage.allocation);
 		});
 }
+
 
 void ClusteredForwardRenderer::InitCommands()
 {
@@ -212,20 +253,24 @@ void ClusteredForwardRenderer::InitSyncStructures()
 
 void ClusteredForwardRenderer::InitDescriptors()
 {
+	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 
-	globalDescriptorAllocator.init_pool(loaded_engine->_device, 30, sizes);
-	loaded_engine->_mainDeletionQueue.push_function(
-		[&]() { vkDestroyDescriptorPool(loaded_engine->_device, globalDescriptorAllocator.pool, nullptr); });
+	globalDescriptorAllocator.init_pool(_device, 30, sizes);
+	_mainDeletionQueue.push_function(
+		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
+
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_drawImageDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+
 	}
 
 	{
@@ -239,19 +284,23 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_shadowSceneDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		cascaded_shadows_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_skyboxDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	{
@@ -262,27 +311,54 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_cullLightsDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		_cullLightsDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_buildClustersDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		_buildClustersDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
-	loaded_engine->_mainDeletionQueue.push_function([&]() {
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _drawImageDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _gpuSceneDataDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _skyboxDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _shadowSceneDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _cullLightsDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(loaded_engine->_device, _buildClustersDescriptorLayout, nullptr);
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 65536);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
+		bindless_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		compute_cull_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		depth_reduce_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+	}
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, gpu_scene_data_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, cascaded_shadows_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, compute_cull_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, depth_reduce_descriptor_layout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
-		// create a descriptor pool
+		// create a descriptor 
 		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6 },
@@ -290,108 +366,46 @@ void ClusteredForwardRenderer::InitDescriptors()
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
 		};
 
+		std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+		};
+
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-		_frames[i]._frameDescriptors.init(loaded_engine->_device, 1000, frame_sizes);
-		loaded_engine->_mainDeletionQueue.push_function([&, i]() {
-			_frames[i]._frameDescriptors.destroy_pools(loaded_engine->_device);
+		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
+		_frames[i].bindless_material_descriptor = DescriptorAllocator{};
+		_frames[i].bindless_material_descriptor.init_pool(_device, 65536, bindless_sizes);
+		_mainDeletionQueue.push_function([&, i]() {
+			_frames[i]._frameDescriptors.destroy_pools(_device);
+			_frames[i].bindless_material_descriptor.destroy_pool(_device);
 			});
 	}
 }
 
+
 void ClusteredForwardRenderer::InitPipelines()
 {
-	InitComputePipelines();
-	//metalRoughMaterial.build_pipelines(loaded_engine);
-
-	VkShaderModule meshFragShader;
-	if (!vkutil::load_shader_module("shaders/pbr_cluster.frag.spv", loaded_engine->_device, &meshFragShader)) {
-		fmt::println("Error when building the triangle fragment shader module");
-	}
-
-	VkShaderModule meshVertexShader;
-	if (!vkutil::load_shader_module("shaders/pbr_cluster.vert.spv", loaded_engine->_device, &meshVertexShader)) {
-		fmt::println("Error when building the triangle vertex shader module");
-	}
-
-	VkPushConstantRange matrixRange{};
-	matrixRange.offset = 0;
-	matrixRange.size = sizeof(GPUDrawPushConstants);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	DescriptorLayoutBuilder layoutBuilder;
-	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	PBRPass.materialLayout = layoutBuilder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	VkDescriptorSetLayout layouts[] = { loaded_engine->_gpuSceneDataDescriptorLayout,
-		PBRPass.materialLayout };
-
-	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-	mesh_layout_info.setLayoutCount = 2;
-	mesh_layout_info.pSetLayouts = layouts;
-	mesh_layout_info.pPushConstantRanges = &matrixRange;
-	mesh_layout_info.pushConstantRangeCount = 1;
-
-	VkPipelineLayout newLayout;
-	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &mesh_layout_info, nullptr, &newLayout));
-
-	PBRPass.pipelineState.layout = newLayout;
-	PBRPassTransparent.pipelineState.layout = newLayout;
-	//opaquePipeline.layout = newLayout;
-	//transparentPipeline.layout = newLayout;
-
-	// build the stage-create-info for both vertex and fragment stages. This lets
-	// the pipeline know the shader modules per stage
-	PipelineBuilder pipelineBuilder;
-	pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
-	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_multisampling_level(msaa_samples);
-	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-	//render format
-	pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-	pipelineBuilder.set_depth_format(_depthImage.imageFormat);
-
-	// use the triangle layout we created
-	pipelineBuilder._pipelineLayout = newLayout;
-
-	// finally build the pipeline
-	PBRPass.pipelineState.pipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
-
-	// create the transparent variant
-	pipelineBuilder.enable_blending_additive();
-
-	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	PBRPassTransparent.pipelineState.pipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
-
-	vkDestroyShaderModule(loaded_engine->_device, meshFragShader, nullptr);
-	vkDestroyShaderModule(loaded_engine->_device, meshVertexShader, nullptr);
-
+	metalRoughMaterial.build_pipelines(loaded_engine);
 	cascadedShadows.build_pipelines(loaded_engine);
 	skyBoxPSO.build_pipelines(loaded_engine);
 	HdrPSO.build_pipelines(loaded_engine);
 	depthPrePassPSO.build_pipelines(loaded_engine);
-	loaded_engine->_mainDeletionQueue.push_function([&]()
+	_mainDeletionQueue.push_function([&]()
 		{
-			depthPrePassPSO.clear_resources(loaded_engine->_device);
-			metalRoughMaterial.clear_resources(loaded_engine->_device);
-			cascadedShadows.clear_resources(loaded_engine->_device);
-			skyBoxPSO.clear_resources(loaded_engine->_device);
-			HdrPSO.clear_resources(loaded_engine->_device);
+			depthPrePassPSO.clear_resources(_device);
+			metalRoughMaterial.clear_resources(_device);
+			cascadedShadows.clear_resources(_device);
+			skyBoxPSO.clear_resources(_device);
+			HdrPSO.clear_resources(_device);
 		});
 
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(loaded_engine->_device, _shadowDepthImage.imageView, nullptr);
-		vmaDestroyImage(loaded_engine->_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
 		});
 }
+
 
 void ClusteredForwardRenderer::InitComputePipelines()
 {
@@ -409,10 +423,10 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
 	cullLightsLayoutInfo.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &cullLightsLayoutInfo, nullptr, &_cullLightsPipelineLayout));
+	VK_CHECK(vkCreatePipelineLayout(_device, &cullLightsLayoutInfo, nullptr, &_cullLightsPipelineLayout));
 
 	VkShaderModule cullLightShader;
-	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", loaded_engine->_device, &cullLightShader)) {
+	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", _device, &cullLightShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -429,36 +443,131 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	computePipelineCreateInfo.layout = _cullLightsPipelineLayout;
 	computePipelineCreateInfo.stage = stageinfo;
 
-	VkPipeline cullingPipeline;
-	//default colors
-
-	VK_CHECK(vkCreateComputePipelines(loaded_engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_cullLightsPipeline));
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_cullLightsPipeline));
 
 
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(loaded_engine->_device, _cullLightsPipelineLayout, nullptr);
-		vkDestroyPipeline(loaded_engine->_device, _cullLightsPipeline, nullptr);
+	VkPipelineLayoutCreateInfo cullObjectsLayoutInfo = {};
+	cullObjectsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	cullObjectsLayoutInfo.pNext = nullptr;
+	cullObjectsLayoutInfo.pSetLayouts = &compute_cull_descriptor_layout;
+	cullObjectsLayoutInfo.setLayoutCount = 1;
+
+	pushConstant.size = sizeof(vkutil::DrawCullData);
+
+	cullObjectsLayoutInfo.pPushConstantRanges = &pushConstant;
+	cullObjectsLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &cullObjectsLayoutInfo, nullptr, &cull_objects_pso.layout));
+
+	VkShaderModule cullObjectsShader;
+	if (!vkutil::load_shader_module("shaders/indirect_cull.comp.spv", _device, &cullObjectsShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+	VkPipelineShaderStageCreateInfo stageinfoObj{};
+	stageinfoObj.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stageinfoObj.pNext = nullptr;
+	stageinfoObj.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	stageinfoObj.module = cullObjectsShader;
+	stageinfoObj.pName = "main";
+
+	computePipelineCreateInfo.layout = cull_objects_pso.layout;
+	computePipelineCreateInfo.stage = stageinfoObj;
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_objects_pso.pipeline));
+
+	VkPipelineLayoutCreateInfo depthReduceLayoutInfo = {};
+	depthReduceLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	depthReduceLayoutInfo.pNext = nullptr;
+	depthReduceLayoutInfo.pSetLayouts = &depth_reduce_descriptor_layout;
+	depthReduceLayoutInfo.setLayoutCount = 1;
+
+	pushConstant.size = sizeof(glm::vec2);
+	depthReduceLayoutInfo.pPushConstantRanges = &pushConstant;
+	depthReduceLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &depthReduceLayoutInfo, nullptr, &depth_reduce_pso.layout));
+
+	VkShaderModule depthReduceShader;
+	if (!vkutil::load_shader_module("shaders/depth_reduce.comp.spv", _device, &depthReduceShader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+
+	VkPipelineShaderStageCreateInfo depthReduceStageinfo{};
+	depthReduceStageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	depthReduceStageinfo.pNext = nullptr;
+	depthReduceStageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	depthReduceStageinfo.module = depthReduceShader;
+	depthReduceStageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo depthComputePipelineCreateInfo{};
+	depthComputePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	depthComputePipelineCreateInfo.pNext = nullptr;
+	depthComputePipelineCreateInfo.layout = depth_reduce_pso.layout;
+	depthComputePipelineCreateInfo.stage = depthReduceStageinfo;
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &depthComputePipelineCreateInfo, nullptr, &depth_reduce_pso.pipeline));
+
+
+
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyPipelineLayout(_device, depth_reduce_pso.layout, nullptr);
+		vkDestroyPipeline(_device, depth_reduce_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, cull_objects_pso.layout, nullptr);
+		vkDestroyPipeline(_device, cull_objects_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, _cullLightsPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _cullLightsPipeline, nullptr);
 		});
 }
 
 void ClusteredForwardRenderer::InitDefaultData()
 {
+	forward_passes.push_back(vkutil::MaterialPass::forward);
+	forward_passes.push_back(vkutil::MaterialPass::transparency);
+
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//Create Shadow render target
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(2048, 2048, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	shadows.SetShadowMapTextureSize(shadowMapSize);
 
 	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine);
+		VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
 	_greyImage = vkutil::create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine);
+		VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine);
+		VK_IMAGE_USAGE_SAMPLED_BIT, this);
+
+	storageImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
+
+	depthPyramidWidth = BlackKey::PreviousPow2(_windowExtent.width);
+	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
+	depthPyramidLevels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
+
+	_depthPyramid = vkutil::create_image_empty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
+		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+		this, VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
+
+	for (int i = 0; i < depthPyramidLevels; i++)
+	{
+
+		VkImageViewCreateInfo level_info = vkinit::imageview_create_info(VK_FORMAT_R32_SFLOAT, _depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+		level_info.subresourceRange.levelCount = 1;
+		level_info.subresourceRange.baseMipLevel = i;
+
+		VkImageView pyramid;
+		vkCreateImageView(_device, &level_info, nullptr, &pyramid);
+
+		depthPyramidMips[i] = pyramid;
+		assert(depthPyramidMips[i]);
+	}
 
 	//Populate point light list
 	int numOfLights = 4;
@@ -472,8 +581,10 @@ void ClusteredForwardRenderer::InitDefaultData()
 	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
 	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
 
-	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, loaded_engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+
+
+	//Prepare Depth Pyramid
+
 
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -484,19 +595,19 @@ void ClusteredForwardRenderer::InitDefaultData()
 		}
 	}
 
-	_errorCheckerboardImage = vkutil::create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, loaded_engine);
+	errorCheckerboardImage = vkutil::create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
 	sampl.magFilter = VK_FILTER_NEAREST;
 	sampl.minFilter = VK_FILTER_NEAREST;
 
-	vkCreateSampler(loaded_engine->_device, &sampl, nullptr, &_defaultSamplerNearest);
+	vkCreateSampler(_device, &sampl, nullptr, &defaultSamplerNearest);
 
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
-	vkCreateSampler(loaded_engine->_device, &sampl, nullptr, &_defaultSamplerLinear);
+	vkCreateSampler(_device, &sampl, nullptr, &defaultSamplerLinear);
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	cubeSampl.magFilter = VK_FILTER_LINEAR;
@@ -512,27 +623,49 @@ void ClusteredForwardRenderer::InitDefaultData()
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = (float)11;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(loaded_engine->_device, &cubeSampl, nullptr, &_cubeMapSampler);
+	vkCreateSampler(_device, &cubeSampl, nullptr, &cubeMapSampler);
 
 	cubeSampl.maxLod = 1;
 	cubeSampl.maxAnisotropy = 1.0f;
-	vkCreateSampler(loaded_engine->_device, &cubeSampl, nullptr, &_depthSampler);
+	vkCreateSampler(_device, &cubeSampl, nullptr, &depthSampler);
+
+	VkSamplerCreateInfo depthReductionSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	auto reductionMode = VK_SAMPLER_REDUCTION_MODE_MIN;
+
+	depthReductionSampl = cubeSampl;
+	depthReductionSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	depthReductionSampl.minLod = 0.0f;
+	depthReductionSampl.maxLod = 16.0f;
+
+	VkSamplerReductionModeCreateInfoEXT createInfoReduction = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT };
+
+	if (reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE_EXT)
+	{
+		createInfoReduction.reductionMode = reductionMode;
+
+		depthReductionSampl.pNext = &createInfoReduction;
+	}
+
+	vkCreateSampler(_device, &depthReductionSampl, nullptr, &depthReductionSampler);
 
 	//< default_img
 
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		loaded_engine->destroy_image(_whiteImage);
-		loaded_engine->destroy_image(_blackImage);
-		loaded_engine->destroy_image(_greyImage);
-		loaded_engine->destroy_image(_errorCheckerboardImage);
-		loaded_engine->destroy_image(_skyImage);
-		vkDestroySampler(loaded_engine->_device, _defaultSamplerLinear, nullptr);
-		vkDestroySampler(loaded_engine->_device, _defaultSamplerNearest, nullptr);
-		vkDestroySampler(loaded_engine->_device, _cubeMapSampler, nullptr);
-		vkDestroySampler(loaded_engine->_device, _depthSampler, nullptr);
+	_mainDeletionQueue.push_function([=]() {
+		destroy_image(_whiteImage);
+		destroy_image(_blackImage);
+		destroy_image(_greyImage);
+		destroy_image(errorCheckerboardImage);
+		destroy_image(_skyImage);
+		destroy_image(_shadowDepthImage);
+		vkDestroySampler(_device, depthReductionSampler, nullptr);
+		vkDestroySampler(_device, defaultSamplerLinear, nullptr);
+		vkDestroySampler(_device, defaultSamplerNearest, nullptr);
+		vkDestroySampler(_device, cubeMapSampler, nullptr);
+		vkDestroySampler(_device, depthSampler, nullptr);
 		});
 }
 
+/*
 void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 {
 	vkb::SwapchainBuilder swapchainBuilder{ loaded_engine->_chosenGPU,loaded_engine->_device,loaded_engine->_surface };

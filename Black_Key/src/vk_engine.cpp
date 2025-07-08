@@ -109,9 +109,6 @@ void VulkanEngine::load_assets()
 	auto cubeFile = resource_manager.loadGltf(this, cubePath);
 	assert(cubeFile.has_value());
 
-	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
-	
-
 	std::string planePath{ "assets/plane.glb" };
 	auto planeFile = resource_manager.loadGltf(this, planePath);
 	assert(planeFile.has_value());
@@ -1205,7 +1202,7 @@ void VulkanEngine::run()
 	FrameMark;
 }
 
-void VulkanEngine::init_vulkan()
+void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13)
 {
 	vkb::InstanceBuilder builder;
 
@@ -1226,35 +1223,6 @@ void VulkanEngine::init_vulkan()
 	// 
 	//> init_device
 	glfwCreateWindowSurface(_instance, window, nullptr, &_surface);
-
-	//vulkan 1.3 features
-	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
-	features.dynamicRendering = true;
-	features.synchronization2 = true;
-	//vulkan 1.2 features
-	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
-	features12.bufferDeviceAddress = true;
-	features12.descriptorIndexing = true;
-	features12.runtimeDescriptorArray = true;
-	features12.descriptorBindingPartiallyBound = true;
-	features12.descriptorBindingSampledImageUpdateAfterBind = true;
-	features12.descriptorBindingUniformBufferUpdateAfterBind = true;
-	features12.descriptorBindingStorageImageUpdateAfterBind = true;
-	features12.shaderSampledImageArrayNonUniformIndexing = true;
-	features12.descriptorBindingUpdateUnusedWhilePending = true;
-	features12.descriptorBindingVariableDescriptorCount = true;
-	features12.samplerFilterMinmax = true;
-
-
-	VkPhysicalDeviceVulkan11Features features11{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
-	features11.shaderDrawParameters = true;
-
-	VkPhysicalDeviceFeatures baseFeatures{};
-	baseFeatures.geometryShader = true;
-	baseFeatures.samplerAnisotropy = true;
-	baseFeatures.sampleRateShading = true;
-	baseFeatures.drawIndirectFirstInstance = true;
-	baseFeatures.multiDrawIndirect = true;
 	
 
 	//use vkbootstrap to select a gpu. 
@@ -1263,7 +1231,7 @@ void VulkanEngine::init_vulkan()
 	vkb::PhysicalDevice physicalDevice = selector
 		.set_minimum_version(1, 3)
 		.set_required_features(baseFeatures)
-		.set_required_features_13(features)
+		.set_required_features_13(features13)
 		.set_required_features_12(features12)
 		.set_required_features_11(features11)
 		.set_surface(_surface)
@@ -2223,17 +2191,6 @@ AllocatedBuffer VulkanEngine::create_and_upload(size_t allocSize, VkBufferUsageF
 	return DataBuffer;
 }
 
-
-void VulkanEngine::ready_mesh_draw(VkCommandBuffer cmd)
-{
-
-}
-
-void VulkanEngine::ready_cull_data(VkCommandBuffer cmd)
-{
-	
-}
-
 void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 {
 	vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
@@ -2441,8 +2398,6 @@ void VulkanEngine::update_scene()
 	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
 
-	//Register render objects for draw indirect
-	//scene_manager.RegisterObjectBatch(drawCommands);
 }
 
 void VulkanEngine::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -2455,4 +2410,9 @@ void VulkanEngine::cursor_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
 	app->mainCamera.processMouseMovement(window, xpos, ypos);
+}
+
+
+VkSampleCountFlagBits VulkanEngine::GetMSAASampleCount() {
+	return msaa_samples;
 }

@@ -1,15 +1,13 @@
 #pragma once
 #include "base_renderer.h"
-/*
+
 struct ClusteredForwardRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
-
 	void Cleanup() override;
 
 	void Draw() override;
 	void DrawUI() override;
-
 	void Run() override;
 
 	void InitImgui() override;
@@ -19,6 +17,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 
 	void PreProcessPass();
 	void CullLights(VkCommandBuffer cmd);
+
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
@@ -27,57 +26,62 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void DrawGeometry(VkCommandBuffer cmd);
 	void DrawHdr(VkCommandBuffer cmd);
 	void DrawEarlyDepth(VkCommandBuffer cmd);
+
+	void InitEngine();
 	void InitCommands();
 	void InitRenderTargets();
 	void InitSwapchain();
 	void InitComputePipelines();
-
-	
 	void InitDefaultData();
 	void InitSyncStructures();
 	void InitDescriptors();
 	void InitBuffers();
 	void InitPipelines();
+
 	void CreateSwapchain(uint32_t width, uint32_t height);
 	void DestroySwapchain();
 	void ResizeSwapchain();
+	
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void CursorCallback(GLFWwindow* window, double xpos, double ypos);
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
 
 private:
 
+
 	Camera mainCamera;
+	ResourceManager resource_manager;
+	SceneManager scene_manager;
 
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
+
 	MaterialInstance defaultData;
-
-	PipelinePassDescription PBRPass;
-	PipelinePassDescription PBRPassTransparent;
-	PipelinePassDescription cascadedShadowPass;
-	PipelinePassDescription skyBoxPass;
-	PipelinePassDescription postProcessPass;
-	PipelinePassDescription hdrPass;
-	PipelinePassDescription depthPrePass;
-
-	DrawContext mainDrawContext;
-	//r
-	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+	GLTFMetallic_Roughness metalRoughMaterial;
+	ShadowPipelineResources cascadedShadows;
+	SkyBoxPipelineResources skyBoxPSO;
+	BloomBlurPipelineObject postProcessPSO;
+	RenderImagePipelineObject HdrPSO;
+	EarlyDepthPipelineObject depthPrePassPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
+
+	std::vector<vkutil::MaterialPass> forward_passes;
 
 	bool resize_requested = false;
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
-	bool debugShadowMap = true;
+	bool debugShadowMap = false;
+	bool use_bindless = true;
+	bool debugBuffer = false;
+	bool readDebugBuffer = false;
 
 	struct {
 		float lastFrame;
@@ -85,21 +89,23 @@ private:
 	VkExtent2D _windowExtent{ 1920,1080 };
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
+	GLFWwindow* window{ nullptr };
 
 	static VulkanEngine& Get();
 
 	FrameData _frames[FRAME_OVERLAP];
-	std::vector<glm::mat4> lightMatrices;
-	std::vector<float>cascades;
-
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
-	
+
+	Cascade cascadeData;
+	DeletionQueue _mainDeletionQueue;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+	AllocatedImage _depthResolveImage;
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
+	AllocatedImage _depthPyramid;
 
 	struct {
 		AllocatedImage _lutBRDF;
@@ -114,7 +120,11 @@ private:
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
-	
+
+	VkFence _immFence;
+	VkCommandBuffer _immCommandBuffer;
+	VkCommandPool _immCommandPool;
+
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{ 0 };
 
@@ -124,39 +134,57 @@ private:
 	VkPipeline _meshPipeline;
 	VkPipeline _cullLightsPipeline;
 	VkPipelineLayout _cullLightsPipelineLayout;
+	PipelineStateObject cull_objects_pso;
+	PipelineStateObject depth_reduce_pso;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
-	GPUSceneData sceneData;
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	GPUSceneData scene_data;
+	shadowData shadow_data;
+	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
-	VkDescriptorSetLayout _bindlessDescriptorLayout;
+	VkDescriptorSetLayout bindless_descriptor_layout;
+	VkDescriptorSetLayout compute_cull_descriptor_layout;
+	VkDescriptorSetLayout depth_reduce_descriptor_layout;
+	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
 	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
-	AllocatedImage _errorCheckerboardImage;
+	AllocatedImage storageImage;
+	AllocatedImage errorCheckerboardImage;
+	VkImageView depthPyramidMips[16];
 
 	AllocatedImage _skyImage;
 	ktxVulkanTexture _skyBoxImage;
 
-	VkSampler _defaultSamplerLinear;
-	VkSampler _defaultSamplerNearest;
-	VkSampler _cubeMapSampler;
-	VkSampler _depthSampler;
+	VkSampler defaultSamplerLinear;
+	VkSampler defaultSamplerNearest;
+	VkSampler cubeMapSampler;
+	VkSampler depthSampler;
+	VkSampler depthReductionSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;
 	ShadowCascades shadows;
 
+	uint32_t depthPyramidWidth;
+	uint32_t depthPyramidHeight;
+	uint32_t depthPyramidLevels;
+
+	uint32_t shadowMapSize = 2048;
 	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
+
+	bool debugDepthTexture = false;
+
+	std::vector<VkBufferMemoryBarrier> cullBarriers;
 
 	//Clustered culling  values
 	struct {
@@ -191,7 +219,5 @@ private:
 		std::vector<PointLight> pointLights;
 
 	}pointData;
+	DrawContext mainDrawContext;
 };
-
-
-*/

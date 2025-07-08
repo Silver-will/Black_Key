@@ -247,6 +247,8 @@ public:
 	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	void destroy_image(const AllocatedImage& img);
 
+	void init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13);
+	VkSampleCountFlagBits GetMSAASampleCount();
 private:
 	void ready_cull_data(VkCommandBuffer cmd);
 	void ready_mesh_draw(VkCommandBuffer cmd);
@@ -263,7 +265,6 @@ private:
 	void draw_hdr(VkCommandBuffer cmd);
 	void draw_early_depth(VkCommandBuffer cmd);
 	void resize_swapchain();
-	void init_vulkan();
 	void init_mesh_pipeline();
 	void init_default_data();
 	void init_triangle_pipeline();
