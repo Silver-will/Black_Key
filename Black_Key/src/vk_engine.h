@@ -250,8 +250,6 @@ public:
 	void init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13);
 	VkSampleCountFlagBits GetMSAASampleCount();
 private:
-	void ready_cull_data(VkCommandBuffer cmd);
-	void ready_mesh_draw(VkCommandBuffer cmd);
 	void load_assets();
 	void execute_compute_cull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
 	void reduce_depth(VkCommandBuffer cmd);

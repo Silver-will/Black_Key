@@ -1,6 +1,6 @@
 #pragma once
 #include "base_renderer.h"
-
+#include <memory>
 struct ClusteredForwardRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
@@ -15,8 +15,12 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void LoadAssets() override;
 	void UpdateScene() override;
 
+	//Compute shader passes
 	void PreProcessPass();
 	void CullLights(VkCommandBuffer cmd);
+	void ReduceDepth(VkCommandBuffer cmd);
+	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
+
 
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
@@ -50,8 +54,8 @@ private:
 
 
 	Camera mainCamera;
-	ResourceManager resource_manager;
-	SceneManager scene_manager;
+	std::shared_ptr<ResourceManager> resource_manager;
+	std::shared_ptr<SceneManager> scene_manager;
 
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
@@ -72,6 +76,9 @@ private:
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
 
 	std::vector<vkutil::MaterialPass> forward_passes;
+
+	BlackKey::FrameData _frames[FRAME_OVERLAP];
+	BlackKey::FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
 	bool resize_requested = false;
 	bool _isInitialized{ false };
@@ -121,19 +128,9 @@ private:
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
 
-	VkFence _immFence;
-	VkCommandBuffer _immCommandBuffer;
-	VkCommandPool _immCommandPool;
-
-	std::vector<ComputeEffect> backgroundEffects;
-	int currentBackgroundEffect{ 0 };
-
-	VkPipelineLayout _trianglePipelineLayout;
-	VkPipeline _trianglePipeline;
-	VkPipelineLayout _meshPipelineLayout;
-	VkPipeline _meshPipeline;
 	VkPipeline _cullLightsPipeline;
 	VkPipelineLayout _cullLightsPipelineLayout;
+	PipelineStateObject cull_lights_pso;
 	PipelineStateObject cull_objects_pso;
 	PipelineStateObject depth_reduce_pso;
 
@@ -142,7 +139,7 @@ private:
 
 	GPUSceneData scene_data;
 	shadowData shadow_data;
-	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;

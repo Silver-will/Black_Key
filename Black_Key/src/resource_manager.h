@@ -19,6 +19,8 @@
 #include <iostream>
 #include <string>
 
+#include "engine_util.h"
+
 class VulkanEngine;
 
 struct ResourceManager
@@ -31,6 +33,7 @@ struct ResourceManager
 	std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial = false);
 	std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, const std::string& rootPath);
 	
+	//Bindless helper functions
 	void write_material_array();
 	VkDescriptorSet* GetBindlessSet();
 	//Displays the contents of a GPU only buffer
@@ -39,11 +42,14 @@ struct ResourceManager
 	void cleanup();
 
 	//Resource management
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void destroy_buffer(const AllocatedBuffer& buffer);
-	AllocatedBuffer create_and_upload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data);
-	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	void DestroyBuffer(const AllocatedBuffer& buffer);
+	AllocatedBuffer CreateAndUpload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data);
+	AllocatedImage CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	GPUMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+	AllocatedImage CreateImageEmpty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, int mipLevels = -1);
+
 	void destroy_image(const AllocatedImage& img);
 
 	VkFilter extract_filter(fastgltf::Filter filter);
@@ -56,6 +62,7 @@ private:
 	DescriptorWriter writer;
 	VulkanEngine* engine = nullptr;
 	int last_material_index{ 0 };
+	DeletionQueue deletionQueue;
 	VkDescriptorSet bindless_set;
 	AllocatedBuffer readableBuffer;
 };
