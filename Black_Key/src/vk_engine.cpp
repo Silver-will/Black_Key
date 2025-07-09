@@ -54,7 +54,7 @@ void VulkanEngine::init()
 	assert(loadedEngine == nullptr);
 	loadedEngine = this;
 
-	glfwInit();
+	/*glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
@@ -88,8 +88,9 @@ void VulkanEngine::init()
 
 	load_assets();
 
-	pre_process_pass();
+	pre_process_pass();*/
 	_isInitialized = true;
+
 }
 
 void VulkanEngine::load_assets()
@@ -155,16 +156,6 @@ void VulkanEngine::cleanup()
 		// make sure the gpu has stopped doing its things
 		vkDeviceWaitIdle(_device);
 
-		loadedScenes.clear();
-
-		for (auto& frame : _frames) {
-			frame._deletionQueue.flush();
-		}
-
-		_mainDeletionQueue.flush();
-
-		destroy_swapchain();
-
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 		vmaDestroyAllocator(_allocator);
 
@@ -172,9 +163,8 @@ void VulkanEngine::cleanup()
 		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
 		vkDestroyInstance(_instance, nullptr);
 
-		glfwDestroyWindow(window);
 	}
-
+	glfwDestroyWindow(window);
 	// clear engine pointer
 	loadedEngine = nullptr;
 	glfwTerminate();
@@ -1204,6 +1194,15 @@ void VulkanEngine::run()
 
 void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13)
 {
+	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+	window = glfwCreateWindow(_windowExtent.width, _windowExtent.height, "Black key", nullptr, nullptr);
+	if (window == nullptr)
+		throw std::exception("FATAL ERROR: Failed to create window");
+
+
 	vkb::InstanceBuilder builder;
 
 	//make the vulkan instance, with basic debug features

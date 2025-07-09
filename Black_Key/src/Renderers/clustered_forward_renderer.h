@@ -31,6 +31,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void DrawHdr(VkCommandBuffer cmd);
 	void DrawEarlyDepth(VkCommandBuffer cmd);
 
+	void ConfigureRenderWindow();
 	void InitEngine();
 	void InitCommands();
 	void InitRenderTargets();
@@ -100,9 +101,6 @@ private:
 
 	static VulkanEngine& Get();
 
-	FrameData _frames[FRAME_OVERLAP];
-	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
-
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;
 	AllocatedImage _drawImage;
@@ -128,8 +126,6 @@ private:
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
 
-	VkPipeline _cullLightsPipeline;
-	VkPipelineLayout _cullLightsPipelineLayout;
 	PipelineStateObject cull_lights_pso;
 	PipelineStateObject cull_objects_pso;
 	PipelineStateObject depth_reduce_pso;
