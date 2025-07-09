@@ -81,9 +81,6 @@
     <ClCompile Include="src\vk_loader.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
-    <ClCompile Include="src\scene_manager.cpp">
-      <Filter>Source Files\Vulkan Backend</Filter>
-    </ClCompile>
     <ClCompile Include="src\vk_pipelines.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
@@ -138,16 +135,13 @@
     <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp">
       <Filter>Source Files\Renderers</Filter>
     </ClCompile>
+    <ClCompile Include="src\scene_manager.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\vk_engine.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\engine_util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\input_handler.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="external\imgui\imconfig.h">
       <Filter>Extern\Imgui</Filter>
@@ -182,13 +176,7 @@
     <ClInclude Include="src\UI.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scene_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\vk_util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\material_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h">
@@ -221,12 +209,6 @@
     <ClInclude Include="src\Renderers\base_renderer.h">
       <Filter>Source Files\Renderers</Filter>
     </ClInclude>
-    <ClInclude Include="PSO.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\resource_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\vk_shaders.h">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClInclude>
@@ -247,6 +229,24 @@
     </ClInclude>
     <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h">
       <Filter>Source Files\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine_util.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\input_handler.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\material_system.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="PSO.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource_manager.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene_manager.h">
+      <Filter>Source Files\Engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

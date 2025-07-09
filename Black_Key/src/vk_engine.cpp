@@ -1922,6 +1922,7 @@ void VulkanEngine::init_buffers()
 		destroy_buffer(ClusterValues.lightGlobalIndex[1]);
 		});
 }
+
 void VulkanEngine::init_default_data() {
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
@@ -2057,11 +2058,17 @@ void VulkanEngine::init_default_data() {
 		destroy_image(errorCheckerboardImage);
 		destroy_image(_skyImage);
 		destroy_image(_shadowDepthImage);
+		destroy_image(_depthPyramid);
 		vkDestroySampler(_device, depthReductionSampler, nullptr);
 		vkDestroySampler(_device, defaultSamplerLinear, nullptr);
 		vkDestroySampler(_device, defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, cubeMapSampler, nullptr);
 		vkDestroySampler(_device, depthSampler, nullptr);
+
+		for (int i = 0; i < depthPyramidLevels; i++)
+		{
+			vkDestroyImageView(_device, depthPyramidMips[i], nullptr);
+		}
 		});
 
 }

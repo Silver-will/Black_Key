@@ -146,25 +146,25 @@ void ClusteredForwardRenderer::InitRenderTargets()
 	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	//allocate and create the image
-	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
-	vmaSetAllocationName(_allocator, _drawImage.allocation, "Draw image");
+	vmaCreateImage(loaded_engine->_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
+	vmaSetAllocationName(loaded_engine->_allocator, _drawImage.allocation, "Draw image");
 
 	//Create resolve image for multisampling
 	VkImageCreateInfo resolve_img_info = vkinit::image_create_info(_resolveImage.imageFormat, resolveImageUsages, drawImageExtent, 1);
-	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
-	vmaSetAllocationName(_allocator, _resolveImage.allocation, "resolve image");
+	vmaCreateImage(loaded_engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
+	vmaSetAllocationName(loaded_engine->_allocator, _resolveImage.allocation, "resolve image");
 
-	vmaCreateImage(_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
-	vmaSetAllocationName(_allocator, _hdrImage.allocation, "hdr image");
+	vmaCreateImage(loaded_engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
+	vmaSetAllocationName(loaded_engine->_allocator, _hdrImage.allocation, "hdr image");
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo resolve_view_info = vkinit::imageview_create_info(_resolveImage.imageFormat, _resolveImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo hdr_view_info = vkinit::imageview_create_info(_hdrImage.imageFormat, _hdrImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
-	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-	VK_CHECK(vkCreateImageView(_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
-	VK_CHECK(vkCreateImageView(_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &rview_info, nullptr, &_drawImage.imageView));
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
 
 
 	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
@@ -175,41 +175,41 @@ void ClusteredForwardRenderer::InitRenderTargets()
 	VkImageCreateInfo dresolve_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages | VK_IMAGE_USAGE_SAMPLED_BIT, drawImageExtent, 1);
 
 	//allocate and create the image
-	vmaCreateImage(_allocator, &dresolve_info, &rimg_allocinfo, &_depthResolveImage.image, &_depthResolveImage.allocation, nullptr);
+	vmaCreateImage(loaded_engine->_allocator, &dresolve_info, &rimg_allocinfo, &_depthResolveImage.image, &_depthResolveImage.allocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo dRview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthResolveImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
-	VK_CHECK(vkCreateImageView(_device, &dRview_info, nullptr, &_depthResolveImage.imageView));
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &dRview_info, nullptr, &_depthResolveImage.imageView));
 
 	depthImageUsages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 
 	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent, 1, msaa_samples);
 
 	//allocate and create the image
-	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+	vmaCreateImage(loaded_engine->_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
-	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &dview_info, nullptr, &_depthImage.imageView));
 
 	//add to deletion queues
 	_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _drawImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _drawImage.image, _drawImage.allocation);
 
-		vkDestroyImageView(_device, _depthImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _depthImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _depthImage.image, _depthImage.allocation);
 
-		vkDestroyImageView(_device, _resolveImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _resolveImage.image, _resolveImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _resolveImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _resolveImage.image, _resolveImage.allocation);
 
-		vkDestroyImageView(_device, _hdrImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _hdrImage.image, _hdrImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _hdrImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _hdrImage.image, _hdrImage.allocation);
 
-		vkDestroyImageView(_device, _depthResolveImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _depthResolveImage.image, _depthResolveImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _depthResolveImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _depthResolveImage.image, _depthResolveImage.allocation);
 		});
 }
 
@@ -260,16 +260,16 @@ void ClusteredForwardRenderer::InitDescriptors()
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 
-	globalDescriptorAllocator.init_pool(_device, 30, sizes);
+	globalDescriptorAllocator.init_pool(loaded_engine->_device, 30, sizes);
 	_mainDeletionQueue.push_function(
-		[&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
+		[&]() { vkDestroyDescriptorPool(loaded_engine->_device, globalDescriptorAllocator.pool, nullptr); });
 
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+		_drawImageDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	}
 
@@ -286,21 +286,21 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		gpu_scene_data_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		_gpuSceneDataDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		cascaded_shadows_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		cascaded_shadows_descriptor_layout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_skyboxDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		_skyboxDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	{
@@ -311,14 +311,14 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_cullLightsDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		_cullLightsDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_buildClustersDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		_buildClustersDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	{
@@ -326,7 +326,7 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 65536);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
-		bindless_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
+		bindless_descriptor_layout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT);
 	}
 
 	{
@@ -335,26 +335,26 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		compute_cull_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+		compute_cull_descriptor_layout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		depth_reduce_descriptor_layout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+		depth_reduce_descriptor_layout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
 	}
 
 	_mainDeletionQueue.push_function([&]() {
-		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, gpu_scene_data_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _skyboxDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, cascaded_shadows_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _cullLightsDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _buildClustersDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, bindless_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, compute_cull_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, depth_reduce_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, _gpuSceneDataDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, _skyboxDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, cascaded_shadows_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, _cullLightsDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, _buildClustersDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, bindless_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, compute_cull_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(loaded_engine->_device, depth_reduce_descriptor_layout, nullptr);
 		});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -373,12 +373,12 @@ void ClusteredForwardRenderer::InitDescriptors()
 		};
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
+		_frames[i]._frameDescriptors.init(loaded_engine->_device, 1000, frame_sizes);
 		_frames[i].bindless_material_descriptor = DescriptorAllocator{};
-		_frames[i].bindless_material_descriptor.init_pool(_device, 65536, bindless_sizes);
+		_frames[i].bindless_material_descriptor.init_pool(loaded_engine->_device, 65536, bindless_sizes);
 		_mainDeletionQueue.push_function([&, i]() {
-			_frames[i]._frameDescriptors.destroy_pools(_device);
-			_frames[i].bindless_material_descriptor.destroy_pool(_device);
+			_frames[i]._frameDescriptors.destroy_pools(loaded_engine->_device);
+			_frames[i].bindless_material_descriptor.destroy_pool(loaded_engine->_device);
 			});
 	}
 }
@@ -393,16 +393,16 @@ void ClusteredForwardRenderer::InitPipelines()
 	depthPrePassPSO.build_pipelines(loaded_engine);
 	_mainDeletionQueue.push_function([&]()
 		{
-			depthPrePassPSO.clear_resources(_device);
-			metalRoughMaterial.clear_resources(_device);
-			cascadedShadows.clear_resources(_device);
-			skyBoxPSO.clear_resources(_device);
-			HdrPSO.clear_resources(_device);
+			depthPrePassPSO.clear_resources(loaded_engine->_device);
+			metalRoughMaterial.clear_resources(loaded_engine->_device);
+			cascadedShadows.clear_resources(loaded_engine->_device);
+			skyBoxPSO.clear_resources(loaded_engine->_device);
+			HdrPSO.clear_resources(loaded_engine->_device);
 		});
 
 	_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(_device, _shadowDepthImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
+		vkDestroyImageView(loaded_engine->_device, _shadowDepthImage.imageView, nullptr);
+		vmaDestroyImage(loaded_engine->_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
 		});
 }
 
@@ -423,10 +423,11 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
 	cullLightsLayoutInfo.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &cullLightsLayoutInfo, nullptr, &_cullLightsPipelineLayout));
+	
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &cullLightsLayoutInfo, nullptr, &cull_lights_pso.layout));
 
 	VkShaderModule cullLightShader;
-	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", _device, &cullLightShader)) {
+	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", loaded_engine->_device, &cullLightShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -443,7 +444,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	computePipelineCreateInfo.layout = _cullLightsPipelineLayout;
 	computePipelineCreateInfo.stage = stageinfo;
 
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_cullLightsPipeline));
+	VK_CHECK(vkCreateComputePipelines(loaded_engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_lights_pso.pipeline));
 
 
 	VkPipelineLayoutCreateInfo cullObjectsLayoutInfo = {};
@@ -457,10 +458,10 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	cullObjectsLayoutInfo.pPushConstantRanges = &pushConstant;
 	cullObjectsLayoutInfo.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &cullObjectsLayoutInfo, nullptr, &cull_objects_pso.layout));
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &cullObjectsLayoutInfo, nullptr, &cull_objects_pso.layout));
 
 	VkShaderModule cullObjectsShader;
-	if (!vkutil::load_shader_module("shaders/indirect_cull.comp.spv", _device, &cullObjectsShader)) {
+	if (!vkutil::load_shader_module("shaders/indirect_cull.comp.spv", loaded_engine->_device, &cullObjectsShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -474,7 +475,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	computePipelineCreateInfo.layout = cull_objects_pso.layout;
 	computePipelineCreateInfo.stage = stageinfoObj;
 
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_objects_pso.pipeline));
+	VK_CHECK(vkCreateComputePipelines(loaded_engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_objects_pso.pipeline));
 
 	VkPipelineLayoutCreateInfo depthReduceLayoutInfo = {};
 	depthReduceLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -486,10 +487,10 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	depthReduceLayoutInfo.pPushConstantRanges = &pushConstant;
 	depthReduceLayoutInfo.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &depthReduceLayoutInfo, nullptr, &depth_reduce_pso.layout));
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &depthReduceLayoutInfo, nullptr, &depth_reduce_pso.layout));
 
 	VkShaderModule depthReduceShader;
-	if (!vkutil::load_shader_module("shaders/depth_reduce.comp.spv", _device, &depthReduceShader)) {
+	if (!vkutil::load_shader_module("shaders/depth_reduce.comp.spv", loaded_engine->_device, &depthReduceShader)) {
 		fmt::print("Error when building the compute shader \n");
 	}
 
@@ -507,17 +508,17 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	depthComputePipelineCreateInfo.layout = depth_reduce_pso.layout;
 	depthComputePipelineCreateInfo.stage = depthReduceStageinfo;
 
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &depthComputePipelineCreateInfo, nullptr, &depth_reduce_pso.pipeline));
+	VK_CHECK(vkCreateComputePipelines(loaded_engine->_device, VK_NULL_HANDLE, 1, &depthComputePipelineCreateInfo, nullptr, &depth_reduce_pso.pipeline));
 
 
 
 	_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(_device, depth_reduce_pso.layout, nullptr);
-		vkDestroyPipeline(_device, depth_reduce_pso.pipeline, nullptr);
-		vkDestroyPipelineLayout(_device, cull_objects_pso.layout, nullptr);
-		vkDestroyPipeline(_device, cull_objects_pso.pipeline, nullptr);
-		vkDestroyPipelineLayout(_device, _cullLightsPipelineLayout, nullptr);
-		vkDestroyPipeline(_device, _cullLightsPipeline, nullptr);
+		vkDestroyPipelineLayout(loaded_engine->_device, depth_reduce_pso.layout, nullptr);
+		vkDestroyPipeline(loaded_engine->_device, depth_reduce_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(loaded_engine->_device, cull_objects_pso.layout, nullptr);
+		vkDestroyPipeline(loaded_engine->_device, cull_objects_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(loaded_engine->_device, _cullLightsPipelineLayout, nullptr);
+		vkDestroyPipeline(loaded_engine->_device, _cullLightsPipeline, nullptr);
 		});
 }
 
@@ -528,32 +529,32 @@ void ClusteredForwardRenderer::InitDefaultData()
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//Create Shadow render target
-	_shadowDepthImage = vkutil::create_image_empty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	_shadowDepthImage = resource_manager->CreateImageEmpty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
 
 	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	_whiteImage = vkutil::create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, this);
+	_whiteImage = resource_manager->CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	_greyImage = vkutil::create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, this);
+	_greyImage = resource_manager->CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	_blackImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, this);
+	_blackImage = resource_manager->CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	storageImage = vkutil::create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, this);
+	storageImage = resource_manager->CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	depthPyramidWidth = BlackKey::PreviousPow2(_windowExtent.width);
 	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
 	depthPyramidLevels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
 
-	_depthPyramid = vkutil::create_image_empty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
+	_depthPyramid = resource_manager->CreateImageEmpty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		this, VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
+		VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
 
 	for (int i = 0; i < depthPyramidLevels; i++)
 	{
@@ -563,7 +564,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 		level_info.subresourceRange.baseMipLevel = i;
 
 		VkImageView pyramid;
-		vkCreateImageView(_device, &level_info, nullptr, &pyramid);
+		vkCreateImageView(loaded_engine->_device, &level_info, nullptr, &pyramid);
 
 		depthPyramidMips[i] = pyramid;
 		assert(depthPyramidMips[i]);
@@ -581,8 +582,6 @@ void ClusteredForwardRenderer::InitDefaultData()
 	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
 	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
 
-
-
 	//Prepare Depth Pyramid
 
 
@@ -595,7 +594,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 		}
 	}
 
-	errorCheckerboardImage = vkutil::create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+	errorCheckerboardImage = resource_manager->CreateImage(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT, this);
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -603,11 +602,11 @@ void ClusteredForwardRenderer::InitDefaultData()
 	sampl.magFilter = VK_FILTER_NEAREST;
 	sampl.minFilter = VK_FILTER_NEAREST;
 
-	vkCreateSampler(_device, &sampl, nullptr, &defaultSamplerNearest);
+	vkCreateSampler(loaded_engine->_device, &sampl, nullptr, &defaultSamplerNearest);
 
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
-	vkCreateSampler(_device, &sampl, nullptr, &defaultSamplerLinear);
+	vkCreateSampler(loaded_engine->_device, &sampl, nullptr, &defaultSamplerLinear);
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	cubeSampl.magFilter = VK_FILTER_LINEAR;
@@ -623,11 +622,11 @@ void ClusteredForwardRenderer::InitDefaultData()
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = (float)11;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(_device, &cubeSampl, nullptr, &cubeMapSampler);
+	vkCreateSampler(loaded_engine->_device, &cubeSampl, nullptr, &cubeMapSampler);
 
 	cubeSampl.maxLod = 1;
 	cubeSampl.maxAnisotropy = 1.0f;
-	vkCreateSampler(_device, &cubeSampl, nullptr, &depthSampler);
+	vkCreateSampler(loaded_engine->_device, &cubeSampl, nullptr, &depthSampler);
 
 	VkSamplerCreateInfo depthReductionSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	auto reductionMode = VK_SAMPLER_REDUCTION_MODE_MIN;
@@ -646,26 +645,22 @@ void ClusteredForwardRenderer::InitDefaultData()
 		depthReductionSampl.pNext = &createInfoReduction;
 	}
 
-	vkCreateSampler(_device, &depthReductionSampl, nullptr, &depthReductionSampler);
+	vkCreateSampler(loaded_engine->_device, &depthReductionSampl, nullptr, &depthReductionSampler);
 
 	//< default_img
 
 	_mainDeletionQueue.push_function([=]() {
-		destroy_image(_whiteImage);
-		destroy_image(_blackImage);
-		destroy_image(_greyImage);
-		destroy_image(errorCheckerboardImage);
-		destroy_image(_skyImage);
-		destroy_image(_shadowDepthImage);
-		vkDestroySampler(_device, depthReductionSampler, nullptr);
-		vkDestroySampler(_device, defaultSamplerLinear, nullptr);
-		vkDestroySampler(_device, defaultSamplerNearest, nullptr);
-		vkDestroySampler(_device, cubeMapSampler, nullptr);
-		vkDestroySampler(_device, depthSampler, nullptr);
+		resource_manager->destroy_image(_skyImage);
+		resource_manager->destroy_image(_shadowDepthImage);
+		vkDestroySampler(loaded_engine->_device, depthReductionSampler, nullptr);
+		vkDestroySampler(loaded_engine->_device, defaultSamplerLinear, nullptr);
+		vkDestroySampler(loaded_engine->_device, defaultSamplerNearest, nullptr);
+		vkDestroySampler(loaded_engine->_device, cubeMapSampler, nullptr);
+		vkDestroySampler(loaded_engine->_device, depthSampler, nullptr);
 		});
 }
 
-/*
+
 void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 {
 	vkb::SwapchainBuilder swapchainBuilder{ loaded_engine->_chosenGPU,loaded_engine->_device,loaded_engine->_surface };
@@ -740,73 +735,74 @@ void ClusteredForwardRenderer::InitBuffers()
 		});
 }
 
+
 void ClusteredForwardRenderer::InitImgui()
 {
 
-	//// 1: create descriptor pool for IMGUI
-	////  the size of the pool is very oversize, but it's copied from imgui demo
-	////  itself.
-	//VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
-	//	{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 } };
+	// 1: create descriptor pool for IMGUI
+	//  the size of the pool is very oversize, but it's copied from imgui demo
+	//  itself.
+	VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 } };
 
-	//VkDescriptorPoolCreateInfo pool_info = {};
-	//pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	//pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	//pool_info.maxSets = 1000;
-	//pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	//pool_info.pPoolSizes = pool_sizes;
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
 
-	//VkDescriptorPool imguiPool;
-	//VK_CHECK(vkCreateDescriptorPool(loaded_engine->_device, &pool_info, nullptr, &imguiPool));
+	VkDescriptorPool imguiPool;
+	VK_CHECK(vkCreateDescriptorPool(loaded_engine->_device, &pool_info, nullptr, &imguiPool));
 
-	//// 2: initialize imgui library
+	// 2: initialize imgui library
 
-	//// this initializes the core structures of imgui
-	//ImGui::CreateContext();
-	//ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	// this initializes the core structures of imgui
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-	//// this initializes imgui for SDL
-	//ImGui_ImplGlfw_InitForVulkan(window, true);
+	// this initializes imgui for SDL
+	ImGui_ImplGlfw_InitForVulkan(window, true);
 
-	//// this initializes imgui for Vulkan
-	//ImGui_ImplVulkan_InitInfo init_info = {};
-	//init_info.Instance = loaded_engine->_instance;
-	//init_info.PhysicalDevice = loaded_engine->_chosenGPU;
-	//init_info.Device = loaded_engine->_device;
-	//init_info.Queue = loaded_engine->_graphicsQueue;
-	//init_info.DescriptorPool = imguiPool;
-	//init_info.MinImageCount = 3;
-	//init_info.ImageCount = 3;
-	//init_info.UseDynamicRendering = true;
+	// this initializes imgui for Vulkan
+	ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = loaded_engine->_instance;
+	init_info.PhysicalDevice = loaded_engine->_chosenGPU;
+	init_info.Device = loaded_engine->_device;
+	init_info.Queue = loaded_engine->_graphicsQueue;
+	init_info.DescriptorPool = imguiPool;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.UseDynamicRendering = true;
 
-	////dynamic rendering parameters for imgui to use
-	//init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-	//init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	//init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
+	//dynamic rendering parameters for imgui to use
+	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
 
 
-	//init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-	//ImGui_ImplVulkan_Init(&init_info);
+	ImGui_ImplVulkan_Init(&init_info);
 
-	//ImGui_ImplVulkan_CreateFontsTexture();
+	ImGui_ImplVulkan_CreateFontsTexture();
 
-	//// add the destroy the imgui created structures
-	//loaded_engine->_mainDeletionQueue.push_function([=]() {
-	//	ImGui_ImplVulkan_Shutdown();
-	//	vkDestroyDescriptorPool(loaded_engine->_device, imguiPool, nullptr);
-	//	});
+	// add the destroy the imgui created structures
+	_mainDeletionQueue.push_function([=]() {
+		ImGui_ImplVulkan_Shutdown();
+		vkDestroyDescriptorPool(loaded_engine->_device, imguiPool, nullptr);
+		});
 }
 
 void ClusteredForwardRenderer::DestroySwapchain()
@@ -829,63 +825,66 @@ void ClusteredForwardRenderer::UpdateScene()
 	mainDrawContext.OpaqueSurfaces.clear();
 
 	//sceneData.view = mainCamera.getViewMatrix();
-	sceneData.view = mainCamera.matrices.view;
+	scene_data.view = mainCamera.matrices.view;
 	auto camPos = mainCamera.position * -1.0f;
-	sceneData.cameraPos = glm::vec4(camPos, 1.0f);
+	scene_data.cameraPos = glm::vec4(camPos, 1.0f);
 	// camera projection
 	mainCamera.updateAspectRatio(_aspect_width / _aspect_height);
-	sceneData.proj = mainCamera.matrices.perspective;
+	scene_data.proj = mainCamera.matrices.perspective;
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
-	sceneData.proj[1][1] *= -1;
-	sceneData.viewproj = sceneData.proj * sceneData.view;
+	scene_data.proj[1][1] *= -1;
+	scene_data.viewproj = scene_data.proj * scene_data.view;
 	glm::mat4 model(1.0f);
 	model = glm::translate(model, glm::vec3(0, 50, -500));
 	model = glm::scale(model, glm::vec3(10, 10, 10));
 	//sceneData.skyMat = model;
-	sceneData.skyMat = sceneData.proj * glm::mat4(glm::mat3(sceneData.view));
+	scene_data.skyMat = scene_data.proj * glm::mat4(glm::mat3(scene_data.view));
 
 	//some default lighting parameters
-	sceneData.ambientColor = glm::vec4(.1f);
-	sceneData.sunlightColor = directLight.color;
-	sceneData.sunlightDirection = directLight.direction;
-	sceneData.lightCount = pointData.pointLights.size();
+	scene_data.sunlightColor = directLight.color;
+	scene_data.sunlightDirection = directLight.direction;
+	scene_data.lightCount = pointData.pointLights.size();
 
 	void* data = nullptr;
 	vmaMapMemory(loaded_engine->_allocator, ClusterValues.lightSSBO.allocation, &data);
 	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
+	vmaUnmapMemory(loaded_engine->_allocator, ClusterValues.lightSSBO.allocation);
 
-	void* value = nullptr;
-	//uint32_t* val = (uint32_t*)value; ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
-	vmaMapMemory(loaded_engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation, &value);
-	uint32_t* val = (uint32_t*)value;
-	*val = 0;
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	//*sceneUniformData = sceneData;
 
+	//uint32_t* val = (uint32_t*)ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
+	//*val = 0;
+	void* val = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation, &val);
+	uint32_t* value = (uint32_t*)val;
+	*value = 0;
+	vmaUnmapMemory(loaded_engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation);
+
+
+	cascadeData = shadows.getCascades(loaded_engine);
 	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
 	{
-		auto cascadeData = shadows.getCascades(loaded_engine);
-		memcpy(&sceneData.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
-		memcpy(&sceneData.cascadePlaneDistances, cascadeData.cascadeDistances.data(), sizeof(float) * cascadeData.cascadeDistances.size());
-		sceneData.distances.x = cascadeData.cascadeDistances[0];
-		sceneData.distances.y = cascadeData.cascadeDistances[1];
-		sceneData.distances.z = cascadeData.cascadeDistances[2];
-		sceneData.distances.w = cascadeData.cascadeDistances[3];
+		memcpy(&shadow_data.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
+		scene_data.distances.x = cascadeData.cascadeDistances[0];
+		scene_data.distances.y = cascadeData.cascadeDistances[1];
+		scene_data.distances.z = cascadeData.cascadeDistances[2];
+		scene_data.distances.w = cascadeData.cascadeDistances[3];
+
+		//shadow_data.distances = scene_data.distances;
 		directLight.lastDirection = directLight.direction;
 		render_shadowMap = true;
 		mainCamera.updated = false;
 	}
 
 	if (debugShadowMap)
-		sceneData.ConfigData.z = 1.0f;
+		scene_data.ConfigData.z = 1.0f;
 	else
-		sceneData.ConfigData.z = 0.0f;
-	sceneData.ConfigData.x = mainCamera.getNearClip();
-	sceneData.ConfigData.y = mainCamera.getFarClip();
+		scene_data.ConfigData.z = 0.0f;
+	scene_data.ConfigData.x = mainCamera.getNearClip();
+	scene_data.ConfigData.y = mainCamera.getFarClip();
 
-	//Not an actual api Draw call
+	//Prepare Render objects
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
 	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
@@ -893,21 +892,36 @@ void ClusteredForwardRenderer::UpdateScene()
 
 void ClusteredForwardRenderer::LoadAssets()
 {
-	std::string cubePath{ "assets/cube.gltf" };
-	auto cubeFile = loadGltf(loaded_engine, cubePath);
-	loadedScenes["cube"] = *cubeFile;
+	//Load in skyBox image
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, loaded_engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
-	//std::string structurePath{ "assets/SM_Deccer_Cubes_Textured_Complex.gltf" };
 	std::string structurePath{ "assets/sponza/Sponza.gltf" };
-
-	auto structureFile = loadGltf(loaded_engine, structurePath, true);
+	auto structureFile = resource_manager->loadGltf(loaded_engine, structurePath, true);
 	assert(structureFile.has_value());
 
+	std::string cubePath{ "assets/cube.gltf" };
+	auto cubeFile = resource_manager->loadGltf(loaded_engine, cubePath);
+	assert(cubeFile.has_value());
+
 	std::string planePath{ "assets/plane.glb" };
-	auto planeFile = loadGltf(loaded_engine, planePath);
+	auto planeFile = resource_manager->loadGltf(loaded_engine, planePath);
+	assert(planeFile.has_value());
 
 	loadedScenes["sponza"] = *structureFile;
+	loadedScenes["cube"] = *cubeFile;
 	loadedScenes["plane"] = *planeFile;
+
+	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
+	scene_manager->RegisterMeshAssetReference("sponza");
+	//Register render objects for draw indirect
+	scene_manager->RegisterObjectBatch(drawCommands);
+	scene_manager->MergeMeshes();
+	scene_manager->PrepareIndirectBuffers();
+	scene_manager->BuildBatches();
+
+#ifdef USE_BINDLESS 1
+	resource_manager->write_material_array();
+#endif
 }
 
 void ClusteredForwardRenderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -975,6 +989,7 @@ void ClusteredForwardRenderer::Draw()
 	//wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(loaded_engine->_device, 1, &get_current_frame()._renderFence, true, 1000000000));
 
+
 	auto end_update = std::chrono::system_clock::now();
 	auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
 	stats.update_time = elapsed_update.count() / 1000.f;
@@ -1011,10 +1026,13 @@ void ClusteredForwardRenderer::Draw()
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _depthPyramid.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
 	DrawMain(cmd);
 
 	DrawPostProcess(cmd);
@@ -1029,11 +1047,10 @@ void ClusteredForwardRenderer::Draw()
 	// execute a copy from the draw image into the swapchain
 	vkutil::copy_image_to_image(cmd, _hdrImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
-
 	// set swapchain image layout to Attachment Optimal so we can draw it
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	//draw imgui into the swapchain image
+	//draw UI directly into the swapchain image
 	DrawImgui(cmd, _swapchainImageViews[swapchainImageIndex]);
 
 	// set swapchain image layout to Present so we can draw it
@@ -1078,39 +1095,79 @@ void ClusteredForwardRenderer::Draw()
 	}
 	//increase the number of frames drawn
 	_frameNumber++;
-
 }
 
 void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 {
-	ZoneScoped;
-	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = loaded_engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		loaded_engine->destroy_buffer(gpuSceneDataBuffer);
+		vkutil::destroy_buffer(shadowDataBuffer,loaded_engine);
 		});
 
 	//write the buffer
 	void* sceneDataPtr = nullptr;
-	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation,&sceneDataPtr);
-	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	*sceneUniformData = sceneData;
+	vmaMapMemory(loaded_engine->_allocator, shadowDataBuffer.allocation, &sceneDataPtr);
+	shadowData* ptr = (shadowData*)sceneDataPtr;
+	*ptr = shadow_data;
+	//memcpy(sceneDataPtr, &shadow_data.lightSpaceMatrices, sizeof(shadowData));
+	vmaUnmapMemory(loaded_engine->_allocator, shadowDataBuffer.allocation);
 
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, cascaded_shadows_descriptor_layout);
 
 	DescriptorWriter writer;
-	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(0, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, scene_manager->GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(loaded_engine->_device, globalDescriptor);
 
-	MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
+
+	/*
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_shadowDepthImage.imageExtent.width;
+		viewport.height = (float)_shadowDepthImage.imageExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _shadowDepthImage.imageExtent.width;
+		scissor.extent.height = _shadowDepthImage.imageExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		if (r.indexBuffer != lastIndexBuffer)
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		stats.shadow_drawcall_count++;
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+		};
+	for (auto& r : draws) {
+		draw(drawCommands.OpaqueSurfaces[r]);
+	}
+	*/
+	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
 			&globalDescriptor, 0, nullptr);
@@ -1131,31 +1188,54 @@ void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 		scissor.extent.width = _shadowDepthImage.imageExtent.width;
 		scissor.extent.height = _shadowDepthImage.imageExtent.height;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
-		//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 1, 1,
-			//&cascadedShadows.matData.materialSet, 0, nullptr);
-		if (r.indexBuffer != lastIndexBuffer)
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
 
+		vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+		//calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
 		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
-		stats.shadow_drawcall_count++;
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-		};
-	for (auto& r : draws) {
-		draw(drawCommands.OpaqueSurfaces[r]);
-	}
+		vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer.buffer, 0,
+			scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+	};
+
 }
 void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	auto main_start = std::chrono::system_clock::now();
+	cullBarriers.clear();
+
+	//Begin Compute shader culling passes
+	vkutil::cullParams earlyDepthCull;
+	earlyDepthCull.viewmat = scene_data.view;
+	earlyDepthCull.projmat = scene_data.proj;
+	earlyDepthCull.frustrumCull = true;
+	earlyDepthCull.occlusionCull = true;
+	earlyDepthCull.aabb = false;
+	earlyDepthCull.drawDist = mainCamera.getFarClip();
+	ExecuteComputeCull(cmd, earlyDepthCull, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth));
+
+	vkutil::cullParams shadowCull;
+	shadowCull.viewmat = cascadeData.lightViewMatrices[1];
+	shadowCull.projmat = cascadeData.lightProjMatrices[1];
+	shadowCull.frustrumCull = false;
+	shadowCull.occlusionCull = false;
+	shadowCull.aabb = false;
+	glm::vec3 aabbCenter = glm::vec3(0);
+	glm::vec3 aabbExtent = glm::vec3(1000);
+	shadowCull.aabbmin = aabbCenter - aabbExtent;
+	shadowCull.aabbmax = aabbCenter + aabbExtent;
+	shadowCull.drawDist = mainCamera.getFarClip();
+	ExecuteComputeCull(cmd, shadowCull, scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass));
+
+
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, nullptr, cullBarriers.size(), cullBarriers.data(), 0, nullptr);
+	if (readDebugBuffer)
+	{
+		resource_manager->ReadBackBufferData(cmd, &scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer);
+		readDebugBuffer = false;
+	}
 
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo earlyDepthRenderInfo = vkinit::rendering_info(_windowExtent, nullptr, &depthAttachment);
@@ -1184,12 +1264,14 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
-	//Cull lights
+	//Compute shader pass for clustered light culling
 	CullLights(cmd);
 
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment2 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+	VkClearValue depthClear;
+	depthClear.depthStencil.depth = 1.0f;
+	VkRenderingAttachmentInfo depthAttachment2 = vkinit::attachment_info(_depthImage.imageView, &_depthResolveImage.imageView, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
@@ -1213,14 +1295,104 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	vkCmdBeginRendering(cmd, &backRenderInfo);
 
 	DrawBackground(cmd);
-
 	vkCmdEndRendering(cmd);
+	ReduceDepth(cmd);
 }
+
+void ClusteredForwardRenderer::ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass)
+{
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,loaded_engine);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		vkutil::destroy_buffer(gpuSceneDataBuffer,loaded_engine);
+		});
+
+	//write the buffer
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
+	*sceneUniformData = scene_data;
+	vmaUnmapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation);
+
+	VkDescriptorSet computeCullDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, compute_cull_descriptor_layout);
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, scene_manager->GetObjectDataBuffer()->buffer, sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(2, meshPass->drawIndirectBuffer.buffer, sizeof(SceneManager::GPUIndirectObject) * meshPass->flat_objects.size(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_image(3, _depthPyramid.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(loaded_engine->_device, computeCullDescriptor);
+
+	glm::mat4 projection = cullParams.projmat;
+	auto projectionT = glm::transpose(projection);
+
+	glm::vec4 frustumX = BlackKey::NormalizePlane(projectionT[3] + projectionT[0]); // x + w < 0
+	glm::vec4 frustumY = BlackKey::NormalizePlane(projectionT[3] + projectionT[1]); // y + w < 0
+
+	vkutil::DrawCullData cullData = {};
+	cullData.P00 = projection[0][0];
+	cullData.P11 = projection[1][1];
+	cullData.znear = mainCamera.getNearClip();
+	cullData.zfar = cullParams.drawDist;
+	cullData.frustum[0] = frustumX.x;
+	cullData.frustum[1] = frustumX.z;
+	cullData.frustum[2] = frustumY.y;
+	cullData.frustum[3] = frustumY.z;
+	cullData.drawCount = static_cast<uint32_t>(meshPass->flat_objects.size());
+	cullData.cullingEnabled = cullParams.frustrumCull;
+	cullData.lodEnabled = false;
+	cullData.occlusionEnabled = cullParams.occlusionCull;
+	cullData.lodBase = 10.f;
+	cullData.lodStep = 1.5f;
+	cullData.pyramidWidth = static_cast<float>(depthPyramidWidth);
+	cullData.pyramidHeight = static_cast<float>(depthPyramidHeight);
+	cullData.viewMat = cullParams.viewmat;//get_view_matrix();
+
+	cullData.AABBcheck = cullParams.aabb;
+	cullData.aabbmin_x = cullParams.aabbmin.x;
+	cullData.aabbmin_y = cullParams.aabbmin.y;
+	cullData.aabbmin_z = cullParams.aabbmin.z;
+
+	cullData.aabbmax_x = cullParams.aabbmax.x;
+	cullData.aabbmax_y = cullParams.aabbmax.y;
+	cullData.aabbmax_z = cullParams.aabbmax.z;
+
+	if (cullParams.drawDist > 10000)
+	{
+		cullData.distanceCheck = false;
+	}
+	else
+	{
+		cullData.distanceCheck = true;
+	}
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pso.pipeline);
+
+	vkCmdPushConstants(cmd, cull_objects_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(vkutil::DrawCullData), &cullData);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_objects_pso.layout, 0, 1, &computeCullDescriptor, 0, nullptr);
+
+	vkCmdDispatch(cmd, static_cast<uint32_t>((meshPass->flat_objects.size() / 256) + 1), 1, 1);
+
+	{
+		VkBufferMemoryBarrier barrier = vkinit::buffer_barrier(meshPass->drawIndirectBuffer.buffer, loaded_engine->_graphicsQueueFamily);
+		barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+
+		cullBarriers.push_back(barrier);
+	}
+}
+
+void ClusteredForwardRenderer::ReduceDepth(VkCommandBuffer cmd)
+{
+
+}
+
 void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	//vkutil::transition_image(cmd, _presentImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
@@ -1246,14 +1418,14 @@ void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 	void* sceneDataPtr = nullptr;
 	vmaMapMemory(loaded_engine->_allocator, skySceneDataBuffer.allocation, &sceneDataPtr);
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
-	*sceneUniformData = sceneData;
+	*sceneUniformData = scene_data;
 
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _skyboxDescriptorLayout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, skySceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(1, _skyImage.imageView, _cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(1, _skyImage.imageView, cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(loaded_engine->_device, globalDescriptor);
 
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
@@ -1300,31 +1472,39 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = loaded_engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-	//add it to the deletion queue of this frame so it gets deleted once its been used
+	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		loaded_engine->destroy_buffer(gpuSceneDataBuffer);
+		destroy_buffer(gpuSceneDataBuffer);
+		destroy_buffer(shadowDataBuffer);
 		});
 
 
-	void* sceneDataPtr = nullptr;
-	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
-	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
-	*sceneUniformData = sceneData;
-
 	//write the buffer
-	//GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	//*sceneUniformData = sceneData;
+	void* shadowDataPtr = nullptr;
+	vmaMapMemory(_allocator, shadowDataBuffer.allocation, &shadowDataPtr);
+	shadowData* ptr = (shadowData*)shadowDataPtr;
+	*ptr = shadow_data;
+	//memcpy(sceneDataPtr, &shadow_data.lightSpaceMatrices, sizeof(shadowData));
+	vmaUnmapMemory(_allocator, shadowDataBuffer.allocation);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
+	*sceneUniformData = scene_data;
+	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, gpu_scene_data_descriptor_layout);
 
 	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(2, _shadowDepthImage.imageView, _depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, IBL._irradianceCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(5, IBL._preFilteredCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -1332,10 +1512,15 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	writer.write_buffer(7, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(8, ClusterValues.lightIndexListSSBO.buffer, totalLightCount * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(10, scene_manager.GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
 
-	writer.update_set(loaded_engine->_device, globalDescriptor);
 
-	MaterialPipeline* lastPipeline = nullptr;
+	//allocate bindless descriptor
+
+	/*MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
@@ -1365,10 +1550,13 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 				scissor.extent.height = _windowExtent.height;
 
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
+
 			}
 
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
-				&r.material->materialSet, 0, nullptr);
+			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
+				//&r.material->materialSet, 0, nullptr);
 		}
 		if (r.indexBuffer != lastIndexBuffer) {
 			lastIndexBuffer = r.indexBuffer;
@@ -1378,13 +1566,15 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 		GPUDrawPushConstants push_constants;
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
+		push_constants.material_index = r.material->material_index;
 
-		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
 		stats.drawcall_count++;
 		stats.triangle_count += r.indexCount / 3;
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 		};
+
 
 	stats.drawcall_count = 0;
 	stats.triangle_count = 0;
@@ -1396,63 +1586,53 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	for (auto& r : drawCommands.TransparentSurfaces) {
 		draw(r);
 	}
+	*/
 
+
+	{
+		for (auto pass_enum : forward_passes)
+		{
+			auto pass = scene_manager.GetMeshPass(pass_enum);
+			if (pass->flat_objects.size() > 0)
+			{
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
+					&globalDescriptor, 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
+
+
+				VkViewport viewport = {};
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = (float)_windowExtent.width;
+				viewport.height = (float)_windowExtent.height;
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
+
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _windowExtent.width;
+				scissor.extent.height = _windowExtent.height;
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+				vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+				//calculate final mesh matrix
+				GPUDrawPushConstants push_constants;
+				push_constants.vertexBuffer = *scene_manager.GetMergedDeviceAddress();
+				vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+				vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+
+			}
+		}
+	}
 	// we delete the draw commands now that we processed them
 	drawCommands.OpaqueSurfaces.clear();
 	drawCommands.TransparentSurfaces.clear();
 	draws.clear();
-}
-
-void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
-{
-	ZoneScoped;
-	std::vector<uint32_t> draws;
-	draws.reserve(imageDrawCommands.OpaqueSurfaces.size());
-
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _drawImageDescriptorLayout);
-
-	DescriptorWriter writer;
-	writer.write_image(0, _resolveImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.update_set(loaded_engine->_device, globalDescriptor);
-
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-	auto draw = [&](const RenderObject& r) {
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, HdrPSO.renderImagePipeline.pipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, HdrPSO.renderImagePipeline.layout, 0, 1,
-			&globalDescriptor, 0, nullptr);
-
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)_windowExtent.width;
-		viewport.height = (float)_windowExtent.height;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = _windowExtent.width;
-		scissor.extent.height = _windowExtent.height;
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-		if (r.indexBuffer != lastIndexBuffer)
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-
-		vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-		vkCmdDraw(cmd, 3, 1, 0, 0);
-		};
-	draw(imageDrawCommands.OpaqueSurfaces[0]);
-
 }
 
 void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
@@ -1505,7 +1685,7 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 {
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], sceneData.viewproj)) {
+		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], scene_data.viewproj)) {
 			draws.push_back(i);
 		}
 	}
@@ -1522,27 +1702,29 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 		});
 
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = loaded_engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		loaded_engine->destroy_buffer(gpuSceneDataBuffer);
+		vkutil::destroy_buffer(gpuSceneDataBuffer);
 		});
 
+	//write the buffer
 	void* sceneDataPtr = nullptr;
 	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
-	*sceneUniformData = sceneData;
+	*sceneUniformData = scene_data;
+	vmaUnmapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation);
 
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, gpu_scene_data_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(6, scene_manager->GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(loaded_engine->_device, globalDescriptor);
 
-	MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
+	/*
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
 	auto draw = [&](const RenderObject& r) {
@@ -1571,10 +1753,12 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 			lastIndexBuffer = r.indexBuffer;
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
+
 		// calculate final mesh matrix
 		GPUDrawPushConstants push_constants;
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
+		push_constants.material_index = r.material->material_index;
 
 		vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
@@ -1582,6 +1766,40 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 
 	for (auto& r : draws) {
 		draw(drawCommands.OpaqueSurfaces[r]);
+	}
+	*/
+
+
+	{
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+		//calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
+		vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+			scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 	}
 }
 
@@ -1780,4 +1998,3 @@ void ClusteredForwardRenderer::DrawUI()
 	}
 	ImGui::End();
 }
-*/
