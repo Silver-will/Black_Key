@@ -4,6 +4,7 @@
 
 int main(int argc, char* argv[])
 {
+
 	/*VulkanEngine engine;
 	engine.init();
 
@@ -16,6 +17,7 @@ int main(int argc, char* argv[])
 	engine.cleanup();	
 	*/
 
+	/*
 	VulkanEngine engine;
 
 	engine.init();
@@ -23,6 +25,6 @@ int main(int argc, char* argv[])
 	engine.run();
 
 	engine.cleanup();
-
+	*/
 	return 0;
 }

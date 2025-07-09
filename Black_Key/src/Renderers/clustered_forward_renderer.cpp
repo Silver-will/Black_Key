@@ -24,21 +24,11 @@ using namespace std::literals::string_literals;
 
 void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 {
-	mainCamera.type = Camera::CameraType::firstperson;
-	//mainCamera.flipY = true;
-	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 300.0f);
-	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
-	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
-	// only one engine initialization is allowed with the application.
 	assert(loaded_engine == nullptr);
 	this->loaded_engine = engine;
+	ConfigureRenderWindow();
 
-	glfwSetWindowUserPointer(loaded_engine->window, this);
-	glfwSetFramebufferSizeCallback(loaded_engine->window, framebuffer_resize_callback);
-	glfwSetKeyCallback(loaded_engine->window, KeyCallback);
-	glfwSetCursorPosCallback(loaded_engine->window, CursorCallback);
-	glfwSetInputMode(loaded_engine->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	InitEngine();
 
 	InitSwapchain();
 
@@ -64,8 +54,19 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 	_isInitialized = true;
 }
 
+void ClusteredForwardRenderer::ConfigureRenderWindow()
+{
+	
+	glfwSetWindowUserPointer(window, this);
+	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
+	glfwSetKeyCallback(window, KeyCallback);
+	glfwSetCursorPosCallback(window, CursorCallback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
 void ClusteredForwardRenderer::InitEngine()
 {
+	//Request required GPU features and extensions
 	//vulkan 1.3 features
 	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 	features.dynamicRendering = true;
@@ -270,7 +271,6 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_drawImageDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
-
 	}
 
 	{
@@ -288,7 +288,6 @@ void ClusteredForwardRenderer::InitDescriptors()
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		_gpuSceneDataDescriptorLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
-
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -441,7 +440,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	VkComputePipelineCreateInfo computePipelineCreateInfo{};
 	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = _cullLightsPipelineLayout;
+	computePipelineCreateInfo.layout = cull_lights_pso.layout;
 	computePipelineCreateInfo.stage = stageinfo;
 
 	VK_CHECK(vkCreateComputePipelines(loaded_engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cull_lights_pso.pipeline));
@@ -517,8 +516,8 @@ void ClusteredForwardRenderer::InitComputePipelines()
 		vkDestroyPipeline(loaded_engine->_device, depth_reduce_pso.pipeline, nullptr);
 		vkDestroyPipelineLayout(loaded_engine->_device, cull_objects_pso.layout, nullptr);
 		vkDestroyPipeline(loaded_engine->_device, cull_objects_pso.pipeline, nullptr);
-		vkDestroyPipelineLayout(loaded_engine->_device, _cullLightsPipelineLayout, nullptr);
-		vkDestroyPipeline(loaded_engine->_device, _cullLightsPipeline, nullptr);
+		vkDestroyPipelineLayout(loaded_engine->_device, cull_lights_pso.layout, nullptr);
+		vkDestroyPipeline(loaded_engine->_device, cull_lights_pso.pipeline , nullptr);
 		});
 }
 
@@ -555,6 +554,13 @@ void ClusteredForwardRenderer::InitDefaultData()
 	_depthPyramid = resource_manager->CreateImageEmpty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
+
+	mainCamera.type = Camera::CameraType::firstperson;
+	//mainCamera.flipY = true;
+	mainCamera.movementSpeed = 2.5f;
+	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 300.0f);
+	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
+	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
 	for (int i = 0; i < depthPyramidLevels; i++)
 	{
@@ -1099,7 +1105,7 @@ void ClusteredForwardRenderer::Draw()
 
 void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 {
-	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, loaded_engine);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
@@ -1401,6 +1407,59 @@ void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	vkCmdEndRendering(cmd);
 }
 
+void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
+{
+	ZoneScoped;
+	std::vector<uint32_t> draws;
+	draws.reserve(imageDrawCommands.OpaqueSurfaces.size());
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _drawImageDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_image(0, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(1, _depthResolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(loaded_engine->_device, globalDescriptor);
+
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+	auto draw = [&](const RenderObject& r) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, HdrPSO.renderImagePipeline.pipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, HdrPSO.renderImagePipeline.layout, 0, 1,
+			&globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		if (r.indexBuffer != lastIndexBuffer)
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+		push_constants.material_index = debugDepthTexture ? 1 : 0;
+
+		vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdDraw(cmd, 3, 1, 0, 0);
+		};
+
+	draw(imageDrawCommands.OpaqueSurfaces[0]);
+}
 void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 {
 	ZoneScoped;
@@ -1472,33 +1531,33 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,loaded_engine);
 
-	AllocatedBuffer shadowDataBuffer = create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, loaded_engine);
 
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		destroy_buffer(gpuSceneDataBuffer);
-		destroy_buffer(shadowDataBuffer);
+		vkutil::destroy_buffer(gpuSceneDataBuffer,loaded_engine);
+		vkutil::destroy_buffer(shadowDataBuffer, loaded_engine);
 		});
 
 
 	//write the buffer
 	void* shadowDataPtr = nullptr;
-	vmaMapMemory(_allocator, shadowDataBuffer.allocation, &shadowDataPtr);
+	vmaMapMemory(loaded_engine->_allocator, shadowDataBuffer.allocation, &shadowDataPtr);
 	shadowData* ptr = (shadowData*)shadowDataPtr;
 	*ptr = shadow_data;
 	//memcpy(sceneDataPtr, &shadow_data.lightSpaceMatrices, sizeof(shadowData));
-	vmaUnmapMemory(_allocator, shadowDataBuffer.allocation);
+	vmaUnmapMemory(loaded_engine->_allocator, shadowDataBuffer.allocation);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	void* sceneDataPtr = nullptr;
-	vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	vmaMapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
 	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
 	*sceneUniformData = scene_data;
-	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
+	vmaUnmapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation);
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, gpu_scene_data_descriptor_layout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
 
 	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 
@@ -1512,10 +1571,10 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	writer.write_buffer(7, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(8, ClusterValues.lightIndexListSSBO.buffer, totalLightCount * sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(9, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(10, scene_manager.GetObjectDataBuffer()->buffer,
-		sizeof(vkutil::GPUModelInformation) * scene_manager.GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(10, scene_manager->GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.update_set(_device, globalDescriptor);
+	writer.update_set(loaded_engine->_device, globalDescriptor);
 
 
 	//allocate bindless descriptor
@@ -1592,13 +1651,13 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	{
 		for (auto pass_enum : forward_passes)
 		{
-			auto pass = scene_manager.GetMeshPass(pass_enum);
+			auto pass = scene_manager->GetMeshPass(pass_enum);
 			if (pass->flat_objects.size() > 0)
 			{
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
 					&globalDescriptor, 0, nullptr);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
 
 
 				VkViewport viewport = {};
@@ -1618,12 +1677,12 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 				scissor.extent.height = _windowExtent.height;
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-				vkCmdBindIndexBuffer(cmd, scene_manager.GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
 				//calculate final mesh matrix
 				GPUDrawPushConstants push_constants;
-				push_constants.vertexBuffer = *scene_manager.GetMergedDeviceAddress();
+				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
 				vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-				vkCmdDrawIndexedIndirect(cmd, scene_manager.GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 
 			}
@@ -1657,11 +1716,11 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 
 	culling_information.view = mainCamera.matrices.view;
 	culling_information.lightCount = pointData.pointLights.size();
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipeline);
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.pipeline);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _cullLightsPipelineLayout, 0, 1, &cullingDescriptor, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.layout, 0, 1, &cullingDescriptor, 0, nullptr);
 
-	vkCmdPushConstants(cmd, _cullLightsPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
+	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
 	vkCmdDispatch(cmd, 16, 9, 24);
 }
 
@@ -1702,11 +1761,11 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 		});
 
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, loaded_engine);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(gpuSceneDataBuffer);
+		vkutil::destroy_buffer(gpuSceneDataBuffer,loaded_engine);
 		});
 
 	//write the buffer
@@ -1716,7 +1775,7 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 	*sceneUniformData = scene_data;
 	vmaUnmapMemory(loaded_engine->_allocator, gpuSceneDataBuffer.allocation);
 
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, gpu_scene_data_descriptor_layout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, _gpuSceneDataDescriptorLayout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1809,7 +1868,7 @@ void ClusteredForwardRenderer::Run()
 
 
 	// main loop
-	while (!glfwWindowShouldClose(loaded_engine->window)) {
+	while (!glfwWindowShouldClose(window)) {
 		auto start = std::chrono::system_clock::now();
 		if (resize_requested) {
 			ResizeSwapchain();
@@ -1826,19 +1885,15 @@ void ClusteredForwardRenderer::Run()
 
 
 		ImGui::NewFrame();
-
 		SetImguiTheme(0.8f);
 		DrawUI();
 		ImGui::Render();
-
 
 		auto start_update = std::chrono::system_clock::now();
 		UpdateScene();
 		auto end_update = std::chrono::system_clock::now();
 		auto elapsed_update = std::chrono::duration_cast<std::chrono::microseconds>(end_update - start_update);
-
 		Draw();
-
 		glfwPollEvents();
 		auto end = std::chrono::system_clock::now();
 
@@ -1856,7 +1911,7 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 	DestroySwapchain();
 
 	int w, h;
-	glfwGetWindowSize(loaded_engine->window, &w, &h);
+	glfwGetWindowSize(window, &w, &h);
 	_windowExtent.width = w;
 	_windowExtent.height = h;
 
@@ -1884,117 +1939,5 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 
 void ClusteredForwardRenderer::DrawUI()
 {
-	// Demonstrate the various window flags. Typically you would just use the default!
-	static bool no_titlebar = false;
-	static bool no_scrollbar = false;
-	static bool no_menu = false;
-	static bool no_move = false;
-	static bool no_resize = false;
-	static bool no_collapse = false;
-	static bool no_close = false;
-	static bool no_nav = false;
-	static bool no_background = false;
-	static bool no_bring_to_front = false;
-	static bool no_docking = false;
-	static bool unsaved_document = false;
-
-	ImGuiWindowFlags window_flags = 0;
-	if (no_titlebar)        window_flags |= ImGuiWindowFlags_NoTitleBar;
-	if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
-	if (!no_menu)           window_flags |= ImGuiWindowFlags_MenuBar;
-	if (no_move)            window_flags |= ImGuiWindowFlags_NoMove;
-	if (no_resize)          window_flags |= ImGuiWindowFlags_NoResize;
-	if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
-	if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
-	if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
-	if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-	//if (no_docking)         window_flags |= ImGuiWindowFlags_NoDocking;
-	if (unsaved_document)   window_flags |= ImGuiWindowFlags_UnsavedDocument;
-
-	const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 650, main_viewport->WorkPos.y + 20), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-
-	bool p_open = true;
-	if (!ImGui::Begin("Black key", &p_open, window_flags))
-	{
-		ImGui::End();
-		return;
-	}
-
-	if (ImGui::CollapsingHeader("Lighting"))
-	{
-		std::string index{};
-		if (ImGui::TreeNode("Point Lights"))
-		{
-			for (size_t i = 0; i < pointData.pointLights.size(); i++)
-			{
-				index = std::to_string(i);
-				if (ImGui::TreeNode(("Point "s + index).c_str()))
-				{
-					if (ImGui::TreeNode("Position"))
-					{
-						float pos[3] = { pointData.pointLights[i].position.x, pointData.pointLights[i].position.y, pointData.pointLights[i].position.z };
-						ImGui::SliderFloat3("x,y,z", pos, -15.0f, 15.0f);
-						pointData.pointLights[i].position = glm::vec4(pos[0], pos[1], pos[2], 0.0f);
-						ImGui::TreePop();
-						ImGui::Spacing();
-					}
-					if (ImGui::TreeNode("Color"))
-					{
-						float col[4] = { pointData.pointLights[i].color.x, pointData.pointLights[i].color.y, pointData.pointLights[i].color.z, pointData.pointLights[i].color.w };
-						ImGui::ColorEdit4("Light color", col);
-						pointData.pointLights[i].color = glm::vec4(col[0], col[1], col[2], col[3]);
-						ImGui::TreePop();
-						ImGui::Spacing();
-					}
-
-					if (ImGui::TreeNode("Attenuation"))
-					{
-						//move this declaration to a higher scope later
-						ImGui::SliderFloat("Range", &pointData.pointLights[i].range, 0.0f, 1.0f);
-						ImGui::SliderFloat("Intensity", &pointData.pointLights[i].intensity, 0.0f, 1.0f);
-						//ImGui::SliderFloat("quadratic", &points[i].quadratic, 0.0f, 2.0f);
-						//ImGui::SliderFloat("radius", &points[i].quadratic, 0.0f, 100.0f);
-						ImGui::TreePop();
-						ImGui::Spacing();
-
-					}
-					ImGui::TreePop();
-				}
-			}
-			ImGui::TreePop();
-		}
-		if (ImGui::TreeNode("Direct Light"))
-		{
-			ImGui::SeparatorText("direction");
-			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
-			ImGui::SliderFloat3("x,y,z", pos, -7, 7);
-			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], 0.0f);
-
-			ImGui::SeparatorText("color");
-			float col[4] = { directLight.color.x, directLight.color.y, directLight.color.z, directLight.color.w };
-			ImGui::ColorEdit4("Light color", col);
-			directLight.color = glm::vec4(col[0], col[1], col[2], col[3]);
-			ImGui::TreePop();
-		}
-	}
-	if (ImGui::CollapsingHeader("Debugging"))
-	{
-		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
-	}
-
-	if (ImGui::CollapsingHeader("Engine Stats"))
-	{
-		ImGui::SeparatorText("Render timings");
-		ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
-		ImGui::Text("frametime %f ms", stats.frametime);
-		ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
-		ImGui::Text("triangles %i", stats.triangle_count);
-		ImGui::Text("draws %i", stats.drawcall_count);
-		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
-		ImGui::Text("Update time %f ms", stats.update_time);
-		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
-	}
-	ImGui::End();
+	RenderUI(loaded_engine);
 }
