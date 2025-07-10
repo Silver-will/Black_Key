@@ -81,7 +81,7 @@ struct LoadedGLTF : public IRenderable {
     DescriptorAllocatorGrowable descriptorPool;;
     AllocatedBuffer materialDataBuffer;
 
-    VulkanEngine* creator;
+    ResourceManager* creator;
 
     ~LoadedGLTF() { clearAll(); };
 
@@ -124,7 +124,7 @@ struct GLTFMetallic_Roughness {
 
     DescriptorWriter writer;
 
-    void build_pipelines(VulkanEngine* engine);
+    void build_pipelines(VulkanEngine* engine,PipelineCreationInfo& info);
     void clear_resources(VkDevice device);
 
     MaterialInstance SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index = -1);

@@ -144,6 +144,11 @@ struct VolumeTileAABB {
     glm::vec4 maxPoint;
 };
 
+struct PipelineCreationInfo {
+    std::vector<VkDescriptorSetLayout> layouts;
+    VkFormat depthFormat = VK_FORMAT_MAX_ENUM;
+    VkFormat imageFormat = VK_FORMAT_MAX_ENUM;
+};
 struct LightGrid {
     uint32_t offset;
     uint32_t count;

@@ -5,7 +5,7 @@
 #include "vk_images.h"
 #include <ktx.h>
 
-void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
+void ShadowPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule shadowVertexShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.vert.spv", engine->_device, &shadowVertexShader)) {
@@ -27,11 +27,11 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->cascaded_shadows_descriptor_layout };
+	//VkDescriptorSetLayout layouts[] = { engine->cascaded_shadows_descriptor_layout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
-	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
 	mesh_layout_info.pPushConstantRanges = &matrixRange;
 	mesh_layout_info.pushConstantRangeCount = 1;
 
@@ -50,7 +50,7 @@ void ShadowPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	//pipelineBuilder.set_color_attachment_format();
-	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
 
 	pipelineBuilder._pipelineLayout = newLayout;
 
@@ -65,7 +65,7 @@ ShadowPipelineResources::MaterialResources ShadowPipelineResources::AllocateReso
 {
 	MaterialResources mat;
 	mat.shadowImage = vkutil::create_image_empty(VkExtent3D(1024, 1024, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, engine, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, engine->shadows.getCascadeLevels());
-	mat.shadowSampler = engine->defaultSamplerLinear;
+	//mat.shadowSampler = engine->defaultSamplerLinear;
 	return mat;
 }
 
@@ -90,7 +90,7 @@ void ShadowPipelineResources::clear_resources(VkDevice device)
 }
 
 
-void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
+void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule skyVertexShader;
 	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", engine->_device, &skyVertexShader)) {
@@ -107,11 +107,11 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout };
+	///VkDescriptorSetLayout layouts[] = { engine->_skyboxDescriptorLayout };
 
 	VkPipelineLayoutCreateInfo sky_layout_info = vkinit::pipeline_layout_create_info();
 	sky_layout_info.setLayoutCount = 1;
-	sky_layout_info.pSetLayouts = layouts;
+	sky_layout_info.pSetLayouts = info.layouts.data();
 	sky_layout_info.pPushConstantRanges = &matrixRange;
 	sky_layout_info.pushConstantRangeCount = 1;
 
@@ -128,8 +128,8 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = skyPipeline.layout;
 
-	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
-	pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
 
 	skyPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
@@ -152,7 +152,7 @@ MaterialInstance SkyBoxPipelineResources::write_material(VkDevice device, vkutil
 }
 
 
-void BloomBlurPipelineObject::build_pipelines(VulkanEngine* engine)
+void BloomBlurPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 
 }
@@ -169,7 +169,7 @@ MaterialInstance BloomBlurPipelineObject::write_material(VkDevice device, vkutil
 }
 
 
-void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine)
+void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule HDRVertexShader;
 	if (!vkutil::load_shader_module("shaders/hdr.vert.spv", engine->_device, &HDRVertexShader)) {
@@ -186,11 +186,11 @@ void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->_drawImageDescriptorLayout };
+//	VkDescriptorSetLayout layouts[] = { engine->_drawImageDescriptorLayout };
 
 	VkPipelineLayoutCreateInfo image_layout_info = vkinit::pipeline_layout_create_info();
 	image_layout_info.setLayoutCount = 1;
-	image_layout_info.pSetLayouts = layouts;
+	image_layout_info.pSetLayouts = info.layouts.data();
 	image_layout_info.pPushConstantRanges = &matrixRange;
 	image_layout_info.pushConstantRangeCount = 1;
 
@@ -207,7 +207,7 @@ void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = renderImagePipeline.layout;
 
-	pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
 
 	renderImagePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
@@ -225,7 +225,7 @@ void RenderImagePipelineObject::clear_resources(VkDevice device)
 }
 
 
-void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
+void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule depthVertexShader;
 	if (!vkutil::load_shader_module("shaders/depth_pass.vert.spv", engine->_device, &depthVertexShader)) {
@@ -243,11 +243,11 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayout layouts[] = { engine->gpu_scene_data_descriptor_layout };
+	//VkDescriptorSetLayout layouts[] = { engine->gpu_scene_data_descriptor_layout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 1;
-	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
 	mesh_layout_info.pPushConstantRanges = &matrixRange;
 	mesh_layout_info.pushConstantRangeCount = 1;
 
@@ -264,7 +264,7 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
 
 	pipelineBuilder._pipelineLayout = newLayout;
 
