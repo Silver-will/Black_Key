@@ -93,6 +93,7 @@ void VulkanEngine::init()
 
 }
 
+/*
 void VulkanEngine::load_assets()
 {
 
@@ -148,29 +149,6 @@ void VulkanEngine::pre_process_pass()
 		vkDestroySampler(_device, IBL._lutBRDFSampler, nullptr);
 		});
 }
-
-void VulkanEngine::cleanup()
-{
-	if (_isInitialized) {
-
-		// make sure the gpu has stopped doing its things
-		vkDeviceWaitIdle(_device);
-
-		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		vmaDestroyAllocator(_allocator);
-
-		vkDestroyDevice(_device, nullptr);
-		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
-		vkDestroyInstance(_instance, nullptr);
-
-	}
-	glfwDestroyWindow(window);
-	// clear engine pointer
-	loadedEngine = nullptr;
-	glfwTerminate();
-}
-
-
 
 void VulkanEngine::draw()
 {
@@ -662,7 +640,7 @@ void VulkanEngine::draw_early_depth(VkCommandBuffer cmd)
 	}
 	*/
 	
-	
+	/*
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
@@ -767,6 +745,7 @@ void VulkanEngine::draw_shadows(VkCommandBuffer cmd)
 		draw(drawCommands.OpaqueSurfaces[r]);
 	}
 	*/
+/*
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
@@ -994,7 +973,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	}
 	*/
 
-
+	/*
 	{
 		for (auto pass_enum : forward_passes)
 		{
@@ -1311,6 +1290,7 @@ void VulkanEngine::init_swapchain()
 	};*/
 
 	//hardcoding the draw format to 16 bit float
+/*
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
 
@@ -1584,31 +1564,6 @@ void VulkanEngine::init_descriptors()
 			_frames[i].bindless_material_descriptor.destroy_pool(_device);
 			});
 	}
-}
-
-void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
-{
-	VK_CHECK(vkResetFences(_device, 1, &_immFence));
-	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
-
-	VkCommandBuffer cmd = _immCommandBuffer;
-
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-	function(cmd);
-
-	VK_CHECK(vkEndCommandBuffer(cmd));
-
-	VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
-	VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, nullptr, nullptr);
-
-	// submit command buffer to the queue and execute it.
-	//  _renderFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
-
-	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }
 
 void VulkanEngine::init_pipelines()
@@ -2421,4 +2376,129 @@ void VulkanEngine::cursor_callback(GLFWwindow* window, double xpos, double ypos)
 
 VkSampleCountFlagBits VulkanEngine::GetMSAASampleCount() {
 	return msaa_samples;
+}
+*/
+
+
+void VulkanEngine::cleanup()
+{
+	if (_isInitialized) {
+
+		// make sure the gpu has stopped doing its things
+		vkDeviceWaitIdle(_device);
+
+		vkDestroySurfaceKHR(_instance, _surface, nullptr);
+		vmaDestroyAllocator(_allocator);
+
+		vkDestroyDevice(_device, nullptr);
+		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+		vkDestroyInstance(_instance, nullptr);
+
+	}
+	glfwDestroyWindow(window);
+	// clear engine pointer
+	loadedEngine = nullptr;
+	glfwTerminate();
+}
+
+
+void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
+{
+	VK_CHECK(vkResetFences(_device, 1, &_immFence));
+	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
+
+	VkCommandBuffer cmd = _immCommandBuffer;
+
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+	function(cmd);
+
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
+	VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, nullptr, nullptr);
+
+	// submit command buffer to the queue and execute it.
+	//  _renderFence will now block until the graphic commands finish execution
+	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
+
+	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
+}
+
+
+
+void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13)
+{
+	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+	window = glfwCreateWindow(_windowExtent.width, _windowExtent.height, "Black key", nullptr, nullptr);
+	if (window == nullptr)
+		throw std::exception("FATAL ERROR: Failed to create window");
+
+
+	vkb::InstanceBuilder builder;
+
+	//make the vulkan instance, with basic debug features
+	auto inst_ret = builder.set_app_name("Executor")
+		.request_validation_layers(bUseValidationLayers)
+		.use_default_debug_messenger()
+		.require_api_version(1, 3, 0)
+		.build();
+
+	vkb::Instance vkb_inst = inst_ret.value();
+
+	//grab the instance 
+	_instance = vkb_inst.instance;
+	_debug_messenger = vkb_inst.debug_messenger;
+
+	//< init_instance
+	// 
+	//> init_device
+	glfwCreateWindowSurface(_instance, window, nullptr, &_surface);
+
+
+	//use vkbootstrap to select a gpu. 
+	//We want a gpu that can write to the glfw surface and supports vulkan 1.3 with the correct features
+	vkb::PhysicalDeviceSelector selector{ vkb_inst };
+	vkb::PhysicalDevice physicalDevice = selector
+		.set_minimum_version(1, 3)
+		.set_required_features(baseFeatures)
+		.set_required_features_13(features13)
+		.set_required_features_12(features12)
+		.set_required_features_11(features11)
+		.set_surface(_surface)
+		.select()
+		.value();
+
+
+	msaa_samples = vkinit::getMaxAvailableSampleCount(physicalDevice.properties);
+	if (msaa_samples > VK_SAMPLE_COUNT_4_BIT)
+		msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+
+	//create the final vulkan device
+	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
+
+	vkb::Device vkbDevice = deviceBuilder.build().value();
+
+	// Get the VkDevice handle used in the rest of a vulkan application
+	_device = vkbDevice.device;
+	_chosenGPU = physicalDevice.physical_device;
+	//< init_device
+
+	//> init_queue
+		// use vkbootstrap to get a Graphics queue
+	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+	VmaAllocatorCreateInfo allocatorInfo = {};
+	allocatorInfo.physicalDevice = _chosenGPU;
+	allocatorInfo.device = _device;
+	allocatorInfo.instance = _instance;
+	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+	vmaCreateAllocator(&allocatorInfo, &_allocator);
 }

@@ -17,6 +17,9 @@ struct ClusteredForwardRenderer : BaseRenderer
 
 	//Compute shader passes
 	void PreProcessPass();
+	void GenerateIrradianceCube();
+	void GenerateBRDFLUT();
+	void GeneratePrefilteredCubemap();
 	void CullLights(VkCommandBuffer cmd);
 	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
@@ -97,9 +100,6 @@ private:
 	VkExtent2D _windowExtent{ 1920,1080 };
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
-	GLFWwindow* window{ nullptr };
-
-	static VulkanEngine& Get();
 
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;
@@ -112,7 +112,7 @@ private:
 	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;
 
-	struct {
+	struct IBLData{
 		AllocatedImage _lutBRDF;
 		AllocatedImage _irradianceCube;
 		AllocatedImage _preFilteredCube;

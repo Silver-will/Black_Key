@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <future>
 
-void SceneManager::Init(ResourceManager* rm, VulkanEngine* engine_ptr)
+void SceneManager::Init(std::shared_ptr<ResourceManager> rm, VulkanEngine* engine_ptr)
 {
 	resource_manager = rm;
 	engine = engine_ptr;
@@ -56,8 +56,8 @@ void SceneManager::MergeMeshes()
 	}
 	assert(total_vertices && total_indices);
 
-	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_vertex_buffer = resource_manager->CreateBuffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_index_buffer = resource_manager->CreateBuffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = merged_vertex_buffer.buffer };
 	mergedVertexAddress = vkGetBufferDeviceAddress(engine->_device, &deviceAdressInfo);

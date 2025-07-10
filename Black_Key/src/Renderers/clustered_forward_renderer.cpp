@@ -1,4 +1,5 @@
 #include "clustered_forward_renderer.h"
+#include "../vk_device.h"
 #include "../graphics.h"
 #include "../UI.h"
 
@@ -20,6 +21,8 @@ using namespace std::literals::string_literals;
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
+
+#define M_PI       3.14159265358979323846
 
 
 void ClusteredForwardRenderer::Init(VulkanEngine* engine)
@@ -57,11 +60,11 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 void ClusteredForwardRenderer::ConfigureRenderWindow()
 {
 	
-	glfwSetWindowUserPointer(window, this);
-	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
-	glfwSetKeyCallback(window, KeyCallback);
-	glfwSetCursorPosCallback(window, CursorCallback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetWindowUserPointer(loaded_engine->window, this);
+	glfwSetFramebufferSizeCallback(loaded_engine->window, framebuffer_resize_callback);
+	glfwSetKeyCallback(loaded_engine->window, KeyCallback);
+	glfwSetCursorPosCallback(loaded_engine->window, CursorCallback);
+	glfwSetInputMode(loaded_engine->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void ClusteredForwardRenderer::InitEngine()
@@ -97,6 +100,9 @@ void ClusteredForwardRenderer::InitEngine()
 	baseFeatures.multiDrawIndirect = true;
 
 	loaded_engine->init_vulkan(baseFeatures, features11, features12, features);
+	resource_manager = std::make_shared<ResourceManager>(loaded_engine);
+	scene_manager = std::make_shared<SceneManager>();
+	scene_manager->Init(resource_manager, loaded_engine);
 }
 
 void ClusteredForwardRenderer::InitSwapchain()
@@ -694,7 +700,7 @@ void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 
 void ClusteredForwardRenderer::InitBuffers()
 {
-	ClusterValues.AABBVolumeGridSSBO = loaded_engine->create_buffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.AABBVolumeGridSSBO = resource_manager->CreateBuffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	float zNear = mainCamera.getNearClip();
 	float zFar = mainCamera.getFarClip();
 
@@ -714,31 +720,20 @@ void ClusteredForwardRenderer::InitBuffers()
 	screen.sliceScalingFactor = (float)ClusterValues.gridSizeZ / std::log2f(zFar / zNear);
 	screen.sliceBiasFactor = -((float)ClusterValues.gridSizeZ * std::log2f(zNear) / std::log2f(zFar / zNear));
 
-	ClusterValues.screenToViewSSBO = loaded_engine->create_and_upload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
+	ClusterValues.screenToViewSSBO = resource_manager->CreateAndUpload(sizeof(ScreenToView), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &screen);
 
-	ClusterValues.lightSSBO = loaded_engine->create_and_upload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, pointData.pointLights.data());
+	ClusterValues.lightSSBO = resource_manager->CreateAndUpload(pointData.pointLights.size() * sizeof(PointLight), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, pointData.pointLights.data());
 	auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
-	ClusterValues.lightIndexListSSBO = loaded_engine->create_buffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightIndexListSSBO = resource_manager->CreateBuffer(sizeof(uint32_t) * totalLightCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	ClusterValues.lightGridSSBO = loaded_engine->create_buffer(ClusterValues.numClusters * sizeof(LightGrid), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	ClusterValues.lightGridSSBO = resource_manager->CreateBuffer(ClusterValues.numClusters * sizeof(LightGrid), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	uint32_t val = 0;
 	for (uint32_t i = 0; i < 2; i++)
 	{
-		ClusterValues.lightGlobalIndex[i] = loaded_engine->create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
+		ClusterValues.lightGlobalIndex[i] = resource_manager->CreateAndUpload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
 	}
-	//ClusterValues.lightIndexGlobalCountSSBO = create_and_upload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY,&val);
-
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
-		loaded_engine->destroy_buffer(ClusterValues.lightSSBO);
-		loaded_engine->destroy_buffer(ClusterValues.lightGridSSBO);
-		loaded_engine->destroy_buffer(ClusterValues.screenToViewSSBO);
-		loaded_engine->destroy_buffer(ClusterValues.AABBVolumeGridSSBO);
-		loaded_engine->destroy_buffer(ClusterValues.lightIndexListSSBO);
-		loaded_engine->destroy_buffer(ClusterValues.lightGlobalIndex[0]);
-		loaded_engine->destroy_buffer(ClusterValues.lightGlobalIndex[1]);
-
-		});
+	
 }
 
 
@@ -779,7 +774,7 @@ void ClusteredForwardRenderer::InitImgui()
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
 	// this initializes imgui for SDL
-	ImGui_ImplGlfw_InitForVulkan(window, true);
+	ImGui_ImplGlfw_InitForVulkan(loaded_engine->window, true);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo init_info = {};
@@ -956,10 +951,10 @@ void ClusteredForwardRenderer::PreProcessPass()
 {
 	black_key::generate_irradiance_cube(loaded_engine);
 	black_key::generate_prefiltered_cubemap(loaded_engine);
-	black_key::generate_brdf_lut(loaded_engine);
+	black_key::generate_brdf_lut(loaded_engine, IBL);
 	black_key::build_clusters(loaded_engine);
 
-	loaded_engine->_mainDeletionQueue.push_function([=]() {
+	resource_manager->deletionQueue.push_function([=]() {
 		loaded_engine->destroy_image(IBL._irradianceCube);
 		loaded_engine->destroy_image(IBL._preFilteredCube);
 		loaded_engine->destroy_image(IBL._lutBRDF);
@@ -968,6 +963,412 @@ void ClusteredForwardRenderer::PreProcessPass()
 		vkDestroySampler(loaded_engine->_device, IBL._irradianceCubeSampler, nullptr);
 		vkDestroySampler(loaded_engine->_device, IBL._lutBRDFSampler, nullptr);
 		});
+}
+
+void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
+{
+	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	uint32_t dim = 512;
+	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
+	IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, loaded_engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
+
+	//Draw target Image
+	AllocatedImage drawImage;
+	VkExtent3D drawImageExtent{
+		dim,
+		dim,
+		1
+	};
+	drawImage.imageExtent = drawImageExtent;
+	drawImage.imageFormat = format;
+
+	VkImageUsageFlags drawImageUsages{};
+	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	VkImageCreateInfo rimg_info = vkinit::image_create_info(drawImage.imageFormat, drawImageUsages, drawImageExtent, 1);
+
+	//for the draw image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo rimg_allocinfo = {};
+	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(loaded_engine->_allocator, &rimg_info, &rimg_allocinfo, &drawImage.image, &drawImage.allocation, nullptr);
+	vmaSetAllocationName(loaded_engine->_allocator, drawImage.allocation, "Pre filtered cube draw image");
+
+	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(drawImage.imageFormat, drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &view_info, nullptr, &drawImage.imageView));
+
+	VkDescriptorSetLayout irradianceSetLayout;
+	DescriptorLayoutBuilder builder;
+	builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	irradianceSetLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	//Pipeline setup
+	VkShaderModule preFilterVertexShader;
+	if (!vkutil::load_shader_module("shaders/filter_cube.vert.spv", loaded_engine->_device, &preFilterVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule preFilterFragmentShader;
+	if (!vkutil::load_shader_module("shaders/pre_filter_envmap.frag.spv", loaded_engine->_device, &preFilterFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(black_key::PushBlock);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayout layouts[] = { irradianceSetLayout };
+
+	VkPipelineLayoutCreateInfo irradiance_layout_info = vkinit::pipeline_layout_create_info();
+	irradiance_layout_info.setLayoutCount = 1;
+	irradiance_layout_info.pSetLayouts = layouts;
+	irradiance_layout_info.pPushConstantRanges = &matrixRange;
+	irradiance_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout irradianceLayout;
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &irradiance_layout_info, nullptr, &irradianceLayout));
+
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(preFilterVertexShader, preFilterFragmentShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineBuilder._pipelineLayout = irradianceLayout;
+	pipelineBuilder.set_color_attachment_format(drawImage.imageFormat);
+
+	auto irradiancePipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
+
+	std::vector<glm::mat4> matrices = {
+		// POSITIVE_X
+		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_X
+		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// POSITIVE_Y
+		glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_Y
+		glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// POSITIVE_Z
+		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_Z
+		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+	};
+	loaded_engine->loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
+
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, irradianceSetLayout);
+
+	DescriptorWriter writer;
+	writer.write_image(0, _skyImage.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(loaded_engine->_device, globalDescriptor);
+
+	//begin drawing
+	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, _frames[0]._commandPool, loaded_engine);
+
+	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	//> draw_first
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(drawImage.imageView, nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{ dim,dim }, &colorAttachment, nullptr);
+
+	VkViewport viewport = {};
+	viewport.width = dim;
+	viewport.height = dim;
+
+	VkRect2D scissor = {};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent.width = dim;
+	scissor.extent.height = dim;
+
+	auto r = skyDrawCommands.OpaqueSurfaces[0];
+	//vkCmdBeginRendering(cmd, &renderInfo);
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	{
+		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+		black_key::PushBlock pushBlock;
+		for (uint32_t m = 0; m < numMips; m++) {
+			pushBlock.roughness = (float)m / (float)(numMips - 1);
+			for (uint32_t f = 0; f < 6; f++)
+			{
+				vkCmdBeginRendering(cmd, &renderInfo);
+				viewport.width = static_cast<float>(dim * std::pow(0.5f, m));
+				viewport.height = static_cast<float>(dim * std::pow(0.5f, m));
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradiancePipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradianceLayout, 0, 1, &globalDescriptor, 0, NULL);
+
+				if (r.indexBuffer != lastIndexBuffer)
+				{
+					lastIndexBuffer = r.indexBuffer;
+					vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+				}
+				// Update shader push constant block
+				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+				pushBlock.mvp[1][1] *= -1;
+				pushBlock.vertexBuffer = r.vertexBufferAddress;
+				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
+
+				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+				vkCmdEndRendering(cmd);
+
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+				VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+				blitRegion.srcOffsets[1].x = viewport.width;
+				blitRegion.srcOffsets[1].y = viewport.height;
+				blitRegion.srcOffsets[1].z = 1;
+
+				blitRegion.dstOffsets[1].x = viewport.width;
+				blitRegion.dstOffsets[1].y = viewport.height;
+				blitRegion.dstOffsets[1].z = 1;
+
+				blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.srcSubresource.baseArrayLayer = 0;
+				blitRegion.srcSubresource.layerCount = 1;
+				blitRegion.srcSubresource.mipLevel = 0;
+
+				blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.dstSubresource.baseArrayLayer = f;
+				blitRegion.dstSubresource.layerCount = 1;
+				blitRegion.dstSubresource.mipLevel = m;
+				VkExtent2D copyExtent{
+					dim,
+					dim
+				};
+
+				vkutil::copy_image_to_image(cmd, drawImage.image, IBL._preFilteredCube.image, copyExtent, copyExtent, &blitRegion);
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			}
+		}
+		skyDrawCommands.OpaqueSurfaces.clear();
+	}
+	vkutil::transition_image(cmd, IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	vk_device::flush_command_buffer(cmd, loaded_engine->_graphicsQueue, _frames[0]._commandPool, loaded_engine);
+	vkDestroyImage(loaded_engine->_device, drawImage.image, nullptr);
+	vkDestroyImageView(loaded_engine->_device, drawImage.imageView, nullptr);
+	vkDestroyPipeline(loaded_engine->_device, irradiancePipeline, nullptr);
+	vkDestroyPipelineLayout(loaded_engine->_device, irradianceLayout, nullptr);
+	vkDestroyDescriptorSetLayout(loaded_engine->_device, irradianceSetLayout, nullptr);
+
+}
+
+void ClusteredForwardRenderer::GenerateIrradianceCube()
+{
+	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	uint32_t dim = 64;
+	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
+	IBL._irradianceCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, loaded_engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
+
+	//Create image sampler
+	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	cubeSampl.magFilter = VK_FILTER_LINEAR;
+	cubeSampl.minFilter = VK_FILTER_LINEAR;
+	cubeSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	cubeSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	cubeSampl.addressModeV = cubeSampl.addressModeU;
+	cubeSampl.addressModeW = cubeSampl.addressModeU;
+	cubeSampl.mipLodBias = 0.0f;
+	cubeSampl.minLod = 0.0f;
+	cubeSampl.maxLod = numMips;
+	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	vkCreateSampler(loaded_engine->_device, &cubeSampl, nullptr, &IBL._irradianceCubeSampler);
+
+	//Draw target Image
+	AllocatedImage drawImage;
+	VkExtent3D drawImageExtent{
+		dim,
+		dim,
+		1
+	};
+	drawImage.imageExtent = drawImageExtent;
+	drawImage.imageFormat = format;
+
+	VkImageUsageFlags drawImageUsages{};
+	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	VkImageCreateInfo rimg_info = vkinit::image_create_info(drawImage.imageFormat, drawImageUsages, drawImageExtent, 1);
+
+	//for the draw image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo rimg_allocinfo = {};
+	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(loaded_engine->_allocator, &rimg_info, &rimg_allocinfo, &drawImage.image, &drawImage.allocation, nullptr);
+	vmaSetAllocationName(loaded_engine->_allocator, drawImage.allocation, "irradiance pass image");
+
+	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(drawImage.imageFormat, drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VK_CHECK(vkCreateImageView(loaded_engine->_device, &view_info, nullptr, &drawImage.imageView));
+
+	VkDescriptorSetLayout irradianceSetLayout;
+	DescriptorLayoutBuilder builder;
+	builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	irradianceSetLayout = builder.build(loaded_engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	//Pipeline setup
+	VkShaderModule irradianceVertexShader;
+	if (!vkutil::load_shader_module("shaders/filter_cube.vert.spv", loaded_engine->_device, &irradianceVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule irradianceFragmentShader;
+	if (!vkutil::load_shader_module("shaders/irradiance_cube.frag.spv", loaded_engine->_device, &irradianceFragmentShader)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(black_key::PushBlock);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayout layouts[] = { irradianceSetLayout };
+
+	VkPipelineLayoutCreateInfo irradiance_layout_info = vkinit::pipeline_layout_create_info();
+	irradiance_layout_info.setLayoutCount = 1;
+	irradiance_layout_info.pSetLayouts = layouts;
+	irradiance_layout_info.pPushConstantRanges = &matrixRange;
+	irradiance_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout irradianceLayout;
+	VK_CHECK(vkCreatePipelineLayout(loaded_engine->_device, &irradiance_layout_info, nullptr, &irradianceLayout));
+
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(irradianceVertexShader, irradianceFragmentShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineBuilder._pipelineLayout = irradianceLayout;
+	pipelineBuilder.set_color_attachment_format(drawImage.imageFormat);
+
+	auto irradiancePipeline = pipelineBuilder.build_pipeline(loaded_engine->_device);
+
+	std::vector<glm::mat4> matrices = {
+		// POSITIVE_X
+		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_X
+		glm::rotate(glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// POSITIVE_Y
+		glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_Y
+		glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// POSITIVE_Z
+		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		// NEGATIVE_Z
+		glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+	};
+	loadedScenes["cube"]->Draw(glm::mat4{ 1.f }, skyDrawCommands);
+
+	//begin drawing
+
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(loaded_engine->_device, irradianceSetLayout);
+
+	DescriptorWriter writer;
+	writer.write_image(0, _skyImage.imageView, cubeMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.update_set(loaded_engine->_device, globalDescriptor);
+
+	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, _frames[0]._commandPool, loaded_engine);
+
+	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	//> draw_first
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+	vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, IBL._irradianceCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(drawImage.imageView, nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{ dim,dim }, &colorAttachment, nullptr);
+
+	auto r = skyDrawCommands.OpaqueSurfaces[0];
+
+	{
+		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+		for (uint32_t m = 0; m < numMips; m++) {
+			for (uint32_t f = 0; f < 6; f++)
+			{
+				vkCmdBeginRendering(cmd, &renderInfo);
+
+				VkViewport viewport = {};
+				viewport.width = static_cast<float>(dim * std::pow(0.5f, m));
+				viewport.height = static_cast<float>(dim * std::pow(0.5f, m));
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = dim;
+				scissor.extent.height = dim;
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradiancePipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, irradianceLayout, 0, 1, &globalDescriptor, 0, NULL);
+
+				if (r.indexBuffer != lastIndexBuffer)
+				{
+					lastIndexBuffer = r.indexBuffer;
+					vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+				}
+
+				black_key::PushBlock pushBlock;
+				// Update shader push constant block
+				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+				pushBlock.mvp[1][1] *= -1;
+				pushBlock.vertexBuffer = r.vertexBufferAddress;
+				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(black_key::PushBlock), &pushBlock);
+				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+
+				vkCmdEndRendering(cmd);
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+				VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+				blitRegion.srcOffsets[1].x = viewport.width;
+				blitRegion.srcOffsets[1].y = viewport.height;
+				blitRegion.srcOffsets[1].z = 1;
+
+				blitRegion.dstOffsets[1].x = viewport.width;
+				blitRegion.dstOffsets[1].y = viewport.height;
+				blitRegion.dstOffsets[1].z = 1;
+
+				blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.srcSubresource.baseArrayLayer = 0;
+				blitRegion.srcSubresource.layerCount = 1;
+				blitRegion.srcSubresource.mipLevel = 0;
+
+				blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				blitRegion.dstSubresource.baseArrayLayer = f;
+				blitRegion.dstSubresource.layerCount = 1;
+				blitRegion.dstSubresource.mipLevel = m;
+				VkExtent2D copyExtent{
+					dim,
+					dim
+				};
+				vkutil::copy_image_to_image(cmd, drawImage.image, IBL._irradianceCube.image, copyExtent, copyExtent, &blitRegion);
+				vkutil::transition_image(cmd, drawImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			}
+		}
+		skyDrawCommands.OpaqueSurfaces.clear();
+	}
 }
 
 void ClusteredForwardRenderer::Cleanup()
@@ -1868,7 +2269,7 @@ void ClusteredForwardRenderer::Run()
 
 
 	// main loop
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(loaded_engine->window)) {
 		auto start = std::chrono::system_clock::now();
 		if (resize_requested) {
 			ResizeSwapchain();
@@ -1911,7 +2312,7 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 	DestroySwapchain();
 
 	int w, h;
-	glfwGetWindowSize(window, &w, &h);
+	glfwGetWindowSize(loaded_engine->window, &w, &h);
 	_windowExtent.width = w;
 	_windowExtent.height = h;
 

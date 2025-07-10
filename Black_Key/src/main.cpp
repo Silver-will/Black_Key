@@ -4,18 +4,14 @@
 
 int main(int argc, char* argv[])
 {
-
-	/*VulkanEngine engine;
-	engine.init();
-
+	auto engine = std::make_shared<VulkanEngine>();
+	
 	std::unique_ptr<BaseRenderer> clusteredLightingDemo = std::make_unique<ClusteredForwardRenderer>();
-	clusteredLightingDemo->Init(&engine);
+	clusteredLightingDemo->Init(engine.get());
 	clusteredLightingDemo->Run();
 	clusteredLightingDemo->Cleanup();
-
-	//engine.run();	
-	engine.cleanup();	
-	*/
+	engine->cleanup();	
+	
 
 	/*
 	VulkanEngine engine;

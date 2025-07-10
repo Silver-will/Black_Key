@@ -26,7 +26,7 @@ class VulkanEngine;
 struct ResourceManager
 {
 	ResourceManager() {}
-	ResourceManager(VulkanEngine* engine_ptr) : engine{engine_ptr}{}
+	ResourceManager(VulkanEngine* engine_ptr);
 	void init(VulkanEngine* engine_ptr);
 
 	//Gltf loading functions
@@ -53,6 +53,7 @@ struct ResourceManager
 	void destroy_image(const AllocatedImage& img);
 
 	VkFilter extract_filter(fastgltf::Filter filter);
+	DeletionQueue deletionQueue;
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 private:
 	bool readBackBufferInitialized = false;
@@ -62,7 +63,7 @@ private:
 	DescriptorWriter writer;
 	VulkanEngine* engine = nullptr;
 	int last_material_index{ 0 };
-	DeletionQueue deletionQueue;
+
 	VkDescriptorSet bindless_set;
 	AllocatedBuffer readableBuffer;
 };
