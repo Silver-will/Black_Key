@@ -19,7 +19,7 @@
 #include <iostream>
 #include <string>
 
-void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
+void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
     VkShaderModule meshFragShader;
     if (!vkutil::load_shader_module("shaders/indirect_forward.frag.spv", engine->_device, &meshFragShader)) {
@@ -45,15 +45,9 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    std::vector<VkDescriptorSetLayout> layouts;
-    if(engine->use_bindless)
-     layouts = { engine->gpu_scene_data_descriptor_layout, engine->bindless_descriptor_layout };
-    else
-    layouts = { engine->gpu_scene_data_descriptor_layout, materialLayout };
-    
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
     mesh_layout_info.setLayoutCount = 2;
-    mesh_layout_info.pSetLayouts = layouts.data();
+    mesh_layout_info.pSetLayouts = info.layouts.data();
     mesh_layout_info.pPushConstantRanges = &matrixRange;
     mesh_layout_info.pushConstantRangeCount = 1;
 
@@ -75,8 +69,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
     //render format
-    pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
+    pipelineBuilder.set_color_attachment_format(info.imageFormat);
+    pipelineBuilder.set_depth_format(info.depthFormat);
 
     // use the triangle layout we created
     pipelineBuilder._pipelineLayout = newLayout;
@@ -139,27 +133,6 @@ MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vkutil::
     return matData;
 }
 
-/*
-void GLTFMetallic_Roughness::write_material_array(VulkanEngine* engine, std::vector< GLTFMetallic_Roughness::MaterialResources>& bindless_resources, DescriptorAllocator& descriptorAllocator)
-{
-    writer.clear();
-    for (int i = 0; i < bindless_resources.size(); i++)
-    {
-        int offset = i * 4;
-        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i);
-        writer.write_image(1, bindless_resources[i].colorImage.imageView, bindless_resources[i].colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset);
-        writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
-        writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
-        writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
-        writer.write_image(2, engine->storage_image.imageView, VK_NULL_HANDLE , VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
-    }
-
-    
-
-    //writer.update_set(engine->_device, matData.materialSet);
-}
-*/
-
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
     vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
@@ -179,12 +152,12 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void LoadedGLTF::clearAll()
 {
-    VkDevice dv = creator->_device;
+    VkDevice dv = creator->loaded_engine->_device;
 
     for (auto& [k, v] : meshes) {
 
-        creator->destroy_buffer(v->meshBuffers.indexBuffer);
-        creator->destroy_buffer(v->meshBuffers.vertexBuffer);
+        creator->DestroyBuffer(v->meshBuffers.indexBuffer);
+        creator->DestroyBuffer(v->meshBuffers.vertexBuffer);
     }
 
     for (auto& [k, v] : images) {
@@ -193,7 +166,7 @@ void LoadedGLTF::clearAll()
             // dont destroy the default images
             continue;
         }
-        creator->destroy_image(v);
+        creator->DestroyImage(v);
     }
 
     for (auto& sampler : samplers) {
@@ -205,7 +178,7 @@ void LoadedGLTF::clearAll()
 
     descriptorPool.destroy_pools(dv);
 
-    creator->destroy_buffer(materialBuffer);
+    creator->DestroyBuffer(materialBuffer);
 }
 
 

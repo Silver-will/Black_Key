@@ -49,12 +49,12 @@ struct ResourceManager
 	AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 	AllocatedImage CreateImageEmpty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, int mipLevels = -1);
-
 	void destroy_image(const AllocatedImage& img);
-
-	VkFilter extract_filter(fastgltf::Filter filter);
-	DeletionQueue deletionQueue;
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
+	VkFilter extract_filter(fastgltf::Filter filter);
+
+	DeletionQueue deletionQueue;
+	VkDescriptorSetLayout bindless_descriptor_layout;
 private:
 	bool readBackBufferInitialized = false;
 	VkSampler defaultSamplerNearest;
@@ -69,6 +69,7 @@ private:
 	AllocatedImage _greyImage;
 	AllocatedImage _blackImage;
 	AllocatedImage errorCheckerboardImage;
+	AllocatedImage storageImage;
 	VkDescriptorSet bindless_set;
 	AllocatedBuffer readableBuffer;
 };

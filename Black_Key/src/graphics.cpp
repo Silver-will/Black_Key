@@ -24,7 +24,7 @@ struct clusterParams {
 	float zNear;
 };
 
-void black_key::build_clusters(VulkanEngine* engine)
+void black_key::build_clusters(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
 	ClusterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

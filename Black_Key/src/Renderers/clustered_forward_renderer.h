@@ -135,7 +135,6 @@ private:
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
-	VkDescriptorSetLayout bindless_descriptor_layout;
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
 	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
