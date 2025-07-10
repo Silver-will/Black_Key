@@ -949,8 +949,8 @@ void ClusteredForwardRenderer::FramebufferResizeCallback(GLFWwindow* window, int
 
 void ClusteredForwardRenderer::PreProcessPass()
 {
-	black_key::generate_irradiance_cube(loaded_engine);
-	black_key::generate_prefiltered_cubemap(loaded_engine);
+	GeneratePrefilteredCubemap();
+	GenerateIrradianceCube();
 	black_key::generate_brdf_lut(loaded_engine, IBL);
 	black_key::build_clusters(loaded_engine);
 
@@ -959,7 +959,6 @@ void ClusteredForwardRenderer::PreProcessPass()
 		loaded_engine->destroy_image(IBL._preFilteredCube);
 		loaded_engine->destroy_image(IBL._lutBRDF);
 
-		//destroy_image(_shadowDepthImage);
 		vkDestroySampler(loaded_engine->_device, IBL._irradianceCubeSampler, nullptr);
 		vkDestroySampler(loaded_engine->_device, IBL._lutBRDFSampler, nullptr);
 		});
@@ -1121,7 +1120,7 @@ void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
 				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
 				pushBlock.mvp[1][1] *= -1;
 				pushBlock.vertexBuffer = r.vertexBufferAddress;
-				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
+				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(black_key::PushBlock), &pushBlock);
 
 				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
 				vkCmdEndRendering(cmd);

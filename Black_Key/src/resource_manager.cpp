@@ -13,6 +13,41 @@ void ResourceManager::init(VulkanEngine* engine_ptr) {
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
     };
     bindless_material_descriptor.init_pool(engine->_device, 65536, bindless_sizes, true);
+
+    //Create default images
+    uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+    _whiteImage = CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+    _greyImage = CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+    _blackImage = CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+    std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
+    for (int x = 0; x < 16; x++) {
+        for (int y = 0; y < 16; y++) {
+            pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+        }
+    }
+
+    errorCheckerboardImage = CreateImage(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT, this);
+
+    VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+    sampl.magFilter = VK_FILTER_NEAREST;
+    sampl.minFilter = VK_FILTER_NEAREST;
+
+    vkCreateSampler(engine->_device, &sampl, nullptr, &defaultSamplerNearest);
+
+    sampl.magFilter = VK_FILTER_LINEAR;
+    sampl.minFilter = VK_FILTER_LINEAR;
+    vkCreateSampler(engine->_device, &sampl, nullptr, &defaultSamplerLinear);
     
 }
 
@@ -26,6 +61,41 @@ ResourceManager::ResourceManager(VulkanEngine* engine)
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
     };
     bindless_material_descriptor.init_pool(engine->_device, 65536, bindless_sizes, true);
+
+    //Create default images
+    uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+    _whiteImage = CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+    _greyImage = CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+    _blackImage = CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+    std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
+    for (int x = 0; x < 16; x++) {
+        for (int y = 0; y < 16; y++) {
+            pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+        }
+    }
+
+    errorCheckerboardImage = CreateImage(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_USAGE_SAMPLED_BIT, this);
+
+    VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+    sampl.magFilter = VK_FILTER_NEAREST;
+    sampl.minFilter = VK_FILTER_NEAREST;
+
+    vkCreateSampler(engine->_device, &sampl, nullptr, &defaultSamplerNearest);
+
+    sampl.magFilter = VK_FILTER_LINEAR;
+    sampl.minFilter = VK_FILTER_LINEAR;
+    vkCreateSampler(engine->_device, &sampl, nullptr, &defaultSamplerLinear);
 }
 VkFilter ResourceManager::extract_filter(fastgltf::Filter filter)
 {
@@ -162,14 +232,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         else {
             // we failed to load, so lets give the slot a default white texture to not
             // completely break loading
-            images.push_back(engine->errorCheckerboardImage);
+            images.push_back(errorCheckerboardImage);
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
 
     //> load_buffer
         // create buffer to hold the material data
-    file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
+    file.materialDataBuffer = CreateBuffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     int material_index = last_material_index;
@@ -206,14 +276,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
 
         GLTFMetallic_Roughness::MaterialResources materialResources;
         // default the material textures
-        materialResources.colorImage = engine->_whiteImage;
-        materialResources.colorSampler = engine->defaultSamplerLinear;
-        materialResources.metalRoughImage = engine->_whiteImage;
-        materialResources.metalRoughSampler = engine->defaultSamplerLinear;
-        materialResources.normalImage = engine->_whiteImage;
-        materialResources.normalSampler = engine->defaultSamplerLinear;
-        materialResources.occlusionImage = engine->_whiteImage;
-        materialResources.occlusionSampler = engine->defaultSamplerLinear;
+        materialResources.colorImage = _whiteImage;
+        materialResources.colorSampler = defaultSamplerLinear;
+        materialResources.metalRoughImage = _whiteImage;
+        materialResources.metalRoughSampler = defaultSamplerLinear;
+        materialResources.normalImage = _whiteImage;
+        materialResources.normalSampler = defaultSamplerLinear;
+        materialResources.occlusionImage = _whiteImage;
+        materialResources.occlusionSampler = defaultSamplerLinear;
 
 
         // set the uniform buffer for the material data
