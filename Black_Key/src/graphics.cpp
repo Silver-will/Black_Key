@@ -134,6 +134,7 @@ bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 
 void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
 {
+	/*
 	//Created irradiance cubemap mage
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 64;
@@ -344,7 +345,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
 	vkDestroyPipelineLayout(engine->_device, irradianceLayout, nullptr);
 	vkDestroyDescriptorSetLayout(engine->_device, irradianceSetLayout, nullptr);
 	
-
+	*/
 	//Compute shader version
 	//Completely identical visuals
 	/*VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;

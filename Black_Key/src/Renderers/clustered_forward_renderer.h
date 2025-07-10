@@ -111,15 +111,9 @@ private:
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;
+	
+	IBLData IBL;
 
-	struct IBLData{
-		AllocatedImage _lutBRDF;
-		AllocatedImage _irradianceCube;
-		AllocatedImage _preFilteredCube;
-		VkSampler _irradianceCubeSampler;
-		VkSampler _lutBRDFSampler;
-
-	}IBL;
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 

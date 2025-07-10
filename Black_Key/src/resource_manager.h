@@ -57,13 +57,18 @@ struct ResourceManager
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 private:
 	bool readBackBufferInitialized = false;
+	VkSampler defaultSamplerNearest;
+	VkSampler defaultSamplerLinear;
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources{};
 	DescriptorAllocator bindless_material_descriptor;
 	DescriptorWriter writer;
 	VulkanEngine* engine = nullptr;
 	int last_material_index{ 0 };
-
+	AllocatedImage _whiteImage;
+	AllocatedImage _greyImage;
+	AllocatedImage _blackImage;
+	AllocatedImage errorCheckerboardImage;
 	VkDescriptorSet bindless_set;
 	AllocatedBuffer readableBuffer;
 };

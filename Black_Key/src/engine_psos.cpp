@@ -264,7 +264,6 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine)
 	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-
 	pipelineBuilder.set_depth_format(engine->_shadowDepthImage.imageFormat);
 
 	pipelineBuilder._pipelineLayout = newLayout;
