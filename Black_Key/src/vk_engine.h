@@ -111,23 +111,7 @@ public:
 	uint32_t _graphicsQueueFamily;
 	DeletionQueue _mainDeletionQueue;
 	VmaAllocator _allocator;
-	AllocatedImage _drawImage;
-	AllocatedImage _depthImage;
-	AllocatedImage _depthResolveImage;
-	AllocatedImage _resolveImage;
-	AllocatedImage _hdrImage;
-	AllocatedImage _shadowDepthImage;
-	AllocatedImage _presentImage;
-	AllocatedImage _depthPyramid;
-
-	struct {
-		AllocatedImage _lutBRDF;
-		AllocatedImage _irradianceCube;
-		AllocatedImage _preFilteredCube;
-		VkSampler _irradianceCubeSampler;
-		VkSampler _lutBRDFSampler;
-
-	}IBL;
+	
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
 
@@ -150,49 +134,6 @@ public:
 	PipelineStateObject cull_objects_pso;
 	PipelineStateObject depth_reduce_pso;
 
-	GPUMeshBuffers rectangle;
-	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
-
-	GPUSceneData scene_data;
-	shadowData shadow_data;
-	VkDescriptorSetLayout gpu_scene_data_descriptor_layout;
-	VkDescriptorSetLayout _singleImageDescriptorLayout;
-	VkDescriptorSetLayout _skyboxDescriptorLayout;
-	VkDescriptorSetLayout _drawImageDescriptorLayout;
-	VkDescriptorSetLayout _cullLightsDescriptorLayout;
-	VkDescriptorSetLayout _buildClustersDescriptorLayout;
-	VkDescriptorSetLayout bindless_descriptor_layout;
-	VkDescriptorSetLayout compute_cull_descriptor_layout;
-	VkDescriptorSetLayout depth_reduce_descriptor_layout;
-	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
-	//VkDescriptorSetLayout _
-
-	AllocatedImage _whiteImage;
-	AllocatedImage _blackImage;
-	AllocatedImage _greyImage;
-	AllocatedImage storageImage;
-	AllocatedImage errorCheckerboardImage;
-	VkImageView depthPyramidMips[16];
-
-	AllocatedImage _skyImage;
-	ktxVulkanTexture _skyBoxImage;
-
-	VkSampler defaultSamplerLinear;
-	VkSampler defaultSamplerNearest;
-	VkSampler cubeMapSampler;
-	VkSampler depthSampler;
-	VkSampler depthReductionSampler;
-	DrawContext drawCommands;
-	DrawContext skyDrawCommands;
-	DrawContext imageDrawCommands;
-	ShadowCascades shadows;
-
-	uint32_t depthPyramidWidth;
-	uint32_t depthPyramidHeight;
-	uint32_t depthPyramidLevels;
-
-	uint32_t shadowMapSize = 2048;
-	EngineStats stats;
 	VkSampleCountFlagBits msaa_samples;
 
 	bool debugDepthTexture = false;

@@ -16,6 +16,17 @@ void ResourceManager::init(VulkanEngine* engine_ptr) {
     
 }
 
+ResourceManager::ResourceManager(VulkanEngine* engine)
+{
+    this->engine = engine;
+
+    std::vector<DescriptorAllocator::PoolSizeRatio> bindless_sizes = {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+    };
+    bindless_material_descriptor.init_pool(engine->_device, 65536, bindless_sizes, true);
+}
 VkFilter ResourceManager::extract_filter(fastgltf::Filter filter)
 {
     switch (filter) {

@@ -107,7 +107,7 @@ struct SceneManager {
 
 	SceneManager() {}
 	~SceneManager() {}
-	void Init(ResourceManager* rm,VulkanEngine* engine_ptr);
+	void Init(std::shared_ptr<ResourceManager> rm,VulkanEngine* engine_ptr);
 	void MergeMeshes();
 	void BuildBatches();
 	void RefreshPass(MeshPass* pass);
