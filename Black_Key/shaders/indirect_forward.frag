@@ -27,7 +27,7 @@ vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C);
 vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
 vec3 CalculateNormalFromMap();
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex);
-float filterPCF(vec4 sc, int cascadeIndex);
+float filterPCF(vec4 sc, int cascadeIndex, float depthValue);
 
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
@@ -111,10 +111,12 @@ void main()
     vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     //float depthValue = inViewPos.z;
     float depthValue = fragPosViewSpace.z;
+	int blend = 0;
     int layer = 0;
 	for(int i = 0; i < 4 - 1; ++i) {
 		if(depthValue < sceneData.distances[i]) {	
 			layer = i + 1;
+
 		}
 	}
 
