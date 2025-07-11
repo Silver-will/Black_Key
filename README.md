@@ -38,7 +38,7 @@ All the following scenes are rendered in engine:
 * [x] occlusion culling
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
-* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Deep G-buffers/Radiance Cascades/DDGI)
+* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Radiance Cascades/SDFDDGI)
 
 
 ## Things to look into
