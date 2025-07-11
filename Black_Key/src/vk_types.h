@@ -149,6 +149,11 @@ struct PipelineCreationInfo {
     VkFormat depthFormat = VK_FORMAT_MAX_ENUM;
     VkFormat imageFormat = VK_FORMAT_MAX_ENUM;
 };
+
+struct clusterParams {
+    float zFar;
+    float zNear;
+};
 struct LightGrid {
     uint32_t offset;
     uint32_t count;

@@ -49,12 +49,16 @@ struct ResourceManager
 	AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 	AllocatedImage CreateImageEmpty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, int mipLevels = -1);
-	void destroy_image(const AllocatedImage& img);
+	void DestroyImage(const AllocatedImage& img);
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 	VkFilter extract_filter(fastgltf::Filter filter);
+	MaterialInstance SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index);
 
 	DeletionQueue deletionQueue;
 	VkDescriptorSetLayout bindless_descriptor_layout;
+	VulkanEngine* engine = nullptr;
+	AllocatedImage errorCheckerboardImage;
+	GLTFMetallic_Roughness* PBRpipeline;
 private:
 	bool readBackBufferInitialized = false;
 	VkSampler defaultSamplerNearest;
@@ -63,12 +67,11 @@ private:
 	std::vector< GLTFMetallic_Roughness::MaterialResources> bindless_resources{};
 	DescriptorAllocator bindless_material_descriptor;
 	DescriptorWriter writer;
-	VulkanEngine* engine = nullptr;
+
 	int last_material_index{ 0 };
 	AllocatedImage _whiteImage;
 	AllocatedImage _greyImage;
 	AllocatedImage _blackImage;
-	AllocatedImage errorCheckerboardImage;
 	AllocatedImage storageImage;
 	VkDescriptorSet bindless_set;
 	AllocatedBuffer readableBuffer;

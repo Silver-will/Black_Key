@@ -10,7 +10,7 @@ namespace black_key {
 	void generate_brdf_lut(VulkanEngine* engine, IBLData& ibl);
 	void generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl);
 	void generate_prefiltered_cubemap(VulkanEngine* engine, IBLData& ibl);
-	void build_clusters(VulkanEngine* engine, PipelineCreationInfo& info);
+	void build_clusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator);
 
 	struct PushBlock {
 		glm::mat4 mvp;

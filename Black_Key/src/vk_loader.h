@@ -6,6 +6,7 @@
 #include <filesystem>
 
 class VulkanEngine;
+class ResourceManager;
 
 struct GLTFMaterial {
     MaterialInstance data;
