@@ -133,6 +133,21 @@ VkSamplerMipmapMode ResourceManager::extract_mipmap_mode(fastgltf::Filter filter
     }
 }
 
+MaterialInstance ResourceManager::SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index)
+{
+    MaterialInstance matData;
+    matData.passType = pass;
+    if (pass == vkutil::MaterialPass::transparency) {
+        matData.pipeline = &PBRpipeline->transparentPipeline;
+    }
+    else {
+        matData.pipeline = &PBRpipeline->opaquePipeline;
+    }
+
+    if (mat_index >= 0)
+        matData.material_index = mat_index;
+    return matData;
+}
 
 
 std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngine* engine, std::string_view filePath, bool isPBRMaterial)
@@ -338,7 +353,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         //Store each textures Materials
         bindless_resources.push_back(materialResources);
         newMat->material_index = material_index * 4;
-        newMat->data = engine->metalRoughMaterial.SetMaterialProperties(passType, newMat->material_index);
+        newMat->data = SetMaterialProperties(passType, newMat->material_index);
 #else
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
 #endif
@@ -462,7 +477,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             newmesh->surfaces.push_back(newSurface);
         }
 
-        newmesh->meshBuffers = engine->uploadMesh(indices, vertices);
+        newmesh->meshBuffers = UploadMesh(indices, vertices);
     }
     //> load_nodes
         // load all nodes and their meshes
@@ -641,10 +656,10 @@ void ResourceManager::ReadBackBufferData(VkCommandBuffer cmd, AllocatedBuffer* b
 {
     if (readBackBufferInitialized == true)
     {
-        engine->destroy_buffer(readableBuffer);
+        DestroyBuffer(readableBuffer);
     }
 
-    readableBuffer = engine->create_buffer(buffer->info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    readableBuffer =  CreateBuffer(buffer->info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     readBackBufferInitialized = true;
 
     VkBufferCopy dataCopy{ 0 };
@@ -804,7 +819,7 @@ AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, Vk
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
 
     deletionQueue.push_function([=]() {
-        destroy_image(newImage);
+        DestroyImage(newImage);
         });
     return newImage;
 }
@@ -894,7 +909,7 @@ AllocatedImage ResourceManager::CreateImage(void* data, VkExtent3D size, VkForma
     return new_image;
 }
 
-void ResourceManager::destroy_image(const AllocatedImage& img)
+void ResourceManager::DestroyImage(const AllocatedImage& img)
 {
     vkDestroyImageView(engine->_device, img.imageView, nullptr);
     vmaDestroyImage(engine->_allocator, img.image, img.allocation);

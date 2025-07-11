@@ -7,6 +7,7 @@
 #include "vk_pipelines.h"
 #include "vk_types.h"
 #include "vk_images.h"
+#include "resource_manager.h"
 #include <glm/gtx/quaternion.hpp>
 
 
@@ -152,7 +153,7 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void LoadedGLTF::clearAll()
 {
-    VkDevice dv = creator->loaded_engine->_device;
+    VkDevice dv = creator->engine->_device;
 
     for (auto& [k, v] : meshes) {
 

@@ -25,10 +25,7 @@ struct BaseRenderer
 	virtual void UpdateScene() = 0;
 	virtual void LoadAssets() = 0;
 	virtual void InitImgui()=0;
-	std::shared_ptr<ResourceManager> resource_manager;
-	std::shared_ptr<SceneManager> scene_manager;
-	
-	VulkanEngine* loaded_engine{ nullptr };
+	VulkanEngine* engine{ nullptr };
 
 };
 

@@ -1,6 +1,9 @@
 #pragma once
 #include "base_renderer.h"
 #include <memory>
+
+constexpr unsigned int FRAME_OVERLAP = 2;
+
 struct ClusteredForwardRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
@@ -20,6 +23,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void GenerateIrradianceCube();
 	void GenerateBRDFLUT();
 	void GeneratePrefilteredCubemap();
+	void BuildClusters();
 	void CullLights(VkCommandBuffer cmd);
 	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
