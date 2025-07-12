@@ -1,6 +1,7 @@
 #pragma once
-#include "../vk_engine.h"
+#include <memory>
 
+#include "../vk_engine.h"
 #include "../vk_initializers.h"
 #include "../vk_types.h"
 #include "../input_handler.h"
@@ -9,6 +10,7 @@
 #include "../vk_buffer.h"
 #include "../vk_loader.h"
 #include "../resource_manager.h"
+#include "../scene_manager.h"
 
 struct BaseRenderer
 {
@@ -23,8 +25,7 @@ struct BaseRenderer
 	virtual void UpdateScene() = 0;
 	virtual void LoadAssets() = 0;
 	virtual void InitImgui()=0;
-	ResourceManager resource_manager;
-	VulkanEngine* loaded_engine{ nullptr };
+	VulkanEngine* engine{ nullptr };
 
 };
 
