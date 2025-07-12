@@ -18,18 +18,13 @@ struct PushParams {
 	glm::vec2 mips;
 	float roughness;
 };
-
-struct clusterParams {
-	float zFar;
-	float zNear;
-};
-
-void black_key::build_clusters(VulkanEngine* engine)
+void black_key::build_clusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator)
 {
+	/*
 	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
 	ClusterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	ClusterLayoutInfo.pNext = nullptr;
-	ClusterLayoutInfo.pSetLayouts = &engine->_buildClustersDescriptorLayout;
+	ClusterLayoutInfo.pSetLayouts = info.layouts.data();
 	ClusterLayoutInfo.setLayoutCount = 1;
 
 	VkPushConstantRange pushConstant{};
@@ -66,32 +61,26 @@ void black_key::build_clusters(VulkanEngine* engine)
 
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &clusterPipeline));
 
-	VkDescriptorSet globalDescriptor = engine->globalDescriptorAllocator.allocate(engine->_device, engine->_buildClustersDescriptorLayout);
+	VkDescriptorSet globalDescriptor = engine->globalDescriptorAllocator.allocate(engine->_device, info.layouts[0]);
 
-	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, engine->_frames[0]._commandPool, engine);
-	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	engine->immediate_submit([&](VkCommandBuffer cmd)
+		{
+			DescriptorWriter writer;
+			writer.write_buffer(0, engine->ClusterValues.AABBVolumeGridSSBO.buffer, engine->ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+			writer.write_buffer(1, engine->ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+			writer.update_set(engine->_device, globalDescriptor);
 
-	//> draw_first
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+			clusterParams clusterData;
+			clusterData.zNear = engine->mainCamera.getNearClip();
+			clusterData.zFar = engine->mainCamera.getFarClip();
+			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, clusterPipeline);
 
-	DescriptorWriter writer;
-	writer.write_buffer(0, engine->ClusterValues.AABBVolumeGridSSBO.buffer, engine->ClusterValues.numClusters * sizeof(VolumeTileAABB),0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_buffer(1, engine->ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.update_set(engine->_device, globalDescriptor);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, buildClusterLayout, 0, 1, &globalDescriptor, 0, nullptr);
 
-	clusterParams clusterData;
-	clusterData.zNear = engine->mainCamera.getNearClip();
-	clusterData.zFar = engine->mainCamera.getFarClip();
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, clusterPipeline);
-
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, buildClusterLayout, 0, 1, &globalDescriptor, 0, nullptr);
-
-	vkCmdPushConstants(cmd, buildClusterLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(clusterParams), &clusterData);
-	vkCmdDispatch(cmd, 16, 9, 24);
-
-	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
-
+			vkCmdPushConstants(cmd, buildClusterLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(clusterParams), &clusterData);
+			vkCmdDispatch(cmd, 16, 9, 24);
+		});
+	*/
 }
 bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
@@ -132,13 +121,14 @@ bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	}
 }
 
-void black_key::generate_irradiance_cube(VulkanEngine* engine)
+void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
 {
+	/*
 	//Created irradiance cubemap mage
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 64;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
-	engine->IBL._irradianceCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
+	ibl._irradianceCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
 
 	//Create image sampler
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -152,7 +142,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = numMips;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &engine->IBL._irradianceCubeSampler);
+	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &ibl._irradianceCubeSampler);
 
 	//Draw target Image
 	AllocatedImage drawImage;
@@ -344,7 +334,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	vkDestroyPipelineLayout(engine->_device, irradianceLayout, nullptr);
 	vkDestroyDescriptorSetLayout(engine->_device, irradianceSetLayout, nullptr);
 	
-
+	*/
 	//Compute shader version
 	//Completely identical visuals
 	/*VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -435,12 +425,12 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine)
 	*/
 }
 
-void black_key::generate_brdf_lut(VulkanEngine* engine)
+void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
 {
 	VkFormat format = VK_FORMAT_R16G16_SFLOAT;
 	uint32_t dim = 512;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
-	engine->IBL._lutBRDF = vkutil::create_image_empty(VkExtent3D{ dim,dim,1 }, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,engine);
+	ibl._lutBRDF = vkutil::create_image_empty(VkExtent3D{ dim,dim,1 }, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,engine);
 
 	//Create image sampler
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -454,7 +444,7 @@ void black_key::generate_brdf_lut(VulkanEngine* engine)
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = 1.0f;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &engine->IBL._lutBRDFSampler);
+	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &ibl._lutBRDFSampler);
 
 	VkDescriptorSetLayout lutBRDFSetLayout;
 	DescriptorLayoutBuilder builder;
@@ -492,14 +482,40 @@ void black_key::generate_brdf_lut(VulkanEngine* engine)
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_LESS_OR_EQUAL);
 	pipelineBuilder._pipelineLayout = lutBRDFLayout;
-	pipelineBuilder.set_color_attachment_format(engine->IBL._lutBRDF.imageFormat);
+	pipelineBuilder.set_color_attachment_format(ibl._lutBRDF.imageFormat);
 
 	auto brdfPipeline = pipelineBuilder.build_pipeline(engine->_device);
 
 	VkClearValue clearValues[1];
 	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 	
-	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, engine->_frames[0]._commandPool, engine);
+	engine->immediate_submit([&](VkCommandBuffer cmd) {
+
+		vkutil::transition_image(cmd, ibl._lutBRDF.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(ibl._lutBRDF.imageView, nullptr, clearValues, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{ dim,dim }, &colorAttachment, nullptr);
+
+		vkCmdBeginRendering(cmd, &renderInfo);
+		VkViewport viewport = {};
+		viewport.width = dim;
+		viewport.height = dim;
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = dim;
+		scissor.extent.height = dim;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, brdfPipeline);
+		vkCmdDraw(cmd, 3, 1, 0, 0);
+		vkCmdEndRendering(cmd);
+
+		vkutil::transition_image(cmd, ibl._lutBRDF.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	});
+	
+	/*auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, engine->_frames[0]._commandPool, engine);
 	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 	//> draw_first
@@ -527,105 +543,22 @@ void black_key::generate_brdf_lut(VulkanEngine* engine)
 	vkCmdEndRendering(cmd);
 
 	vkutil::transition_image(cmd, engine->IBL._lutBRDF.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	
 	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
+	*/
 
 	vkDestroyPipeline(engine->_device, brdfPipeline, nullptr);
 	vkDestroyPipelineLayout(engine->_device, lutBRDFLayout, nullptr);
 	vkDestroyDescriptorSetLayout(engine->_device, lutBRDFSetLayout, nullptr);
 }
 
-void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
+void black_key::generate_prefiltered_cubemap(VulkanEngine* engine, IBLData& ibl)
 {
 	/*
-	VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	uint32_t dim = 512;
-	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
-	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-
-
-	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	cubeSampl.magFilter = VK_FILTER_LINEAR;
-	cubeSampl.minFilter = VK_FILTER_LINEAR;
-	cubeSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	cubeSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	cubeSampl.addressModeV = cubeSampl.addressModeU;
-	cubeSampl.addressModeW = cubeSampl.addressModeU;
-	cubeSampl.mipLodBias = 0.0f;
-	cubeSampl.minLod = 0.0f;
-	cubeSampl.maxLod = numMips;
-	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &engine->IBL._preFilteredCubeSampler);
-
-	VkDescriptorSetLayout IBL_Layout;
-	DescriptorLayoutBuilder builder;
-	builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	IBL_Layout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
-
-	VkPipelineLayoutCreateInfo preFilterLayoutInfo = {};
-	preFilterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	preFilterLayoutInfo.pNext = nullptr;
-	preFilterLayoutInfo.pSetLayouts = &IBL_Layout;
-	preFilterLayoutInfo.setLayoutCount = 1;
-
-	VkPipelineLayout preFilterLayout;
-	VK_CHECK(vkCreatePipelineLayout(engine->_device, &preFilterLayoutInfo, nullptr, &preFilterLayout));
-
-	VkShaderModule preFilterShader;
-	if (!vkutil::load_shader_module("shaders/pre_filter.spv", engine->_device, &preFilterShader)) {
-		fmt::print("Error when building the compute shader \n");
-	}
-
-	VkPipelineShaderStageCreateInfo stageinfo{};
-	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stageinfo.pNext = nullptr;
-	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageinfo.module = preFilterShader;
-	stageinfo.pName = "main";
-
-	VkComputePipelineCreateInfo computePipelineCreateInfo{};
-	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = preFilterLayout;
-	computePipelineCreateInfo.stage = stageinfo;
-
-	VkPipeline preFilterPipeline;
-	//default colors
-
-	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &preFilterPipeline));
-
-	VkDescriptorSet globalDescriptor = engine->globalDescriptorAllocator.allocate(engine->_device, IBL_Layout);
-
-	auto cmd = vk_device::create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, engine->_frames[0]._commandPool, engine);
-	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	//> draw_first
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-	vkutil::transition_image(cmd, engine->_skyImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-	vkutil::transition_image(cmd, engine->IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-	DescriptorWriter writer;
-	writer.write_image(0, engine->_skyImage.imageView, engine->_cubeMapSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	writer.write_image(1, engine->IBL._preFilteredCube.imageView, engine->IBL._preFilteredCubeSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	writer.update_set(engine->_device, globalDescriptor);
-
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, preFilterPipeline);
-
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, preFilterLayout, 0, 1, &globalDescriptor, 0, nullptr);
-
-	//vkCmdPushConstants(cmd, preFilterLayout,VK_SHADER_STAGE_COMPUTE_BIT,0,sizeof(PushParams),&)
-	vkCmdDispatch(cmd, dim / 16, dim / 16, 6);
-
-	vkutil::transition_image(cmd, engine->IBL._preFilteredCube.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	vkutil::transition_image(cmd, engine->_skyImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-	vk_device::flush_command_buffer(cmd, engine->_graphicsQueue, engine->_frames[0]._commandPool, engine);
-	*/
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 512;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
-	engine->IBL._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
+	ibl._preFilteredCube = vkutil::create_cubemap_image(VkExtent3D{ dim,dim,1 }, engine, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true);
 
 	//Draw target Image
 	AllocatedImage drawImage;
@@ -820,4 +753,5 @@ void black_key::generate_prefiltered_cubemap(VulkanEngine* engine)
 	vkDestroyPipeline(engine->_device, irradiancePipeline, nullptr);
 	vkDestroyPipelineLayout(engine->_device, irradianceLayout, nullptr);
 	vkDestroyDescriptorSetLayout(engine->_device, irradianceSetLayout, nullptr);
+	*/
 }

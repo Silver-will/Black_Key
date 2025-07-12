@@ -24,7 +24,7 @@ struct ShadowPipelineResources {
 		VkSampler shadowSampler;
 	};
 
-	void build_pipelines(VulkanEngine* engine);
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 	MaterialResources AllocateResources(VulkanEngine* engine);
 	void clear_resources(VkDevice device);
 
@@ -43,7 +43,7 @@ struct EarlyDepthPipelineObject {
 		uint32_t dataBufferOffset;
 	};
 
-	void build_pipelines(VulkanEngine* engine);
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 
 	void clear_resources(VkDevice device);
 
@@ -64,7 +64,7 @@ struct SkyBoxPipelineResources {
 		uint32_t dataBufferOffset;
 	};
 
-	void build_pipelines(VulkanEngine* engine);
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 
 	void clear_resources(VkDevice device);
 
@@ -84,7 +84,7 @@ struct BloomBlurPipelineObject {
 		uint32_t dataBufferOffset;
 	};
 
-	void build_pipelines(VulkanEngine* engine);
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 
 	void clear_resources(VkDevice device);
 
@@ -103,7 +103,7 @@ struct RenderImagePipelineObject {
 		uint32_t dataBufferOffset;
 	};
 
-	void build_pipelines(VulkanEngine* engine);
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 
 	void clear_resources(VkDevice device);
 

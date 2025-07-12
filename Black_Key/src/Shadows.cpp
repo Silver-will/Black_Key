@@ -1,7 +1,7 @@
 #include "Shadows.h"
 #include "vk_engine.h"
 
-Cascade ShadowCascades::getCascades(VulkanEngine* engine)
+Cascade ShadowCascades::getCascades(VulkanEngine* engine, Camera& mainCamera, GPUSceneData& scene_data)
 {
 	Cascade cascades;
 	const int SHADOW_MAP_CASCADE_COUNT = 4;
@@ -10,8 +10,8 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 
 	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
 
-	float nearClip = engine->mainCamera.getNearClip();
-	float farClip = engine->mainCamera.getFarClip();
+	float nearClip = mainCamera.getNearClip();
+	float farClip = mainCamera.getFarClip();
 	float clipRange = farClip - nearClip;
 
 	float minZ = nearClip;
@@ -47,7 +47,7 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		};
 
 		// Project frustum corners into world space
-		glm::mat4 invCam = glm::inverse(engine->mainCamera.matrices.perspective * engine->mainCamera.matrices.view);
+		glm::mat4 invCam = glm::inverse(mainCamera.matrices.perspective * mainCamera.matrices.view);
 		for (uint32_t j = 0; j < 8; j++) {
 			glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
 			frustumCorners[j] = invCorner / invCorner.w;
@@ -76,7 +76,7 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::vec3 lightDir = glm::normalize(engine->scene_data.sunlightDirection);
+		glm::vec3 lightDir = glm::normalize(scene_data.sunlightDirection);
 		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 		lightOrthoMatrix[1][1] *= -1;
@@ -93,7 +93,7 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine)
 		lightOrthoMatrix[3][1] += roundedOffset.g;
 
 		// Store split distance and matrix in cascade
-		cascades.cascadeDistances[i] = (engine->mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
+		cascades.cascadeDistances[i] = (mainCamera.getNearClip() + splitDist * clipRange) * -1.0f;
 		cascades.lightSpaceMatrix[i] = lightOrthoMatrix * lightViewMatrix;
 		cascades.lightViewMatrices.push_back(lightViewMatrix);
 		cascades.lightProjMatrices.push_back(lightOrthoMatrix);

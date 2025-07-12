@@ -15,7 +15,7 @@ struct Cascade{
 struct ShadowCascades
 {
 
-    Cascade getCascades(VulkanEngine* engine);
+    Cascade getCascades(VulkanEngine* engine, Camera& mainCamera, GPUSceneData& scene_data);
     void SetShadowMapTextureSize(uint32_t size);
     int getCascadeLevels() {
         return cascadeCount;

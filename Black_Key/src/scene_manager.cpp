@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <future>
 
-void SceneManager::Init(ResourceManager* rm, VulkanEngine* engine_ptr)
+void SceneManager::Init(std::shared_ptr<ResourceManager> rm, VulkanEngine* engine_ptr)
 {
 	resource_manager = rm;
 	engine = engine_ptr;
@@ -56,8 +56,8 @@ void SceneManager::MergeMeshes()
 	}
 	assert(total_vertices && total_indices);
 
-	merged_vertex_buffer = engine->create_buffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	merged_index_buffer = engine->create_buffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_vertex_buffer = resource_manager->CreateBuffer(total_vertices * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	merged_index_buffer = resource_manager->CreateBuffer(total_indices * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT| VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = merged_vertex_buffer.buffer };
 	mergedVertexAddress = vkGetBufferDeviceAddress(engine->_device, &deviceAdressInfo);
@@ -144,7 +144,7 @@ void SceneManager::MergeMeshes()
 			.pad = glm::vec4(0)
 			});
 	}
-	object_data_buffer = engine->create_and_upload(scene_indirect_data.size() * sizeof(vkutil::GPUModelInformation),
+	object_data_buffer = resource_manager->CreateAndUpload(scene_indirect_data.size() * sizeof(vkutil::GPUModelInformation),
 		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, scene_indirect_data.data());
 
 }
@@ -178,14 +178,14 @@ void SceneManager::PrepareIndirectBuffers()
 
 	auto indirect_buffer_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-	indirect_command_buffer = engine->create_buffer(sizeof(VkDrawIndexedIndirectCommand) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+	indirect_command_buffer = resource_manager->CreateBuffer(sizeof(VkDrawIndexedIndirectCommand) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
 
-	clear_indirect_command_buffer = engine->create_buffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
+	clear_indirect_command_buffer = resource_manager->CreateBuffer(sizeof(GPUIndirectObject) * mesh_count, indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY);
 	
-	forward_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	shadow_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	transparency_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
-	early_depth_pass.drawIndirectBuffer = engine->create_and_upload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	forward_pass.drawIndirectBuffer = resource_manager->CreateAndUpload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	shadow_pass.drawIndirectBuffer = resource_manager->CreateAndUpload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	transparency_pass.drawIndirectBuffer = resource_manager->CreateAndUpload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
+	early_depth_pass.drawIndirectBuffer = resource_manager->CreateAndUpload(sizeof(GPUIndirectObject) * object_commands.size(), indirect_buffer_flags, VMA_MEMORY_USAGE_GPU_ONLY, object_commands.data());
 
 	VkBufferDeviceAddressInfoKHR address_info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR };
 	address_info.buffer = indirect_command_buffer.buffer;
@@ -193,7 +193,7 @@ void SceneManager::PrepareIndirectBuffers()
 	
 	const size_t address_buffer_size = sizeof(VkDeviceAddress);
 
-	address_buffer = engine->create_and_upload(address_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &srcPtr);
+	address_buffer = resource_manager->CreateAndUpload(address_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &srcPtr);
 	
 }
 
