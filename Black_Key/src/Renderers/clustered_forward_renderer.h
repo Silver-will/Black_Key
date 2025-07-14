@@ -117,6 +117,7 @@ private:
 	AllocatedImage _depthPyramid;
 	
 	IBLData IBL;
+	int draw_count = 0;
 
 	VkExtent2D _drawExtent;
 	float renderScale = 1.f;
