@@ -33,15 +33,21 @@ void main()
     vec2 normPerTileSize = vec2(1.0 / float(tileSizes.x),
 		1.0 / float(tileSizes.y));
 
-    //Calculating the min and max point in screen space
-    vec4 maxPoint_sS = vec4(vec2((gl_WorkGroupID.x + 1) * normPerTileSize.x, 
-                        (gl_WorkGroupID.y + 1) * normPerTileSize.y),
-                        1.0, -1.0); // Top Right
-    vec4 minPoint_sS = vec4(vec2((gl_WorkGroupID.x) * normPerTileSize.x, (gl_WorkGroupID.y) * normPerTileSize.y), 1.0, -1.0); // Bottom left
-    
+  vec4 maxSS = vec4(
+		(gl_WorkGroupID.x + 1.0) * normPerTileSize.x,
+		(gl_WorkGroupID.y + 1.0) * normPerTileSize.y,
+		0.0,
+		1.0);
+	// Bottom Left
+	vec4 minSS = vec4(
+		gl_WorkGroupID.x * normPerTileSize.x,
+		gl_WorkGroupID.y * normPerTileSize.y,
+		0.0,
+		1.0);
+
     //Pass min and max to view space
-    vec3 maxPoint_vS = screenSpaceToView(maxPoint_sS).xyz;
-    vec3 minPoint_vS = screenSpaceToView(minPoint_sS).xyz;
+    vec3 maxPoint_vS = screenSpaceToView(maxSS).xyz;
+    vec3 minPoint_vS = screenSpaceToView(minSS).xyz;
 
     float tileNear = -zNear * pow(zFar/ zNear, gl_WorkGroupID.z/float(tileSizes.z));
     float tileFar   = -zNear * pow(zFar/ zNear, (gl_WorkGroupID.z + 1) /float(tileSizes.z));

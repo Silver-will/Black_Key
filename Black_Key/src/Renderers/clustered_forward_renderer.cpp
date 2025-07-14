@@ -590,7 +590,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 300.0f);
+	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 1000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -1712,8 +1712,8 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	vkutil::cullParams earlyDepthCull;
 	earlyDepthCull.viewmat = scene_data.view;
 	earlyDepthCull.projmat = scene_data.proj;
-	earlyDepthCull.frustrumCull = true;
-	earlyDepthCull.occlusionCull = true;
+	earlyDepthCull.frustrumCull = false;
+	earlyDepthCull.occlusionCull = false;
 	earlyDepthCull.aabb = false;
 	earlyDepthCull.drawDist = mainCamera.getFarClip();
 	ExecuteComputeCull(cmd, earlyDepthCull, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth));
@@ -2074,6 +2074,7 @@ void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 {
 	ZoneScoped;
+	stats.drawcall_count = 0;
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,engine);
 
@@ -2198,6 +2199,7 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 			auto pass = scene_manager->GetMeshPass(pass_enum);
 			if (pass->flat_objects.size() > 0)
 			{
+				stats.drawcall_count++;
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
 					&globalDescriptor, 0, nullptr);
@@ -2266,6 +2268,20 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 
 	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
 	vkCmdDispatch(cmd, 16, 9, 24);
+
+	std::vector<VkBufferMemoryBarrier> light_cull_barriers;
+	VkBufferMemoryBarrier lightGridBarrier = vkinit::buffer_barrier(ClusterValues.lightGridSSBO.buffer, engine->_graphicsQueueFamily);
+	lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	lightGridBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	light_cull_barriers.push_back(lightGridBarrier);
+
+	VkBufferMemoryBarrier light_index_barrier = vkinit::buffer_barrier(ClusterValues.lightIndexListSSBO.buffer, engine->_graphicsQueueFamily);
+	light_index_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	light_index_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	light_cull_barriers.push_back(light_index_barrier);
+
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, light_cull_barriers.size(), light_cull_barriers.data(), 0, nullptr);
+
 }
 
 void ClusteredForwardRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
@@ -2614,13 +2630,13 @@ void ClusteredForwardRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Engine Stats"))
 	{
 		ImGui::SeparatorText("Render timings");
-		ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
-		ImGui::Text("frametime %f ms", stats.frametime);
-		ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
-		ImGui::Text("triangles %i", stats.triangle_count);
-		ImGui::Text("draws %i", stats.drawcall_count);
+		//ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
+		//ImGui::Text("frametime %f ms", stats.frametime);
+		//ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
+		ImGui::Text("Triangles: %i", stats.triangle_count);
+		ImGui::Text("Indirect Draws: %i", stats.drawcall_count);
 		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
-		ImGui::Text("Update time %f ms", stats.update_time);
+		//ImGui::Text("Update time %f ms", stats.update_time);
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
 	}
 	ImGui::End();

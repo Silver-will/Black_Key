@@ -7,7 +7,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 shared PointLight sharedLights[16 * 9 * 4];
 
-#define MAX_LIGHTS_PER_CLUSTER 100
+#define MAX_LIGHTS_PER_CLUSTER 10
 
 layout(push_constant) uniform Constants
 {
@@ -82,9 +82,6 @@ void main()
 	}
 	barrier();
 	uint offset = atomicAdd(globalIndexCount, lightIter);
-	
-	//uint offset = globalIndexCount;
-	//globalIndexCount += lightIter;
 	
 	for (uint i = 0; i < lightIter; ++i)
 	{
