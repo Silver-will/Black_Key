@@ -28,6 +28,7 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec3 cascadeConfigData;
 	uint lightCount;
 	vec4 distances;
+	vec4 debugInfo;
 } sceneData;
 
 
@@ -42,8 +43,8 @@ layout (set = 0, binding = 6) readonly buffer lightSSBO{
 
 layout (set = 0, binding = 7) buffer screenToView{
     mat4 inverseProjection;
-    uvec4 tileSizes;
-    uvec2 screenDimensions;
+    vec4 tileSizes;
+    vec2 screenDimensions;
     float scale;
     float bias;
 };

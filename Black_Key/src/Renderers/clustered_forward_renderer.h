@@ -96,6 +96,7 @@ private:
 	bool debugShadowMap = false;
 	bool use_bindless = true;
 	bool debugBuffer = false;
+	bool debugLightClustering = false;
 	bool readDebugBuffer = false;
 
 	struct {
@@ -206,7 +207,6 @@ private:
 	struct PointLightData {
 
 		uint32_t numOfLights = 6;
-		//PointLight pointLights[100];
 		std::vector<PointLight> pointLights;
 
 	}pointData;

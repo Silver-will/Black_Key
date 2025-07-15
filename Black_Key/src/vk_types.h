@@ -167,8 +167,7 @@ struct CullData {
 struct ScreenToView {
     glm::mat4 inverseProjectionMat;
     glm::vec4 tileSizes;
-    float screenWidth;
-    float screenHeight;
+    glm::vec2 screenDimensions;
     float sliceScalingFactor;
     float sliceBiasFactor;
 };
@@ -224,6 +223,7 @@ struct GPUSceneData {
     glm::vec3 ConfigData; //x for nearPlane, y for farPlane
     uint32_t lightCount;
     glm::vec4 distances;
+    glm::vec4 debugValues; //x for light clusters
   };
 
 struct shadowData {

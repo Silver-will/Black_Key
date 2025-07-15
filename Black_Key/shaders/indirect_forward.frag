@@ -27,7 +27,7 @@ vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C);
 vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
 vec3 CalculateNormalFromMap();
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex);
-float filterPCF(vec4 sc, int cascadeIndex, float depthValue);
+float filterPCF(vec4 sc, int cascadeIndex);
 
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
@@ -71,16 +71,24 @@ void main()
 	vec3 Ld = vec3(1.0);
     
     Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
+	float linDepth = linearDepth(gl_FragCoord.z);
+	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
+	float sliceCountX = tileSizes.x;
+	float sliceCountY = tileSizes.y;
+	vec2 tileSize =
+		vec2(screenDimensions.x / sliceCountX,
+			 screenDimensions.y / sliceCountY);
+	uvec3 cluster = uvec3(
+		gl_FragCoord.x / tileSize.x,
+		gl_FragCoord.y / tileSize.y,
+		zTile);
+	uint clusterIdx =
+		cluster.x +
+		cluster.y * int(tileSizes.x) +
+		cluster.z * int(tileSizes.x) * int(tileSizes.y);
+	uint lightCount = lightGrid[clusterIdx].count;
+	uint lightIndexOffset = lightGrid[clusterIdx].offset;
 
-
-	uint zTile     = uint(max(log2(linearDepth(gl_FragCoord.z)) * scale + bias, 0.0));
-    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy / tileSizes[3] ), zTile);
-    uint tileIndex = tiles.x +
-                     tileSizes.x * tiles.y +
-                     (tileSizes.x * tileSizes.y) * tiles.z;  
-
-	uint lightCount       = lightGrid[tileIndex].count;
-    uint lightIndexOffset = lightGrid[tileIndex].offset;
 
 	//Calculate point lights
 	for(int i = 0; i < lightCount; i++)
@@ -125,6 +133,12 @@ void main()
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
     //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
 	color *= shadow;
+
+	if(sceneData.debugInfo.x == 1.0f)
+	{
+		float r_off = float(lightCount) * 0.1;
+		color.r += r_off;
+	}
     
     if(sceneData.cascadeConfigData.z == 1.0f)
     {
@@ -150,8 +164,8 @@ void main()
 float linearDepth(float depthSample){
 	float zNear = sceneData.cascadeConfigData.x;
 	float zFar  = sceneData.cascadeConfigData.y;
-    float depthRange = 2.0 * depthSample - 1.0;
-    float linear = 2.0 * zNear * zFar / (zFar + zNear - depthRange * (zFar - zNear));
+    //float depthRange = 2.0 * depthSample - 1.0;
+    float linear = zNear * zFar / (zFar +  depthSample * (zNear - zFar));
     return linear;
 }
 

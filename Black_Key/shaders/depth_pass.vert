@@ -15,6 +15,7 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec3 cascadeConfigData;
 	uint lightCount;
 	vec4 distances;
+	vec4 debugInfo;
 } sceneData;
 
 struct Vertex {
