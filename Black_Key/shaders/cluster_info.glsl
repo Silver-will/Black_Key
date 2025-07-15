@@ -10,7 +10,7 @@ layout (set = 0, binding = 0) buffer clusterAABB{
 layout (set = 0, binding = 1) buffer screenToView{
     mat4 inverseProjection;
     vec4 tileSizes;
-    uvec2 screenDimensions;
+    vec2 screenDimensions;
     float sliceFactor;
     float sliceBiasFactor;
 };

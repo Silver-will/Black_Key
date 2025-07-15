@@ -609,19 +609,15 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 4;
+	int numOfLights = 1000;
 	std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<> distFloat(0.0f, 15.0f);
+	std::uniform_real_distribution<> distFloat(-20.0f, 20.0f);
+	std::uniform_real_distribution<> distRadius(3.0f, 12.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), 5.0f, distFloat(rng), 1.0f), glm::vec4(1), 12.0f, 1.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 20.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distFloat(rng) / 15.0f, 1.0, distFloat(rng) / 15.0f, 1.0), distRadius(rng), 1.0f));
 	}
-	pointData.pointLights.push_back(PointLight(glm::vec4(-257.0f, 130.0f, 5.25f, -256.0f), glm::vec4(1), 15.0f, 1.0f));
-	pointData.pointLights.push_back(PointLight(glm::vec4(-0.12f, -5.14f, -5.25f, 1.0f), glm::vec4(1), 15.0f, 1.0f));
-
-	//Prepare Depth Pyramid
-
 
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -733,15 +729,14 @@ void ClusteredForwardRenderer::InitBuffers()
 	ClusterValues.sizeX = (uint16_t)std::ceilf(_aspect_width / (float)ClusterValues.gridSizeX);
 	ScreenToView screen;
 	auto proj = mainCamera.matrices.perspective;
-	//proj[1][1] *= -1;
+	proj[1][1] *= -1;
 	screen.inverseProjectionMat = glm::inverse(proj);
-	//screen.inverseProjectionMat[1][1] *= -1;
-	screen.tileSizes[0] = ClusterValues.gridSizeX;
-	screen.tileSizes[1] = ClusterValues.gridSizeY;
-	screen.tileSizes[2] = ClusterValues.gridSizeZ;
-	screen.tileSizes[3] = ClusterValues.sizeX;
-	screen.screenWidth = _aspect_width;
-	screen.screenHeight = _aspect_height;
+	screen.tileSizes.x = static_cast<float>(ClusterValues.gridSizeX);
+	screen.tileSizes.y = static_cast<float>(ClusterValues.gridSizeY);
+	screen.tileSizes.z = static_cast<float>(ClusterValues.gridSizeZ);
+	screen.tileSizes.w = static_cast<float>(ClusterValues.sizeX);
+	screen.screenDimensions.x = _aspect_width;
+	screen.screenDimensions.y = _aspect_height;
 
 	screen.sliceScalingFactor = (float)ClusterValues.gridSizeZ / std::log2f(zFar / zNear);
 	screen.sliceBiasFactor = -((float)ClusterValues.gridSizeZ * std::log2f(zNear) / std::log2f(zFar / zNear));
@@ -908,6 +903,8 @@ void ClusteredForwardRenderer::UpdateScene()
 		scene_data.ConfigData.z = 1.0f;
 	else
 		scene_data.ConfigData.z = 0.0f;
+
+	scene_data.debugValues.x = debugLightClustering ? 1.0 : 0.0f;
 	scene_data.ConfigData.x = mainCamera.getNearClip();
 	scene_data.ConfigData.y = mainCamera.getFarClip();
 
@@ -2567,8 +2564,8 @@ void ClusteredForwardRenderer::DrawUI()
 					if (ImGui::TreeNode("Attenuation"))
 					{
 						//move this declaration to a higher scope later
-						ImGui::SliderFloat("Range", &pointData.pointLights[i].range, 0.0f, 1.0f);
-						ImGui::SliderFloat("Intensity", &pointData.pointLights[i].intensity, 0.0f, 1.0f);
+						ImGui::SliderFloat("Range", &pointData.pointLights[i].range, 0.0f, 15.0f);
+						ImGui::SliderFloat("Intensity", &pointData.pointLights[i].intensity, 0.0f, 5.0f);
 						//ImGui::SliderFloat("quadratic", &points[i].quadratic, 0.0f, 2.0f);
 						//ImGui::SliderFloat("radius", &points[i].quadratic, 0.0f, 100.0f);
 						ImGui::TreePop();
@@ -2600,7 +2597,7 @@ void ClusteredForwardRenderer::DrawUI()
 		ImGui::Checkbox("Read buffer", &readDebugBuffer);
 		ImGui::Checkbox("Display buffer", &debugBuffer);
 		ImGui::Checkbox("Visualize depth texure", &debugDepthTexture);
-
+		ImGui::Checkbox("Visualize rendered light count", &debugLightClustering);
 		std::string breh;
 		if (debugBuffer)
 		{
