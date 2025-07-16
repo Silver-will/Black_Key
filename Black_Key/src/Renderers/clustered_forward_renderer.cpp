@@ -590,7 +590,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(60.0f, (float)_windowExtent.width / (float)_windowExtent.height, 1.0f, 1000.0f);
+	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 100.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -609,14 +609,16 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 1000;
+	int numOfLights = 1;
 	std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<> distFloat(-20.0f, 20.0f);
-	std::uniform_real_distribution<> distRadius(3.0f, 12.0f);
+	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
+	std::uniform_real_distribution<> distRadius(4.0f, 10.0f);
+	std::uniform_real_distribution<> distRGB(0, 255.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 20.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distFloat(rng) / 15.0f, 1.0, distFloat(rng) / 15.0f, 1.0), distRadius(rng), 1.0f));
+		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 10.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,0.0), glm::vec4(1.0),5.5f, 10.0f));
 	}
 
 	//checkerboard image
@@ -752,7 +754,7 @@ void ClusteredForwardRenderer::InitBuffers()
 	uint32_t val = 0;
 	for (uint32_t i = 0; i < 2; i++)
 	{
-		ClusterValues.lightGlobalIndex[i] = resource_manager->CreateAndUpload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
+		ClusterValues.lightGlobalIndex[i] = resource_manager->CreateAndUpload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT , VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
 	}
 	
 }
@@ -2257,8 +2259,10 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, cullingDescriptor);
 
-	culling_information.view = mainCamera.matrices.view;
-	culling_information.lightCount = pointData.pointLights.size();
+	auto view = mainCamera.matrices.view;
+	//view[1][1] *= -1;
+	culling_information.view = view;
+	//culling_information.lightCount = pointData.pointLights.size();
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.pipeline);
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.layout, 0, 1, &cullingDescriptor, 0, nullptr);
@@ -2266,19 +2270,38 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
 	vkCmdDispatch(cmd, 16, 9, 24);
 
-	std::vector<VkBufferMemoryBarrier> light_cull_barriers;
-	VkBufferMemoryBarrier lightGridBarrier = vkinit::buffer_barrier(ClusterValues.lightGridSSBO.buffer, engine->_graphicsQueueFamily);
-	lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	std::vector<VkBufferMemoryBarrier2> light_cull_barriers;
+	VkBufferMemoryBarrier2 lightGridBarrier = vkinit::buffer_barrier_2(ClusterValues.lightGridSSBO.buffer, engine->_graphicsQueueFamily);
+	lightGridBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+	lightGridBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+	lightGridBarrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	lightGridBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	lightGridBarrier.size = ClusterValues.lightGridSSBO.info.size;
+	
+	/*lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 	lightGridBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	*/
 	light_cull_barriers.push_back(lightGridBarrier);
 
-	VkBufferMemoryBarrier light_index_barrier = vkinit::buffer_barrier(ClusterValues.lightIndexListSSBO.buffer, engine->_graphicsQueueFamily);
-	light_index_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	light_index_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	VkBufferMemoryBarrier2 light_index_barrier = vkinit::buffer_barrier_2(ClusterValues.lightIndexListSSBO.buffer, engine->_graphicsQueueFamily);
+	light_index_barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+	light_index_barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+	light_index_barrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	light_index_barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	light_index_barrier.size = ClusterValues.lightIndexListSSBO.info.size;
 	light_cull_barriers.push_back(light_index_barrier);
 
-	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, light_cull_barriers.size(), light_cull_barriers.data(), 0, nullptr);
-
+	//vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, light_cull_barriers.size(), light_cull_barriers.data(), 0, nullptr);
+	VkDependencyInfo barrier_info{
+	.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+	.pNext = nullptr,
+	.bufferMemoryBarrierCount = (uint32_t)light_cull_barriers.size(),
+	.pBufferMemoryBarriers = light_cull_barriers.data(),
+	};
+	//barrier_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+	//barrier_info.pBufferMemoryBarriers = light_cull_barriers.data();
+	//barrier_info.bufferMemoryBarrierCount = static_cast<uint32_t>(light_cull_barriers.size());
+	vkCmdPipelineBarrier2(cmd, &barrier_info);
 }
 
 void ClusteredForwardRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView)

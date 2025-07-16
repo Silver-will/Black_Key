@@ -10,6 +10,7 @@ namespace vkinit {
 VkCommandPoolCreateInfo command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
 VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool pool, uint32_t count = 1);
 VkBufferMemoryBarrier buffer_barrier(VkBuffer buffer, uint32_t queue);
+VkBufferMemoryBarrier2 buffer_barrier_2(VkBuffer buffer, uint32_t queue);
 VkImageMemoryBarrier image_barrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
 //< init_cmd
 

@@ -5,7 +5,7 @@ const float PI = 3.14159265359;
 struct PointLight{
     vec4 position;
     vec4 color;
-    uint enabled;
+    float enabled;
     float range;
     float intensity;
     float padding;

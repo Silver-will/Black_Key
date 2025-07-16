@@ -47,6 +47,24 @@ layout( push_constant ) uniform constants
 
 void main() 
 {
+	float linDepth = linearDepth(gl_FragCoord.z);
+	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
+	float sliceCountX = tileSizes.x;
+	float sliceCountY = tileSizes.y;
+	vec2 tileSize =
+		vec2(screenDimensions.x / sliceCountX,
+			 screenDimensions.y / sliceCountY);
+	uvec3 cluster = uvec3(
+		gl_FragCoord.x / tileSize.x,
+		gl_FragCoord.y / tileSize.y,
+		zTile);
+	uint clusterIdx =
+		cluster.x +
+		cluster.y * int(tileSizes.x) +
+		cluster.z * int(tileSizes.x) * int(tileSizes.y);
+	uint lightCount = lightGrid[clusterIdx].count;
+	uint lightIndexOffset = lightGrid[clusterIdx].offset;
+
     //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
@@ -71,32 +89,14 @@ void main()
 	vec3 Ld = vec3(1.0);
     
     Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
-	float linDepth = linearDepth(gl_FragCoord.z);
-	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
-	float sliceCountX = tileSizes.x;
-	float sliceCountY = tileSizes.y;
-	vec2 tileSize =
-		vec2(screenDimensions.x / sliceCountX,
-			 screenDimensions.y / sliceCountY);
-	uvec3 cluster = uvec3(
-		gl_FragCoord.x / tileSize.x,
-		gl_FragCoord.y / tileSize.y,
-		zTile);
-	uint clusterIdx =
-		cluster.x +
-		cluster.y * int(tileSizes.x) +
-		cluster.z * int(tileSizes.x) * int(tileSizes.y);
-	uint lightCount = lightGrid[clusterIdx].count;
-	uint lightIndexOffset = lightGrid[clusterIdx].offset;
-
 
 	//Calculate point lights
 	for(int i = 0; i < lightCount; i++)
 	{
 		uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
 		L = pointLight[lightVectorIndex].position.xyz - inFragPos;
-		Lo += PointLightContribution(L, V, N, pointLight[i].color.xyz, F0, metallic, roughness);
-		Ld += CalcDiffuseContribution(L,N,pointLight[i].color.xyz);
+		Lo += PointLightContribution(L, V, N, pointLight[lightVectorIndex].color.xyz, F0, metallic, roughness);
+		Ld += CalcDiffuseContribution(L,N,pointLight[lightVectorIndex].color.xyz);
 	}
 
     vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
