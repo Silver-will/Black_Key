@@ -135,6 +135,9 @@
     <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\vk_util.cpp">
+      <Filter>Source Files\Vulkan Backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -197,9 +200,6 @@
     <ClInclude Include="src\scene_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\vk_util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\material_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -241,6 +241,9 @@
     </ClInclude>
     <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vk_util.h">
+      <Filter>Source Files\Vulkan Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -247,6 +247,7 @@
     <ClCompile Include="src\vk_renderer.cpp" />
     <ClCompile Include="src\scene_manager.cpp" />
     <ClCompile Include="src\vk_shaders.cpp" />
+    <ClCompile Include="src\vk_util.cpp" />
     <ClCompile Include="src\vma_definition.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -102,9 +102,9 @@ private:
 	struct {
 		float lastFrame;
 	} delta;
-	VkExtent2D _windowExtent{ 1600,1055 };
-	float _aspect_width = 1600;
-	float _aspect_height = 1055;
+	VkExtent2D _windowExtent{ 1920,1080};
+	float _aspect_width = 1920;
+	float _aspect_height = 1080;
 
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;

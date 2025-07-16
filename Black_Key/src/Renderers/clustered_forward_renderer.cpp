@@ -75,6 +75,7 @@ void ClusteredForwardRenderer::InitEngine()
 	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 	features.dynamicRendering = true;
 	features.synchronization2 = true;
+
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 	features12.bufferDeviceAddress = true;
@@ -99,7 +100,6 @@ void ClusteredForwardRenderer::InitEngine()
 	baseFeatures.sampleRateShading = true;
 	baseFeatures.drawIndirectFirstInstance = true;
 	baseFeatures.multiDrawIndirect = true;
-
 	engine->init(baseFeatures, features11, features12, features);
 	resource_manager = std::make_shared<ResourceManager>(engine);
 	scene_manager = std::make_shared<SceneManager>();
@@ -590,7 +590,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 100.0f);
+	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 1000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -876,13 +876,10 @@ void ClusteredForwardRenderer::UpdateScene()
 	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
 	vmaUnmapMemory(engine->_allocator, ClusterValues.lightSSBO.allocation);
 
-
-	//uint32_t* val = (uint32_t*)ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation->GetMappedData();
-	//*val = 0;
 	void* val = nullptr;
+	uint32_t reset = 0;
 	vmaMapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation, &val);
-	uint32_t* value = (uint32_t*)val;
-	*value = 0;
+	memcpy(val, &reset, sizeof(uint32_t));
 	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation);
 
 
@@ -2245,10 +2242,6 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 
 	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _cullLightsDescriptorLayout);
 
-	//write the buffer
-	//auto* pointBuffer = ClusterValues.lightSSBO.allocation->GetMappedData();
-	//memcpy(pointBuffer, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
-
 	DescriptorWriter writer;
 	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(1, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -2258,16 +2251,16 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, cullingDescriptor);
-
 	auto view = mainCamera.matrices.view;
 	//view[1][1] *= -1;
 	culling_information.view = view;
+
 	//culling_information.lightCount = pointData.pointLights.size();
+	
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.pipeline);
-
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.layout, 0, 1, &cullingDescriptor, 0, nullptr);
-
 	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
+	vkutil::InsertDebugLabel(cmd, "Cull Lights", glm::vec4(1, 0, 0, 0));
 	vkCmdDispatch(cmd, 16, 9, 24);
 
 	std::vector<VkBufferMemoryBarrier2> light_cull_barriers;

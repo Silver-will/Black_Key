@@ -4,6 +4,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 namespace vkutil {
+	void InsertDebugLabel(VkCommandBuffer cmd, std::string_view label, glm::vec4 color);
 	enum class MeshPassType {
 		Forward,
 		Transparent,
