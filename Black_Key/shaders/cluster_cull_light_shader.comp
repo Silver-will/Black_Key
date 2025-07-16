@@ -81,11 +81,11 @@ void main()
 	lightGrid[tileIndex].offset = 0;
 	lightGrid[tileIndex].count  = 0;
 
-    uint visibleLightIndices[MAX_LIGHTS_PER_CLUSTER];
+    uint visibleLightIndices[50];
 	uint numAllLights = pointLight.length();
 
     uint lightIter = 0;
-	for (uint i = 0; i < numAllLights && lightIter < MAX_LIGHTS_PER_CLUSTER; ++i)
+	for (uint i = 0; i < numAllLights && lightIter < 50; ++i)
 	{
 		if (TestSphereAABB(i, tileIndex))
 		{
