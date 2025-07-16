@@ -374,6 +374,17 @@ VkImageViewCreateInfo vkinit::imageview_cubemap_create_info(VkFormat format, VkI
     return info;
 }
 
+VkBufferMemoryBarrier2 vkinit::buffer_barrier_2(VkBuffer buffer, uint32_t queue)
+{
+    VkBufferMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    barrier.pNext = nullptr;
+    barrier.dstQueueFamilyIndex = queue;
+    barrier.buffer = buffer;
+    barrier.offset = 0;
+    return barrier;
+}
+
 VkBufferMemoryBarrier vkinit::buffer_barrier(VkBuffer buffer, uint32_t queue)
 {
     VkBufferMemoryBarrier barrier{};

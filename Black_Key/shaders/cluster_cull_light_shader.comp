@@ -5,14 +5,11 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #include "lights.glsl"
 #include "cluster_info.glsl"
 
-shared PointLight sharedLights[16 * 9 * 4];
-
-#define MAX_LIGHTS_PER_CLUSTER 20
+#define MAX_LIGHTS_PER_CLUSTER 50
 
 layout(push_constant) uniform Constants
 {
 	mat4 viewMatrix;
-    uint numOfLights;
 };
 
 layout (set = 0, binding = 2) readonly buffer lightSSBO{
@@ -52,25 +49,40 @@ float SquaredDistancePointAABB(vec3 point, uint tile)
 	}
    	return sqDist;
 }
-
+bool SphereAABBIntersection(vec3 center, float radius, vec3 aabbmin, vec3 aabbmax)
+{
+	vec3 closest_point = max(aabbmin, min(center, aabbmax));
+	vec3 distance = closest_point - center;
+	return dot(distance,distance) <= radius * radius;
+}
 bool TestSphereAABB(uint lightIndex, uint tile)
 {
+	/*
 	float lightRadius = pointLight[lightIndex].range;
 	vec4 posWorld = pointLight[lightIndex].position;
 	vec4 posView = viewMatrix * posWorld;
 	float squaredDistance = SquaredDistancePointAABB(posView.xyz, tile);
-
 	return squaredDistance < (lightRadius * lightRadius);
+	*/
+	float lightRadius = pointLight[lightIndex].range;
+	vec4 posWorld = pointLight[lightIndex].position;
+	vec4 posView = viewMatrix * posWorld;
+	VolumeTileAABB currentCell = cluster[tile];
+	return SphereAABBIntersection(posView.xyz, lightRadius, currentCell.minPoint.xyz, currentCell.maxPoint.xyz);
 }
 
 void main()
 {
-    uint tileIndex = gl_WorkGroupID.x +
+   uint tileIndex =
+		gl_WorkGroupID.x +
 		gl_WorkGroupID.y * gl_NumWorkGroups.x +
 		gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y;
 
+	lightGrid[tileIndex].offset = 0;
+	lightGrid[tileIndex].count  = 0;
+
     uint visibleLightIndices[MAX_LIGHTS_PER_CLUSTER];
-	uint numAllLights = numOfLights;
+	uint numAllLights = pointLight.length();
 
     uint lightIter = 0;
 	for (uint i = 0; i < numAllLights && lightIter < MAX_LIGHTS_PER_CLUSTER; ++i)
@@ -80,7 +92,6 @@ void main()
 			visibleLightIndices[lightIter++] = i;
 		}
 	}
-	barrier();
 	uint offset = atomicAdd(globalIndexCount, lightIter);
 	
 	for (uint i = 0; i < lightIter; ++i)

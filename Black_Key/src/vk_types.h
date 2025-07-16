@@ -23,7 +23,6 @@
 #include <fmt/core.h>
 
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtx/transform.hpp>
@@ -161,7 +160,6 @@ struct LightGrid {
 
 struct CullData {
     glm::mat4 view;
-    uint32_t lightCount;
 };
 
 struct ScreenToView {

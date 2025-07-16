@@ -18,7 +18,7 @@ struct PointLight
 	PointLight() {}
 	glm::vec4 position;
 	glm::vec4 color;
-	uint32_t enabled = 1;
+	float enabled = 1;
 	float range;
 	float intensity;
 	float padding = 20.0f;
