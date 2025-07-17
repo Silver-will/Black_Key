@@ -186,7 +186,7 @@ private:
 		const uint32_t gridSizeY = 9;
 		const uint32_t gridSizeZ = 24;
 		const uint32_t numClusters = gridSizeX * gridSizeY * gridSizeZ;
-		const uint32_t maxLightsPerTile = 50;
+		const uint32_t maxLightsPerTile = 1000;
 		uint32_t sizeX, sizeY;
 
 		//Storage Buffers

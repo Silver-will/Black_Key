@@ -590,7 +590,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	mainCamera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 1000.0f);
+	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 3000.0f);
 	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -609,16 +609,16 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 1;
+	int numOfLights = 1000;
 	std::random_device dev;
 	std::mt19937 rng(dev());
 	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
-	std::uniform_real_distribution<> distRadius(4.0f, 10.0f);
+	std::uniform_real_distribution<> distRadius(2.5f, 4.f);
 	std::uniform_real_distribution<> distRGB(0, 255.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 10.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
-		pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,0.0), glm::vec4(1.0),5.5f, 10.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 10.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
+		//pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,1.0), glm::vec4(1.0),2.3f, 10.0f));
 	}
 
 	//checkerboard image
@@ -877,9 +877,9 @@ void ClusteredForwardRenderer::UpdateScene()
 
 	void* val = nullptr;
 	uint32_t reset = 0;
-	vmaMapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber + 1) % FRAME_OVERLAP].allocation, &val);
+	vmaMapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber) % FRAME_OVERLAP].allocation, &val);
 	memcpy(val, &reset, sizeof(uint32_t));
-	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber + 1) % FRAME_OVERLAP].allocation);
+	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber) % FRAME_OVERLAP].allocation);
 
 
 	cascadeData = shadows.getCascades(engine, mainCamera, scene_data);
@@ -1762,7 +1762,7 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
-	GenerateAABB(cmd);
+	//GenerateAABB(cmd);
 	//Compute shader pass for clustered light culling
 	CullLights(cmd);
 
@@ -2260,7 +2260,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.pipeline);
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.layout, 0, 1, &cullingDescriptor, 0, nullptr);
-	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(CullData), &culling_information);
+	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::mat4), &scene_data.view);
 	vkutil::InsertDebugLabel(cmd, "Cull Lights", glm::vec4(1, 0, 0, 0));
 	vkCmdDispatch(cmd, 16, 9, 24);
 
@@ -2610,7 +2610,7 @@ void ClusteredForwardRenderer::DrawUI()
 					{
 						float pos[3] = { pointData.pointLights[i].position.x, pointData.pointLights[i].position.y, pointData.pointLights[i].position.z };
 						ImGui::SliderFloat3("x,y,z", pos, -15.0f, 15.0f);
-						pointData.pointLights[i].position = glm::vec4(pos[0], pos[1], pos[2], 0.0f);
+						pointData.pointLights[i].position = glm::vec4(pos[0], pos[1], pos[2], 1.0f);
 						ImGui::TreePop();
 						ImGui::Spacing();
 					}

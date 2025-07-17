@@ -19,12 +19,12 @@ layout (location = 8) in mat3 inTBN;
 
 
 layout (location = 0) out vec4 outFragColor;
-
+//vec3 Radiance(vec3 albedo, vec3 N, vec3 V, vec3 F0, float metallic, float roughness, float alphaRoughness, LightData light);
 float linearDepth(float depthSample);
 vec3 prefilteredReflection(vec3 R, float roughness);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
-vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C);
-vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
+vec3 CalcDiffuseContribution(vec3 W, vec3 N, PointLight light);
+vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, PointLight light);
 vec3 CalculateNormalFromMap();
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex);
 float filterPCF(vec4 sc, int cascadeIndex);
@@ -34,6 +34,14 @@ const mat4 biasMat = mat4(
 	0.0, 0.5, 0.0, 0.0,
 	0.0, 0.0, 1.0, 0.0,
 	0.5, 0.5, 0.0, 1.0 
+);
+
+const vec4 colors[] = vec4[](
+vec4(1,0,0,1),
+vec4(0,1,0,1),
+vec4(0,0,1,1),
+vec4(1,1,0,1),
+vec4(1,0,1,1)
 );
 
 
@@ -88,15 +96,15 @@ void main()
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	vec3 Ld = vec3(1.0);
     
-    Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
+    //Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
 
 	//Calculate point lights
 	for(int i = 0; i < lightCount; i++)
 	{
 		uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
-		L = pointLight[lightVectorIndex].position.xyz - inFragPos;
-		Lo += PointLightContribution(L, V, N, pointLight[lightVectorIndex].color.xyz, F0, metallic, roughness);
-		Ld += CalcDiffuseContribution(L,N,pointLight[lightVectorIndex].color.xyz);
+		PointLight light = pointLight[lightVectorIndex];
+		Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
+		Ld += CalcDiffuseContribution(inFragPos,N,light);
 	}
 
     vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
@@ -114,7 +122,7 @@ void main()
 	kD *= 1.0 - metallic;	  
 	vec3 ambient = (kD * diffuse + specular);
 	
-	vec3 color = ambient + Lo;
+	vec3 color = /*ambient +*/ Lo;
 
     vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     //float depthValue = inViewPos.z;
@@ -139,7 +147,7 @@ void main()
 		float r_off = float(lightCount) * 0.1;
 		color.r += r_off;
 	}
-    
+
     if(sceneData.cascadeConfigData.z == 1.0f)
     {
         switch(layer){
@@ -159,6 +167,9 @@ void main()
 
     }
     outFragColor = vec4(color, 1.0);  
+	//uint color_index = cluster.z % 5;
+	//outFragColor = colors[color_index];
+    
 }
 
 float linearDepth(float depthSample){
@@ -210,18 +221,20 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metalli
 	return color;
 }
 
-vec3 CalcDiffuseContribution(vec3 L, vec3 N, vec3 C)
+vec3 CalcDiffuseContribution(vec3 W, vec3 N, PointLight light)
 {
+	 vec3 L = light.position.xyz - W;
 	 float distance = length(L);
 	 L = normalize(L);
 	 float diff = max(dot(N, L), 0.0);
-	 float attenuation = 1.0/(distance * distance);
-	 vec3 diffuse = C * diff * attenuation;
+	 float attenuation = max(1.0 - (distance / light.range), 0.0) / pow(distance, 1.0f);
+	 vec3 diffuse = light.color.xyz * diff * attenuation;
 	 return diffuse;
 }
 
-vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
+vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, PointLight light)
 {
+	vec3 L = light.position.xyz - W;
 	float distance = length(L);
 	L = normalize(L);
 	// Precalculate vectors and dot products	
@@ -230,8 +243,9 @@ vec3 PointLightContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metal
 	float dotNV = clamp(dot(N, V), 0.0, 1.0);
 	float dotNL = clamp(dot(N, L), 0.0, 1.0);
 
-	float attenuation = 1.0/(distance * distance);
-	vec3 radiance = C * attenuation;
+	//float attenuation = 1.0/(distance * distance);
+	float attenuation = max(1.0 - (distance / light.range), 0.0) / pow(distance, 1.0f);
+	vec3 radiance = light.color.xyz * attenuation;
 
 	vec3 color = vec3(0.0);
 
