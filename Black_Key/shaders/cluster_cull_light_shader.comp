@@ -5,7 +5,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #include "lights.glsl"
 #include "cluster_info.glsl"
 
-#define MAX_LIGHTS_PER_CLUSTER 50
+#define MAX_LIGHTS_PER_CLUSTER 1000
 
 layout(push_constant) uniform Constants
 {
@@ -57,18 +57,20 @@ bool SphereAABBIntersection(vec3 center, float radius, vec3 aabbmin, vec3 aabbma
 }
 bool TestSphereAABB(uint lightIndex, uint tile)
 {
-	/*
+	
 	float lightRadius = pointLight[lightIndex].range;
 	vec4 posWorld = pointLight[lightIndex].position;
 	vec4 posView = viewMatrix * posWorld;
 	float squaredDistance = SquaredDistancePointAABB(posView.xyz, tile);
 	return squaredDistance < (lightRadius * lightRadius);
-	*/
+	
+	/*
 	float lightRadius = pointLight[lightIndex].range;
 	vec4 posWorld = pointLight[lightIndex].position;
 	vec4 posView = viewMatrix * posWorld;
 	VolumeTileAABB currentCell = cluster[tile];
 	return SphereAABBIntersection(posView.xyz, lightRadius, currentCell.minPoint.xyz, currentCell.maxPoint.xyz);
+	*/
 }
 
 void main()
@@ -78,8 +80,6 @@ void main()
 		gl_WorkGroupID.y * gl_NumWorkGroups.x +
 		gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y;
 
-	lightGrid[tileIndex].offset = 0;
-	lightGrid[tileIndex].count  = 0;
 
     uint visibleLightIndices[MAX_LIGHTS_PER_CLUSTER];
 	uint numAllLights = pointLight.length();
