@@ -848,7 +848,6 @@ void ClusteredForwardRenderer::UpdateScene()
 	mainCamera.update(deltaTime);
 	mainDrawContext.OpaqueSurfaces.clear();
 
-	//sceneData.view = mainCamera.getViewMatrix();
 	scene_data.view = mainCamera.matrices.view;
 	auto camPos = mainCamera.position * -1.0f;
 	scene_data.cameraPos = glm::vec4(camPos, 1.0f);
@@ -878,9 +877,9 @@ void ClusteredForwardRenderer::UpdateScene()
 
 	void* val = nullptr;
 	uint32_t reset = 0;
-	vmaMapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation, &val);
+	vmaMapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber + 1) % FRAME_OVERLAP].allocation, &val);
 	memcpy(val, &reset, sizeof(uint32_t));
-	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].allocation);
+	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber + 1) % FRAME_OVERLAP].allocation);
 
 
 	cascadeData = shadows.getCascades(engine, mainCamera, scene_data);
@@ -1003,6 +1002,7 @@ void ClusteredForwardRenderer::BuildClusters()
 
 	VkPipelineLayout buildClusterLayout;
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &ClusterLayoutInfo, nullptr, &buildClusterLayout));
+	generate_clusters_pso.layout = buildClusterLayout;
 
 	VkShaderModule buildClusterShader;
 	if (!vkutil::load_shader_module("shaders/cluster_shader.spv", engine->_device, &buildClusterShader)) {
@@ -1026,7 +1026,7 @@ void ClusteredForwardRenderer::BuildClusters()
 	//default colors
 
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &clusterPipeline));
-
+	generate_clusters_pso.pipeline = clusterPipeline;
 	VkDescriptorSet globalDescriptor = globalDescriptorAllocator.allocate(engine->_device, _buildClustersDescriptorLayout);
 
 	engine->immediate_submit([&](VkCommandBuffer cmd)
@@ -1762,6 +1762,7 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
+	GenerateAABB(cmd);
 	//Compute shader pass for clustered light culling
 	CullLights(cmd);
 
@@ -2253,7 +2254,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	writer.update_set(engine->_device, cullingDescriptor);
 	auto view = mainCamera.matrices.view;
 	//view[1][1] *= -1;
-	culling_information.view = view;
+	culling_information.view = scene_data.view;
 
 	//culling_information.lightCount = pointData.pointLights.size();
 	
@@ -2267,9 +2268,11 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	VkBufferMemoryBarrier2 lightGridBarrier = vkinit::buffer_barrier_2(ClusterValues.lightGridSSBO.buffer, engine->_graphicsQueueFamily);
 	lightGridBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 	lightGridBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-	lightGridBarrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	lightGridBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 	lightGridBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-	lightGridBarrier.size = ClusterValues.lightGridSSBO.info.size;
+	lightGridBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	lightGridBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	lightGridBarrier.size = VK_WHOLE_SIZE;
 	
 	/*lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 	lightGridBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -2279,9 +2282,11 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	VkBufferMemoryBarrier2 light_index_barrier = vkinit::buffer_barrier_2(ClusterValues.lightIndexListSSBO.buffer, engine->_graphicsQueueFamily);
 	light_index_barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 	light_index_barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-	light_index_barrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	light_index_barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 	light_index_barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-	light_index_barrier.size = ClusterValues.lightIndexListSSBO.info.size;
+	light_index_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	light_index_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	light_index_barrier.size = VK_WHOLE_SIZE;
 	light_cull_barriers.push_back(light_index_barrier);
 
 	//vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, light_cull_barriers.size(), light_cull_barriers.data(), 0, nullptr);
@@ -2297,6 +2302,47 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	vkCmdPipelineBarrier2(cmd, &barrier_info);
 }
 
+void ClusteredForwardRenderer::GenerateAABB(VkCommandBuffer cmd)
+{
+	CullData culling_information;
+
+	VkDescriptorSet aabbDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _buildClustersDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_buffer(1, ClusterValues.screenToViewSSBO.buffer, sizeof(ScreenToView), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.update_set(engine->_device, aabbDescriptor);
+
+	clusterParams clusterData;
+	clusterData.zNear = mainCamera.getNearClip();
+	clusterData.zFar = mainCamera.getFarClip();
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, generate_clusters_pso.pipeline);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, generate_clusters_pso.layout, 0, 1, &aabbDescriptor, 0, nullptr);
+
+	vkCmdPushConstants(cmd, generate_clusters_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(clusterParams), &clusterData);
+	vkCmdDispatch(cmd, 16, 9, 24);
+
+	std::vector<VkBufferMemoryBarrier2> cluster_generate_barriers;
+	VkBufferMemoryBarrier2 clusterBarrier = vkinit::buffer_barrier_2(ClusterValues.AABBVolumeGridSSBO.buffer, engine->_graphicsQueueFamily);
+	clusterBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+	clusterBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+	clusterBarrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+	clusterBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	clusterBarrier.size = ClusterValues.AABBVolumeGridSSBO.info.size;
+
+	/*lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	lightGridBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	*/
+	cluster_generate_barriers.push_back(clusterBarrier);
+
+	VkDependencyInfo barrier_info{
+	.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+	.pNext = nullptr,
+	.bufferMemoryBarrierCount = (uint32_t)cluster_generate_barriers.size(),
+	.pBufferMemoryBarriers = cluster_generate_barriers.data(),
+	};
+	vkCmdPipelineBarrier2(cmd, &barrier_info);
+}
 void ClusteredForwardRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
 	auto start_imgui = std::chrono::system_clock::now();
