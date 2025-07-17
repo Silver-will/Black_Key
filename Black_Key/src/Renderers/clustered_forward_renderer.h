@@ -27,7 +27,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void CullLights(VkCommandBuffer cmd);
 	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
-
+	void GenerateAABB(VkCommandBuffer cmd);
 
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
@@ -128,6 +128,7 @@ private:
 
 	PipelineStateObject cull_lights_pso;
 	PipelineStateObject cull_objects_pso;
+	PipelineStateObject generate_clusters_pso;
 	PipelineStateObject depth_reduce_pso;
 
 	GPUMeshBuffers rectangle;
