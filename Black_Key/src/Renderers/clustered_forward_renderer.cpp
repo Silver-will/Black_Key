@@ -609,15 +609,15 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 1000;
+	int numOfLights = 3000;
 	std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<> distFloat(-10.0f, 10.0f);
+	std::uniform_real_distribution<> distFloat(-25.0f, 25.0f);
 	std::uniform_real_distribution<> distRadius(2.5f, 4.f);
 	std::uniform_real_distribution<> distRGB(0, 255.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 10.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
 		//pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,1.0), glm::vec4(1.0),2.3f, 10.0f));
 	}
 
@@ -1708,7 +1708,7 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	vkutil::cullParams earlyDepthCull;
 	earlyDepthCull.viewmat = scene_data.view;
 	earlyDepthCull.projmat = scene_data.proj;
-	earlyDepthCull.frustrumCull = false;
+	earlyDepthCull.frustrumCull = true;
 	earlyDepthCull.occlusionCull = false;
 	earlyDepthCull.aabb = false;
 	earlyDepthCull.drawDist = mainCamera.getFarClip();
@@ -1822,6 +1822,7 @@ void ClusteredForwardRenderer::ExecuteComputeCull(VkCommandBuffer cmd, vkutil::c
 	writer.write_image(3, _depthPyramid.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(engine->_device, computeCullDescriptor);
 
+	//cullParams.projmat[1][1] *= -1;
 	glm::mat4 projection = cullParams.projmat;
 	auto projectionT = glm::transpose(projection);
 
@@ -2689,14 +2690,15 @@ void ClusteredForwardRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Engine Stats"))
 	{
 		ImGui::SeparatorText("Render timings");
-		//ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
-		//ImGui::Text("frametime %f ms", stats.frametime);
-		//ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
+		ImGui::Text("FPS %f ", 1000.0f / stats.frametime);
+		ImGui::Text("frametime %f ms", stats.frametime);
+		ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
 		ImGui::Text("Triangles: %i", stats.triangle_count);
 		ImGui::Text("Indirect Draws: %i", stats.drawcall_count);
 		ImGui::Text("UI render time %f ms", stats.ui_draw_time);
-		//ImGui::Text("Update time %f ms", stats.update_time);
+		ImGui::Text("Update time %f ms", stats.update_time);
 		ImGui::Text("Shadow Pass time %f ms", stats.shadow_pass_time);
+		ImGui::Text("Number of active point light %i", static_cast<int>(pointData.pointLights.size()));
 	}
 	ImGui::End();
 }

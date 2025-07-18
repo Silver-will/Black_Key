@@ -32,7 +32,7 @@ All the following scenes are rendered in engine:
 * Bindless resources via descriptor indexing
 
 ##  Roadmap
-* [-] Clustered forward shading
+* [x] Clustered forward shading
 * [x] GPU driven rendering
 * [x] Move Frustum culling to a compute shader
 * [x] occlusion culling

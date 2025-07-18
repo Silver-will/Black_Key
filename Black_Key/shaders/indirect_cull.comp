@@ -126,6 +126,45 @@ bool projectSphere(vec3 C, float r, float znear, float P00, float P11, out vec4 
 	return true;
 }
 
+bool IsVisibleFrustum(ObjectData object)
+{
+	vec3 corners[] = vec3[8](
+		vec3( 1, 1, 1),
+		vec3(1, 1, -1),
+		vec3(1, -1, 1),
+		vec3(1, -1, -1),
+		vec3(-1, 1, 1 ),
+		vec3(-1, 1, -1),
+		vec3(-1, -1, 1 ),
+		vec3(-1, -1, -1)
+	);
+
+	mat4 matrix = sceneData.viewproj * object.model;
+
+	vec3 min_v = { 1.5, 1.5, 1.5 };
+	vec3 max_v = { -1.5, -1.5, -1.5 };
+
+	for (int c = 0; c < 8; c++) {
+		// project each corner into clip space
+		vec4 v = matrix * vec4(object.spherebounds.xyz + (corners[c] * object.spherebounds.w), 1.f);
+
+		// perspective correction
+		v.x = v.x / v.w;
+		v.y = v.y / v.w;
+		v.z = v.z / v.w;
+
+		min_v = min(vec3( v.x, v.y, v.z ), min_v);
+		max_v = max(vec3( v.x, v.y, v.z ), max_v);
+	}
+
+	// check the clip space box is within the view
+	if (min_v.z > 1.f || max_v.z < 0.f || min_v.x > 1.f || max_v.x < -1.f || min_v.y > 1.f || max_v.y < -1.f) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
 
 bool IsVisible(uint objectIndex)
 {
@@ -134,7 +173,7 @@ bool IsVisible(uint objectIndex)
 	vec4 sphereBounds = objectBuffer.objects[index].spherebounds;
 
 	vec3 center = sphereBounds.xyz;
-	center = (cullData.view * vec4(center,1.f)).xyz;
+	center = (cullData.view * vec4(center,1.0f)).xyz;
 	float radius = sphereBounds.w;
 	
 	bool visible = true;
@@ -182,7 +221,7 @@ bool IsVisibleAABB(uint objectIndex)
 	vec4 sphereBounds = objectBuffer.objects[index].spherebounds;
 
 	vec3 center = sphereBounds.xyz;
-	//center = (cullData.view * vec4(center,1.f)).xyz;
+	center = (cullData.view * vec4(center,1.f)).xyz;
 	float radius = sphereBounds.w;
 	
 	bool visible = true;
@@ -208,7 +247,9 @@ void main()
 		
 		if(cullData.AABBcheck == 0)
 		{
-			visible = IsVisible(gID);
+			//visible = IsVisible(gID);
+			ObjectData obj = objectBuffer.objects[gID];
+			visible = IsVisibleFrustum(obj);
 		}
 		else{
 			visible = IsVisibleAABB(gID);
