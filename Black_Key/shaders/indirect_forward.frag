@@ -140,7 +140,7 @@ void main()
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
     //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
-	color *= shadow;
+	//color *= shadow;
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
