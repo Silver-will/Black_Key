@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 
-
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
 #include "../vk_types.h"

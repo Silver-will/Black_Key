@@ -158,16 +158,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_FORCE_DEPTH_ZERO_TO_ONE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Repos\Black_Key\Black_Key\external;D:\Repos\Black_Key\Black_Key\external\include;C:\VulkanSDK\1.3.261.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Repos\Black_Key\Black_Key\external;D:\Repos\Black_Key\include;D:\Repos\Black_Key\Black_Key\external\include;C:\VulkanSDK\1.4.321.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>vulkan-1.lib;fastgltf.lib;fastgltf_simdjson.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\Repos\Black_Key\Black_Key\external\lib;C:\VulkanSDK\1.3.261.1\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\Repos\Black_Key\Black_Key\external\lib;C:\VulkanSDK\1.4.321.1;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -224,7 +224,6 @@
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\Renderers\base_renderer.cpp" />
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp" />
-    <ClCompile Include="src\Renderers\VoxelConeTracingRenderer.cpp" />
     <ClCompile Include="src\resource_manager.cpp" />
     <ClCompile Include="src\stb_definition.cpp" />
     <ClCompile Include="src\material_system.cpp" />
@@ -263,7 +262,6 @@
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\Renderers\base_renderer.h" />
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h" />
-    <ClInclude Include="src\Renderers\VoxelConeTracingRenderer.h" />
     <ClInclude Include="src\resource_manager.h" />
     <ClInclude Include="src\material_system.h" />
     <ClInclude Include="src\UI.h" />
