@@ -41,7 +41,7 @@ layout (set = 0, binding = 6) readonly buffer lightSSBO{
     PointLight pointLight[];
 };
 
-layout (set = 0, binding = 7) buffer screenToView{
+layout (set = 0, binding = 7) readonly buffer screenToView{
     mat4 inverseProjection;
     vec4 tileSizes;
     vec2 screenDimensions;
@@ -49,10 +49,10 @@ layout (set = 0, binding = 7) buffer screenToView{
     float bias;
 };
 
-layout (set = 0, binding = 8) buffer lightIndexSSBO{
+layout (set = 0, binding = 8) readonly buffer lightIndexSSBO{
     uint globalLightIndexList[];
 };
-layout (set = 0, binding = 9) buffer lightGridSSBO{
+layout (set = 0, binding = 9) readonly buffer lightGridSSBO{
     LightGrid lightGrid[];
 };
 
