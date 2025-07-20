@@ -6,6 +6,7 @@ add_library(fastgltf INTERFACE)
 # Include headers
 target_include_directories(fastgltf INTERFACE "${CMAKE_CURRENT_LIST_DIR}/include")
 
+
 # Pick the correct libs based on build type
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(fastgltf INTERFACE

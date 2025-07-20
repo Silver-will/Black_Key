@@ -1,47 +1,75 @@
 # Black Key
 
 
-A realtime rendering engine leveraging modern vulkan and C++ features built as a research project.
+A realtime rendering engine written in modern c++ and vulkan built as a research project.
 
 All the following scenes are rendered in engine:
 
+![Clustered_LIGHTS](showcase/clustered_lights.mp4)
+*3000 point lights rendered on a 2016 intel laptop IGPU at 30 fps thanks to clustered forward shading*
+![CSM](showcase/shadows.png)
+*Cascaded shadow maps centered around a bounding sphere for cascade stability*
+![Bistro](showcase/bistro.png)
 
-![Sponza](images/sponza.png)
-![Normal](images/normal.png)
-![Bistro](images/bistro.png)
+# Currently supported features
 
-## Currently supported features
-
-# Graphics
+## Graphics
+* Clustered forward shading using compute shaders for light culling
+* GPU frustum and occlusion culling via compute shaders
+* GPU Driven rendering and bindless pipelines
 * Physically based rendering using a cook-torrence brdf
 * Image based lighting
 * Cascaded shadow maps + PCF filtering
 * GLTF loading support via Fastgltf
-* Early depth testing via Z-prepass
-* HDR + options for Filmic/Uncharted/unreal tonemappers
-* CPU side Frustum culling
-* Multisampling anti-aliasing
+* Early depth testing/Z-prepass
 * Normal mapping
-* Ktx Texture support for skybox
+* Ktx Texture loading support
 * Transparency
-* FXAA
+* FXAA + MSAA
+* HDR + options for Filmic/Uncharted/unreal tonemappers
 
-# API Features
+
+## API Features
 * Buffer device addressing allowing programmable vertex pulling
 * Dynamic Rendering
 * Bindless resources via descriptor indexing
+* Multi Draw indirect
 
 ##  Roadmap
-* [x] Clustered forward shading
-* [x] GPU driven rendering
-* [x] Move Frustum culling to a compute shader
 * [x] occlusion culling
 * [ ] Bloom
 * [ ] HBAO/GTAO/SSAO
 * [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Radiance Cascades/SDFDDGI)
 
-
 ## Things to look into
 * Render Graph
 * Async compute
 
+# Build Instructions
+
+## Requirements
+* [Cmake](https://cmake.org/) version 3.12 or newer
+* C++ 20
+* GPU with support for vulkan 1.3
+
+## Instructions
+To setup the repo:
+
+```
+    git clone https://github.com/Silver-will/Black_Key.git --recursive
+    cd Black_key
+```
+If you don't clone recursively for some reason you can always 
+
+``` 
+    git submodule update --init --recursive
+```
+
+Then run the following to build with cmake
+
+```
+   mkdir build
+   cd build
+   cmake .. -DCMAKE_BUILD_TYPE=Debug
+   cmake --build .
+```

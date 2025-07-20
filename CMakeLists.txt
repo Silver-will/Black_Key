@@ -19,9 +19,12 @@ add_subdirectory(third_party/vk-bootstrap)
 add_subdirectory(third_party/fastgltf)
 add_subdirectory(third_party/imgui)
 add_subdirectory(third_party/vma)
+add_subdirectory(third_party/stb)
+add_subdirectory(third_party/ktx)
 
 file(GLOB_RECURSE SRC_FILES
     include/*.h 
+    include/*.cpp
     src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
@@ -38,18 +41,24 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     third_party/glfw/include
     third_party/vk-bootstrap/src
     third_party/fmt/include
+    third_party/fmt/src
+    third_party/stb
+    third_party/ktx/include
     ${Vulkan_INCLUDE_DIRS}
 )
 #   third_party/VulkanMemoryAllocator/include
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME}
+    stb
     imgui
     fastgltf
     glfw
     Vulkan::Vulkan
     vk-bootstrap::vk-bootstrap
     GPUOpen::VulkanMemoryAllocator
+    ktx
+    fmt-header-only
 )
 
 # Platform-specific (optional: enable this if needed)
