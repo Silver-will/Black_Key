@@ -7,8 +7,10 @@ All the following scenes are rendered in engine:
 
 ![Clustered_LIGHTS](showcase/clustered_lights.mp4)
 *3000 point lights rendered on a 2016 intel laptop IGPU at 30 fps thanks to clustered forward shading*
+
 ![CSM](showcase/shadows.png)
 *Cascaded shadow maps centered around a bounding sphere for cascade stability*
+
 ![Bistro](showcase/bistro.png)
 
 # Currently supported features
