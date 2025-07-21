@@ -367,5 +367,11 @@
     <None Include="shaders\conservative_rasterization.geom">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\Downsample.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\Upsample.comp">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
