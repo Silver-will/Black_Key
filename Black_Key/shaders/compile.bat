@@ -33,4 +33,6 @@ C:\VulkanSDK\1.3.261.1\Bin\glslc.exe indirect_cull.comp -o indirect_cull.comp.sp
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe depth_reduce.comp -o depth_reduce.comp.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe indirect_forward.vert -o indirect_forward.vert.spv
 C:\VulkanSDK\1.3.261.1\Bin\glslc.exe indirect_forward.frag -o indirect_forward.frag.spv 
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe Upsample.comp -o Upsample.spv 
+C:\VulkanSDK\1.3.261.1\Bin\glslc.exe Downsample.comp -o Downsample.spv 
 pause

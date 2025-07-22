@@ -631,7 +631,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 		mip_int_extent /= 2;
 		mip.size = mip_extent;
 		mip.i_size = mip_int_extent;
-		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 0), VK_FORMAT_R16G16B16_SFLOAT, 
+		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 0), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
 	
 		bloom_mip_maps.emplace_back(mip);
