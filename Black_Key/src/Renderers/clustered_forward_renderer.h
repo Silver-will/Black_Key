@@ -138,6 +138,8 @@ private:
 	PipelineStateObject cull_objects_pso;
 	PipelineStateObject generate_clusters_pso;
 	PipelineStateObject depth_reduce_pso;
+	PipelineStateObject downsample_bloom_pso;
+	PipelineStateObject upsample_bloom_pso;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;

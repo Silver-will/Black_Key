@@ -244,6 +244,23 @@ struct GPUDrawPushConstants {
     uint32_t material_index;
 };
 
+union BloomFloatRad {
+    float radius;
+    uint32_t mip;
+};
+
+struct BloomDownsamplePushConstants {
+    glm::vec2 ScreenDimensions;
+    //BloomFloatRad val <-- 5 trillion IQ gaming
+    uint32_t mipLevel;
+};
+
+struct BloomUpsamplePushConstant {
+    glm::vec2 ScreenDimensions;
+    //BloomFloatRad val <-- 5 trillion IQ gaming
+    float radius;
+};
+
 struct HDRDrawPushConstants {
     glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;

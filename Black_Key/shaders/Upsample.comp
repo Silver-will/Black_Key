@@ -1,7 +1,7 @@
 #version 460 core
 
-layout (binding = 0) uniform sampler2D srcTexture;
-layout (r11f_g11f_b10f,set = 0, binding = 1) uniform writeonly image2D dstTexture;
+layout (binding = 0, r11f_g11f_b10f) uniform writeonly image2D dstTexture;
+layout (binding = 1) uniform sampler2D srcTexture;
 
 layout(push_constant) uniform UpSampleParams
 {
@@ -15,6 +15,7 @@ void main()
 	float x = filterRadius;
 	float y = filterRadius;
 
+	vec3 upsample;
 	//Check if current thread ID is within texture 
 	if(texCoord.x < screenDimensions.x && texCoord.y < screenDimensions.y)
 	{
