@@ -1,3 +1,23 @@
 #version 460 core
 
-layout location
+layout (binding = 0) uniform sampler2D srcImage;
+layout (binding = 1) uniform writeonly image2D dstImage;
+
+layout(push_constant) uniform DownSampleParams
+{
+	vec2 screenDimensions;
+	uint mipLevel;
+}
+
+vec3 PowVec3(vec3 v, float p)
+{
+    return vec3(pow(v.x, p), pow(v.y, p), pow(v.z, p));
+}
+
+const float invGamma = 1.0 / 2.2;
+vec3 ToSRGB(vec3 v)   { return PowVec3(v, invGamma); }
+
+
+void main()
+{
+}

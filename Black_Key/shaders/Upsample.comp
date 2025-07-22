@@ -1,0 +1,14 @@
+#version 460 core
+
+layout (binding = 0) uniform sampler2D srcImage;
+layout (binding = 1) uniform writeonly image2D dstImage;
+
+layout(push_constant) uniform UpSampleParams
+{
+	vec2 screenDimensions;
+	float filterRadius;
+}
+
+void main()
+{
+}

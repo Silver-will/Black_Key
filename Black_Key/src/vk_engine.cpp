@@ -282,6 +282,7 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 	allocatorInfo.physicalDevice = _chosenGPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
+	allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 	vmaCreateAllocator(&allocatorInfo, &_allocator);
