@@ -36,6 +36,11 @@ namespace BlackKey{
     uint32_t PreviousPow2(uint32_t v);
     uint32_t GetImageMipLevels(uint32_t width, uint32_t height);
 
+	struct BloomMip {
+		glm::vec2 size;
+		glm::ivec2 i_size;
+		AllocatedImage mip;
+	};
 
 	struct FrameData {
 

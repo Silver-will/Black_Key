@@ -20,14 +20,20 @@ struct ClusteredForwardRenderer : BaseRenderer
 
 	//Compute shader passes
 	void PreProcessPass();
+	// IBL preparation passes
 	void GenerateIrradianceCube();
 	void GenerateBRDFLUT();
 	void GeneratePrefilteredCubemap();
+	// Light clustering building
 	void BuildClusters();
 	void CullLights(VkCommandBuffer cmd);
+	void GenerateAABB(VkCommandBuffer cmd);
+	//Bloom compute pass
+	void DownSampleBloom(VkCommandBuffer cmd);
+	void UpSampleBloom(VkCommandBuffer cmd);
 	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
-	void GenerateAABB(VkCommandBuffer cmd);
+
 
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
@@ -61,14 +67,14 @@ struct ClusteredForwardRenderer : BaseRenderer
 private:
 
 
-	Camera mainCamera;
+	Camera main_camera;
 	std::shared_ptr<ResourceManager> resource_manager;
 	std::shared_ptr<SceneManager> scene_manager;
 
-	VkSwapchainKHR _swapchain;
-	VkFormat _swapchainImageFormat;
-	std::vector<VkImage> _swapchainImages;
-	std::vector<VkImageView> _swapchainImageViews;
+	VkSwapchainKHR swapchain;
+	VkFormat swapchain_image_format;
+	std::vector<VkImage> swapchain_images;
+	std::vector<VkImageView> swapchain_image_views;
 	VkExtent2D _swapchainExtent;
 
 	MaterialInstance defaultData;
@@ -116,15 +122,17 @@ private:
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;
+	std::vector<BlackKey::BloomMip> bloom_mip_maps;
+	uint32_t mip_chain_length;
 	
 	IBLData IBL;
 	int draw_count = 0;
 
 	VkExtent2D _drawExtent;
-	float renderScale = 1.f;
+	float render_scale = 1.f;
 
-	VkPipeline _gradientPipeline;
-	VkPipelineLayout _gradientPipelineLayout;
+	VkPipeline gradient_pipeline;
+	VkPipelineLayout gradient_pipeline_layout;
 
 	PipelineStateObject cull_lights_pso;
 	PipelineStateObject cull_objects_pso;
@@ -162,6 +170,7 @@ private:
 	VkSampler cubeMapSampler;
 	VkSampler depthSampler;
 	VkSampler depthReductionSampler;
+	VkSampler bloomSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;

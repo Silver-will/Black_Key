@@ -587,12 +587,12 @@ void ClusteredForwardRenderer::InitDefaultData()
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
 
-	mainCamera.type = Camera::CameraType::firstperson;
+	main_camera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
-	mainCamera.movementSpeed = 2.5f;
-	mainCamera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 3000.0f);
-	mainCamera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
-	mainCamera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
+	main_camera.movementSpeed = 2.5f;
+	main_camera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 3000.0f);
+	main_camera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
+	main_camera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
 	for (int i = 0; i < depthPyramidLevels; i++)
 	{
@@ -609,21 +609,34 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 3000;
+	int numOfLights = 800;
 	std::random_device dev;
 	std::mt19937 rng(dev());
 	std::uniform_real_distribution<> distFloat(-25.0f, 25.0f);
-	std::uniform_real_distribution<> distRadius(2.5f, 4.f);
+	std::uniform_real_distribution<> distRadius(5.5f, 8.f);
 	std::uniform_real_distribution<> distRGB(0, 255.0f);
-	
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < numOfLights; i++)
 	{
-		//pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
-		pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,1.0), glm::vec4(1.0),10.3f, 10.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
+		//pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,1.0), glm::vec4(1.0),10.3f, 10.0f));
 	}
 	
-
+	glm::vec2 mip_extent(_windowExtent.width, _windowExtent.height);
+	glm::ivec2 mip_int_extent(mip_extent.r, mip_extent.g);
+	//Create Bloom mip texture
+	for (size_t i = 0; i < mip_chain_length; i++)
+	{
+		BlackKey::BloomMip mip;
+		mip_extent *= 0.5f;
+		mip_int_extent /= 2;
+		mip.size = mip_extent;
+		mip.i_size = mip_int_extent;
+		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 0), VK_FORMAT_R16G16B16_SFLOAT, 
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
 	
+		bloom_mip_maps.emplace_back(mip);
+	}
+	/*
 	int light_per_row = 20;
 	//Generate Light grid
 	for (int x = 1; x < light_per_row; x++)
@@ -640,7 +653,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 			}
 		}
 	}
-	
+	*/
 
 	//checkerboard image
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -664,6 +677,11 @@ void ClusteredForwardRenderer::InitDefaultData()
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(engine->_device, &sampl, nullptr, &defaultSamplerLinear);
+
+	VkSamplerCreateInfo bloomSampl = sampl;
+	bloomSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	bloomSampl.addressModeV = bloomSampl.addressModeU;
+	vkCreateSampler(engine->_device, &bloomSampl, nullptr, &bloomSampler);
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	cubeSampl.magFilter = VK_FILTER_LINEAR;
@@ -714,6 +732,12 @@ void ClusteredForwardRenderer::InitDefaultData()
 		vkDestroySampler(engine->_device, defaultSamplerNearest, nullptr);
 		vkDestroySampler(engine->_device, cubeMapSampler, nullptr);
 		vkDestroySampler(engine->_device, depthSampler, nullptr);
+		vkDestroySampler(engine->_device, bloomSampler, nullptr);
+
+		for (size_t i = 0; i < bloom_mip_maps.size(); i++)
+		{
+			resource_manager->DestroyImage(bloom_mip_maps[i].mip);
+		}
 		});
 }
 
@@ -722,11 +746,11 @@ void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 {
 	vkb::SwapchainBuilder swapchainBuilder{ engine->_chosenGPU,engine->_device,engine->_surface };
 
-	_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
 		//.use_default_format_selection()
-		.set_desired_format(VkSurfaceFormatKHR{ .format = _swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+		.set_desired_format(VkSurfaceFormatKHR{ .format = swapchain_image_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		//use vsync present mode
 		.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(width, height)
@@ -737,21 +761,21 @@ void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 
 	_swapchainExtent = vkbSwapchain.extent;
 	//store swapchain and its related images
-	_swapchain = vkbSwapchain.swapchain;
-	_swapchainImages = vkbSwapchain.get_images().value();
-	_swapchainImageViews = vkbSwapchain.get_image_views().value();
+	swapchain = vkbSwapchain.swapchain;
+	swapchain_images = vkbSwapchain.get_images().value();
+	swapchain_image_views = vkbSwapchain.get_image_views().value();
 }
 
 
 void ClusteredForwardRenderer::InitBuffers()
 {
 	ClusterValues.AABBVolumeGridSSBO = resource_manager->CreateBuffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	float zNear = mainCamera.getNearClip();
-	float zFar = mainCamera.getFarClip();
+	float zNear = main_camera.getNearClip();
+	float zFar = main_camera.getFarClip();
 
 	ClusterValues.sizeX = (uint16_t)std::ceilf(_aspect_width / (float)ClusterValues.gridSizeX);
 	ScreenToView screen;
-	auto proj = mainCamera.matrices.perspective;
+	auto proj = main_camera.matrices.perspective;
 	proj[1][1] *= -1;
 	screen.inverseProjectionMat = glm::inverse(proj);
 	screen.tileSizes.x = static_cast<float>(ClusterValues.gridSizeX);
@@ -834,7 +858,7 @@ void ClusteredForwardRenderer::InitImgui()
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
+	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapchain_image_format;
 
 
 	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -852,12 +876,12 @@ void ClusteredForwardRenderer::InitImgui()
 
 void ClusteredForwardRenderer::DestroySwapchain()
 {
-	vkDestroySwapchainKHR(engine->_device, _swapchain, nullptr);
+	vkDestroySwapchainKHR(engine->_device, swapchain, nullptr);
 
 	// destroy swapchain resources
-	for (int i = 0; i < _swapchainImageViews.size(); i++) {
+	for (int i = 0; i < swapchain_image_views.size(); i++) {
 
-		vkDestroyImageView(engine->_device, _swapchainImageViews[i], nullptr);
+		vkDestroyImageView(engine->_device, swapchain_image_views[i], nullptr);
 	}
 }
 
@@ -866,15 +890,15 @@ void ClusteredForwardRenderer::UpdateScene()
 	float currentFrame = glfwGetTime();
 	float deltaTime = currentFrame - delta.lastFrame;
 	delta.lastFrame = currentFrame;
-	mainCamera.update(deltaTime);
+	main_camera.update(deltaTime);
 	mainDrawContext.OpaqueSurfaces.clear();
 
-	scene_data.view = mainCamera.matrices.view;
-	auto camPos = mainCamera.position * -1.0f;
+	scene_data.view = main_camera.matrices.view;
+	auto camPos = main_camera.position * -1.0f;
 	scene_data.cameraPos = glm::vec4(camPos, 1.0f);
 	// camera projection
-	mainCamera.updateAspectRatio(_aspect_width / _aspect_height);
-	scene_data.proj = mainCamera.matrices.perspective;
+	main_camera.updateAspectRatio(_aspect_width / _aspect_height);
+	scene_data.proj = main_camera.matrices.perspective;
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
@@ -903,8 +927,8 @@ void ClusteredForwardRenderer::UpdateScene()
 	vmaUnmapMemory(engine->_allocator, ClusterValues.lightGlobalIndex[(_frameNumber) % FRAME_OVERLAP].allocation);
 
 
-	cascadeData = shadows.getCascades(engine, mainCamera, scene_data);
-	if (mainCamera.updated || directLight.direction != directLight.lastDirection)
+	cascadeData = shadows.getCascades(engine, main_camera, scene_data);
+	if (main_camera.updated || directLight.direction != directLight.lastDirection)
 	{
 		memcpy(&shadow_data.lightSpaceMatrices, cascadeData.lightSpaceMatrix.data(), sizeof(glm::mat4) * cascadeData.lightSpaceMatrix.size());
 		scene_data.distances.x = cascadeData.cascadeDistances[0];
@@ -915,7 +939,7 @@ void ClusteredForwardRenderer::UpdateScene()
 		//shadow_data.distances = scene_data.distances;
 		directLight.lastDirection = directLight.direction;
 		render_shadowMap = true;
-		mainCamera.updated = false;
+		main_camera.updated = false;
 	}
 
 	if (debugShadowMap)
@@ -924,8 +948,8 @@ void ClusteredForwardRenderer::UpdateScene()
 		scene_data.ConfigData.z = 0.0f;
 
 	scene_data.debugValues.x = debugLightClustering ? 1.0 : 0.0f;
-	scene_data.ConfigData.x = mainCamera.getNearClip();
-	scene_data.ConfigData.y = mainCamera.getFarClip();
+	scene_data.ConfigData.x = main_camera.getNearClip();
+	scene_data.ConfigData.y = main_camera.getFarClip();
 
 	//Prepare Render objects
 	loadedScenes["sponza"]->Draw(glm::mat4{ 1.f }, drawCommands);
@@ -967,13 +991,13 @@ void ClusteredForwardRenderer::LoadAssets()
 void ClusteredForwardRenderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
-	app->mainCamera.processKeyInput(window, key, action);
+	app->main_camera.processKeyInput(window, key, action);
 }
 
 void ClusteredForwardRenderer::CursorCallback(GLFWwindow* window, double xpos, double ypos)
 {
 	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
-	app->mainCamera.processMouseMovement(window, xpos, ypos);
+	app->main_camera.processMouseMovement(window, xpos, ypos);
 }
 
 void ClusteredForwardRenderer::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -1058,8 +1082,8 @@ void ClusteredForwardRenderer::BuildClusters()
 			writer.update_set(engine->_device, globalDescriptor);
 
 			clusterParams clusterData;
-			clusterData.zNear = mainCamera.getNearClip();
-			clusterData.zFar = mainCamera.getFarClip();
+			clusterData.zNear = main_camera.getNearClip();
+			clusterData.zFar = main_camera.getFarClip();
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, clusterPipeline);
 
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, buildClusterLayout, 0, 1, &globalDescriptor, 0, nullptr);
@@ -1519,7 +1543,7 @@ void ClusteredForwardRenderer::Draw()
 
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
-	VkResult e = vkAcquireNextImageKHR(engine->_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
+	VkResult e = vkAcquireNextImageKHR(engine->_device, swapchain, 1000000000, get_current_frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
 
 	if (e == VK_ERROR_OUT_OF_DATE_KHR) {
 		resize_requested = true;
@@ -1560,21 +1584,21 @@ void ClusteredForwardRenderer::Draw()
 	//transtion the draw image and the swapchain image into their correct transfer layouts
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	vkutil::transition_image(cmd, swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	//< draw_first
 	//> imgui_draw
 	// execute a copy from the draw image into the swapchain
-	vkutil::copy_image_to_image(cmd, _hdrImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
+	vkutil::copy_image_to_image(cmd, _hdrImage.image, swapchain_images[swapchainImageIndex], _drawExtent, _swapchainExtent);
 	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 	// set swapchain image layout to Attachment Optimal so we can draw it
-	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	//draw UI directly into the swapchain image
-	DrawImgui(cmd, _swapchainImageViews[swapchainImageIndex]);
+	DrawImgui(cmd, swapchain_image_views[swapchainImageIndex]);
 
 	// set swapchain image layout to Present so we can draw it
-	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	vkutil::transition_image(cmd, swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -1600,7 +1624,7 @@ void ClusteredForwardRenderer::Draw()
 	// as its necessary that drawing commands have finished before the image is displayed to the user
 	VkPresentInfoKHR presentInfo = vkinit::present_info();
 
-	presentInfo.pSwapchains = &_swapchain;
+	presentInfo.pSwapchains = &swapchain;
 	presentInfo.swapchainCount = 1;
 
 	presentInfo.pWaitSemaphores = &get_current_frame()._renderSemaphore;
@@ -1732,7 +1756,7 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	earlyDepthCull.frustrumCull = false;
 	earlyDepthCull.occlusionCull = true;
 	earlyDepthCull.aabb = false;
-	earlyDepthCull.drawDist = mainCamera.getFarClip();
+	earlyDepthCull.drawDist = main_camera.getFarClip();
 	ExecuteComputeCull(cmd, earlyDepthCull, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth));
 
 	vkutil::cullParams shadowCull;
@@ -1745,7 +1769,7 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	glm::vec3 aabbExtent = glm::vec3(1000);
 	shadowCull.aabbmin = aabbCenter - aabbExtent;
 	shadowCull.aabbmax = aabbCenter + aabbExtent;
-	shadowCull.drawDist = mainCamera.getFarClip();
+	shadowCull.drawDist = main_camera.getFarClip();
 	ExecuteComputeCull(cmd, shadowCull, scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass));
 
 
@@ -1853,7 +1877,7 @@ void ClusteredForwardRenderer::ExecuteComputeCull(VkCommandBuffer cmd, vkutil::c
 	vkutil::DrawCullData cullData = {};
 	cullData.P00 = projection[0][0];
 	cullData.P11 = projection[1][1];
-	cullData.znear = mainCamera.getNearClip();
+	cullData.znear = main_camera.getNearClip();
 	cullData.zfar = cullParams.drawDist;
 	cullData.frustum[0] = frustumX.x;
 	cullData.frustum[1] = frustumX.z;
@@ -2272,7 +2296,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	writer.write_buffer(4, ClusterValues.lightGridSSBO.buffer, ClusterValues.numClusters * sizeof(LightGrid), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(5, ClusterValues.lightGlobalIndex[_frameNumber % FRAME_OVERLAP].buffer, sizeof(uint32_t), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, cullingDescriptor);
-	auto view = mainCamera.matrices.view;
+	auto view = main_camera.matrices.view;
 	//view[1][1] *= -1;
 	culling_information.view = scene_data.view;
 
@@ -2334,8 +2358,8 @@ void ClusteredForwardRenderer::GenerateAABB(VkCommandBuffer cmd)
 	writer.update_set(engine->_device, aabbDescriptor);
 
 	clusterParams clusterData;
-	clusterData.zNear = mainCamera.getNearClip();
-	clusterData.zFar = mainCamera.getFarClip();
+	clusterData.zNear = main_camera.getNearClip();
+	clusterData.zFar = main_camera.getFarClip();
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, generate_clusters_pso.pipeline);
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, generate_clusters_pso.layout, 0, 1, &aabbDescriptor, 0, nullptr);
 

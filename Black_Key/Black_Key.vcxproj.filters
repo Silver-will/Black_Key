@@ -135,6 +135,9 @@
     <ClCompile Include="src\vk_util.cpp">
       <Filter>Source Files\Vulkan Backend</Filter>
     </ClCompile>
+    <ClCompile Include="..\third_party\vk-bootstrap\src\VkBootstrap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -238,6 +241,12 @@
     </ClInclude>
     <ClInclude Include="src\vk_util.h">
       <Filter>Source Files\Vulkan Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\third_party\vk-bootstrap\src\VkBootstrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\third_party\vk-bootstrap\src\VkBootstrapDispatch.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
