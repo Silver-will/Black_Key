@@ -33,7 +33,7 @@ void main()
     vec2 normPerTileSize = vec2(1.0 / float(tileSizes.x),
 		1.0 / float(tileSizes.y));
 
-  vec4 maxSS = vec4(
+    vec4 maxSS = vec4(
 		(gl_WorkGroupID.x + 1.0) * normPerTileSize.x,
 		(gl_WorkGroupID.y + 1.0) * normPerTileSize.y,
 		0.0,
@@ -60,7 +60,7 @@ void main()
     vec3 minPointAABB = min(min(minPointNear, minPointFar),min(maxPointNear, maxPointFar));
     vec3 maxPointAABB = max(max(minPointNear, minPointFar),max(maxPointNear, maxPointFar));
 
-    //Getting the 
+    //Assign position values for the current cluster
     cluster[tileIndex].minPoint  = vec4(minPointAABB , 0.0);
     cluster[tileIndex].maxPoint  = vec4(maxPointAABB , 0.0);
 
