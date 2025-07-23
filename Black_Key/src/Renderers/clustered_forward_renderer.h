@@ -109,6 +109,7 @@ private:
 		float lastFrame;
 	} delta;
 	VkExtent2D _windowExtent{ 1920,1080};
+	float bloom_filter_radius = 3.f;
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
@@ -149,7 +150,7 @@ private:
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;
-	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	VkDescriptorSetLayout postprocess_descriptor_layout;
 	VkDescriptorSetLayout _cullLightsDescriptorLayout;
 	VkDescriptorSetLayout _buildClustersDescriptorLayout;
 	VkDescriptorSetLayout compute_cull_descriptor_layout;

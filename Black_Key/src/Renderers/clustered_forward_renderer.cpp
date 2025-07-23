@@ -278,7 +278,8 @@ void ClusteredForwardRenderer::InitDescriptors()
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_drawImageDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		postprocess_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	{
@@ -353,7 +354,7 @@ void ClusteredForwardRenderer::InitDescriptors()
 	}
 
 	_mainDeletionQueue.push_function([&]() {
-		vkDestroyDescriptorSetLayout(engine->_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, postprocess_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, _gpuSceneDataDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, _skyboxDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, cascaded_shadows_descriptor_layout, nullptr);
@@ -413,7 +414,7 @@ void ClusteredForwardRenderer::InitPipelines()
 	skyBoxPSO.build_pipelines(engine,skyInfo);
 
 	PipelineCreationInfo HDRinfo;
-	HDRinfo.layouts.push_back(_drawImageDescriptorLayout);
+	HDRinfo.layouts.push_back(postprocess_descriptor_layout);
 	HDRinfo.imageFormat = _drawImage.imageFormat;
 	HdrPSO.build_pipelines(engine,HDRinfo);
 
@@ -541,6 +542,71 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &depthComputePipelineCreateInfo, nullptr, &depth_reduce_pso.pipeline));
 
+	VkPipelineLayoutCreateInfo down_sample_bloom_layout_info = {};
+	down_sample_bloom_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	down_sample_bloom_layout_info.pNext = nullptr;
+	down_sample_bloom_layout_info.pSetLayouts = &depth_reduce_descriptor_layout;
+	down_sample_bloom_layout_info.setLayoutCount = 1;
+
+	pushConstant.size = sizeof(BloomDownsamplePushConstants);
+	down_sample_bloom_layout_info.pPushConstantRanges = &pushConstant;
+	down_sample_bloom_layout_info.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &down_sample_bloom_layout_info , nullptr, &downsample_bloom_pso.layout));
+
+	VkShaderModule downsample_shader;
+	if (!vkutil::load_shader_module("shaders/downsample.spv", engine->_device, &downsample_shader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+
+	VkPipelineShaderStageCreateInfo downsample_stage_info{};
+	downsample_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	downsample_stage_info.pNext = nullptr;
+	downsample_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	downsample_stage_info.module = downsample_shader;
+	downsample_stage_info.pName = "main";
+
+	VkComputePipelineCreateInfo downsampleComputePipelineCreateInfo{};
+	downsampleComputePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	downsampleComputePipelineCreateInfo.pNext = nullptr;
+	downsampleComputePipelineCreateInfo.layout = downsample_bloom_pso.layout;
+	downsampleComputePipelineCreateInfo.stage = downsample_stage_info;
+
+	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &downsampleComputePipelineCreateInfo, nullptr, &downsample_bloom_pso.pipeline));
+
+	VkPipelineLayoutCreateInfo upsample_layout_create_info = {};
+	upsample_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	upsample_layout_create_info.pNext = nullptr;
+	upsample_layout_create_info.pSetLayouts = &depth_reduce_descriptor_layout;
+	upsample_layout_create_info.setLayoutCount = 1;
+
+	pushConstant.size = sizeof(BloomUpsamplePushConstants);
+	upsample_layout_create_info.pPushConstantRanges = &pushConstant;
+	upsample_layout_create_info.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &upsample_layout_create_info, nullptr, &upsample_bloom_pso.layout));
+
+	VkShaderModule upsample_shader;
+	if (!vkutil::load_shader_module("shaders/upsample.spv", engine->_device, &upsample_shader)) {
+		fmt::print("Error when building the compute shader \n");
+	}
+
+
+	VkPipelineShaderStageCreateInfo upsampleStageinfo{};
+	upsampleStageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	upsampleStageinfo.pNext = nullptr;
+	upsampleStageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	upsampleStageinfo.module = upsample_shader;
+	upsampleStageinfo.pName = "main";
+
+	VkComputePipelineCreateInfo upsample_pipeline_create_info{};
+	upsample_pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	upsample_pipeline_create_info.pNext = nullptr;
+	upsample_pipeline_create_info.layout = upsample_bloom_pso.layout;
+	upsample_pipeline_create_info.stage = upsampleStageinfo;
+
+	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &upsample_pipeline_create_info, nullptr, &upsample_bloom_pso.pipeline));
 
 
 	_mainDeletionQueue.push_function([=]() {
@@ -550,6 +616,11 @@ void ClusteredForwardRenderer::InitComputePipelines()
 		vkDestroyPipeline(engine->_device, cull_objects_pso.pipeline, nullptr);
 		vkDestroyPipelineLayout(engine->_device, cull_lights_pso.layout, nullptr);
 		vkDestroyPipeline(engine->_device, cull_lights_pso.pipeline , nullptr);
+		vkDestroyPipelineLayout(engine->_device, upsample_bloom_pso.layout, nullptr);
+		vkDestroyPipeline(engine->_device, upsample_bloom_pso.pipeline, nullptr);
+		vkDestroyPipelineLayout(engine->_device, downsample_bloom_pso.layout, nullptr);
+		vkDestroyPipeline(engine->_device, downsample_bloom_pso.pipeline, nullptr);
+
 		});
 }
 
@@ -590,7 +661,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	main_camera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	main_camera.movementSpeed = 2.5f;
-	main_camera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 3000.0f);
+	main_camera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 1000.0f);
 	main_camera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	main_camera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -609,7 +680,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	}
 
 	//Populate point light list
-	int numOfLights = 800;
+	int numOfLights = 1;
 	std::random_device dev;
 	std::mt19937 rng(dev());
 	std::uniform_real_distribution<> distFloat(-25.0f, 25.0f);
@@ -962,7 +1033,7 @@ void ClusteredForwardRenderer::LoadAssets()
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
-	std::string structurePath{ "assets/sponza/Sponza.gltf" };
+	std::string structurePath{ "assets/sponza/sponza.gltf" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 
@@ -2009,14 +2080,43 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 
 void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 {
+	for (size_t i = bloom_mip_maps.size() - 1 ; i > 0; i--)
+	{
+		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
 
+		auto& imageLevel = bloom_mip_maps[i];
+		auto& nextImageLevel = bloom_mip_maps[i - 1];
+		
+		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+		DescriptorWriter writer;
+		writer.write_image(0, nextImageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		writer.write_image(1, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		
+		writer.update_set(engine->_device, bloomDescriptor);
+
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
+		BloomUpsamplePushConstants upsample_data;
+		upsample_data.ScreenDimensions = nextImageLevel.size;
+		upsample_data.radius = bloom_filter_radius;
+
+		vkCmdPushConstants(cmd, upsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &upsample_data);
+		vkCmdDispatch(cmd, (uint32_t)upsample_data.ScreenDimensions.x / 16, (uint32_t)upsample_data.ScreenDimensions.y / 16, 1);
+
+		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		//vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE)
+	}
 }
 
 void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 {
 	ZoneScoped;
-	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	
+	DownSampleBloom(cmd);
+	UpSampleBloom(cmd);
+	vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
@@ -2032,11 +2132,13 @@ void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
 	draws.reserve(imageDrawCommands.OpaqueSurfaces.size());
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _drawImageDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, postprocess_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_image(0, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(1, _depthResolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, bloom_mip_maps[0].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
 	writer.update_set(engine->_device, globalDescriptor);
 
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
@@ -2736,7 +2838,7 @@ void ClusteredForwardRenderer::DrawUI()
 		ImGui::Checkbox("Visualize shadow cascades", &debugShadowMap);
 		ImGui::Checkbox("Read buffer", &readDebugBuffer);
 		ImGui::Checkbox("Display buffer", &debugBuffer);
-		ImGui::Checkbox("Visualize depth texure", &debugDepthTexture);
+		ImGui::Checkbox("Visualize active debug texture", &debugDepthTexture);
 		ImGui::Checkbox("Visualize rendered light count", &debugLightClustering);
 		std::string breh;
 		if (debugBuffer)
