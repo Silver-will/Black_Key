@@ -255,9 +255,9 @@ struct BloomDownsamplePushConstants {
     uint32_t mipLevel;
 };
 
-struct BloomUpsamplePushConstant {
+struct BloomUpsamplePushConstants {
     glm::vec2 ScreenDimensions;
-    //BloomFloatRad val <-- 5 trillion IQ gaming
+    //BloomFloatRad
     float radius;
 };
 

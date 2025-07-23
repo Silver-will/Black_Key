@@ -304,7 +304,7 @@
     <None Include="shaders\conservative_rasterization.vert" />
     <None Include="shaders\depth_reduce.comp" />
     <None Include="shaders\depth_pass.vert" />
-    <None Include="shaders\Downsample.comp" />
+    <None Include="shaders\downsample.comp" />
     <None Include="shaders\filter_cube.vert" />
     <None Include="shaders\FXAA.glsl" />
     <None Include="shaders\gen_brdf_lut.frag" />
@@ -333,7 +333,7 @@
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
     <None Include="shaders\sparse_upload.comp" />
-    <None Include="shaders\Upsample.comp" />
+    <None Include="shaders\upsample.comp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,5 +1,6 @@
 #version 460 core
 
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout (binding = 0, r11f_g11f_b10f) uniform writeonly image2D dstTexture;
 layout (binding = 1) uniform sampler2D srcTexture;
 
@@ -40,6 +41,8 @@ void main()
 		upsample += (a+c+g+i);
 		upsample *= 1.0 / 16.0;
 
-		imageStore(dstTexture, texCoord, vec4(upsample,1.0f));
+		vec3 srcVal = e;
+		vec3 dstVal = (e + upsample) / 2.0f;
+		imageStore(dstTexture, texCoord, vec4(dstVal,1.0f));
 	}
 }

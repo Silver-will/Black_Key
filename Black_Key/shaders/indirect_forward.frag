@@ -75,6 +75,7 @@ void main()
 
     //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
+	
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     float ao = colorVal.a;
 
@@ -96,7 +97,7 @@ void main()
     vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	vec3 Ld = vec3(1.0);
     
-    //Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
+    Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
 
 	//Calculate point lights
 	for(int i = 0; i < lightCount; i++)
@@ -122,7 +123,7 @@ void main()
 	kD *= 1.0 - metallic;	  
 	vec3 ambient = (kD * diffuse + specular);
 	
-	vec3 color = /*ambient +*/ Lo;
+	vec3 color = ambient + Lo;
 
     vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     //float depthValue = inViewPos.z;
@@ -140,7 +141,7 @@ void main()
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
     //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
-	//color *= shadow;
+	color *= shadow;
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
