@@ -109,7 +109,9 @@ private:
 		float lastFrame;
 	} delta;
 	VkExtent2D _windowExtent{ 1920,1080};
-	float bloom_filter_radius = 3.f;
+	float bloom_filter_radius = 0.3f;
+	float bloom_strength = 0.1f;
+	bool useFXAA;
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
@@ -124,7 +126,7 @@ private:
 	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;
 	std::vector<BlackKey::BloomMip> bloom_mip_maps;
-	uint32_t mip_chain_length;
+	uint32_t mip_chain_length = 5;
 	
 	IBLData IBL;
 	int draw_count = 0;

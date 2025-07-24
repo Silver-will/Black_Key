@@ -13,8 +13,8 @@ layout(push_constant) uniform UpSampleParams
 void main()
 {
 	ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy);
-	float x = filterRadius;
-	float y = filterRadius;
+	int x = 1;
+	int y = 1;
 
 	vec3 upsample;
 	//Check if current thread ID is within texture 

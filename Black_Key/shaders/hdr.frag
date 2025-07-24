@@ -19,16 +19,17 @@ void main()
 		vec4 bloomColor = texture(bloomImage, TexCoords);
 		
 		//Anti aliasing
-		HDRColor = FXAA(TexCoords);
+		//HDRColor = FXAA(TexCoords);
 
-		vec3 color = mix(HDRColor, bloomColor, 0.05f).rgb;
+		vec3 color = mix(HDRColor, bloomColor, 0.04f).rgb;
 		color = neutral(color);
 		// gamma correct
 		FragColor = vec4(pow(color, vec3(1.0/2.2)),1.0);
+		//FragColor = bloomColor;
 	}
 	else
 	{
-		float r = texture(debugImage, TexCoords).r;
-		FragColor = vec4(r,r,r,r);
+		FragColor = texture(bloomImage, TexCoords);
+		//FragColor = vec4(r,r,r,r);
 	}
 }
