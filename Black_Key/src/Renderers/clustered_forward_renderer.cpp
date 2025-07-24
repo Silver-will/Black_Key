@@ -702,8 +702,8 @@ void ClusteredForwardRenderer::InitDefaultData()
 		mip_int_extent /= 2;
 		mip.size = mip_extent;
 		mip.i_size = mip_int_extent;
-		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 0), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
-			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
+		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
 	
 		bloom_mip_maps.emplace_back(mip);
 	}
@@ -2050,7 +2050,7 @@ void ClusteredForwardRenderer::ReduceDepth(VkCommandBuffer cmd)
 }
 void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 {
-	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	for (size_t i = 0; i < bloom_mip_maps.size(); i++)
 	{
 		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
@@ -2072,7 +2072,7 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		downsample_data.mipLevel = i > 0 ? 1 : 0;
 
 		vkCmdPushConstants(cmd, downsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &downsample_data);
-		vkCmdDispatch(cmd, (uint32_t)downsample_data.ScreenDimensions.x/16, (uint32_t)downsample_data.ScreenDimensions.y/16, 1);
+		vkCmdDispatch(cmd, (uint32_t)(downsample_data.ScreenDimensions.x/16.0f), (uint32_t)(downsample_data.ScreenDimensions.y / 16.0f), 1);
 
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
@@ -2104,7 +2104,7 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		vkCmdDispatch(cmd, (uint32_t)upsample_data.ScreenDimensions.x / 16, (uint32_t)upsample_data.ScreenDimensions.y / 16, 1);
 
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		//vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE)
+		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 }
 
@@ -2116,7 +2116,7 @@ void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	
 	DownSampleBloom(cmd);
 	UpSampleBloom(cmd);
-	vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	//vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
@@ -2737,7 +2737,7 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 }
 
 void ClusteredForwardRenderer::DrawUI()
-{ 
+{
 	// Demonstrate the various window flags. Typically you would just use the default!
 	static bool no_titlebar = false;
 	static bool no_scrollbar = false;
@@ -2832,6 +2832,13 @@ void ClusteredForwardRenderer::DrawUI()
 			directLight.color = glm::vec4(col[0], col[1], col[2], col[3]);
 			ImGui::TreePop();
 		}
+	}
+	if (ImGui::CollapsingHeader("Post processing"))
+	{
+		ImGui::SeparatorText("Bloom");
+		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 12.0f);
+		ImGui::SliderFloat("Bloom strength", &bloom_strength, 0.1f, 1.0f);
+		ImGui::Checkbox("Use FXAA", &useFXAA);
 	}
 	if (ImGui::CollapsingHeader("Debugging"))
 	{

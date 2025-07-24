@@ -334,6 +334,7 @@
     <None Include="shaders\skybox.vert" />
     <None Include="shaders\sparse_upload.comp" />
     <None Include="shaders\upsample.comp" />
+    <None Include="shaders\upsample.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

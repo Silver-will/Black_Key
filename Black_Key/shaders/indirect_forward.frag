@@ -167,7 +167,7 @@ void main()
         }
 
     }
-    outFragColor = vec4(color, 1.0);  
+    outFragColor = vec4(1.0);  
 	//uint color_index = cluster.z % 5;
 	//outFragColor = colors[color_index];
     
