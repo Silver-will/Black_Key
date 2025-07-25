@@ -110,7 +110,7 @@ private:
 		float lastFrame;
 	} delta;
 	VkExtent2D _windowExtent{ 1920,1080};
-	float bloom_filter_radius = 0.03f;
+	float bloom_filter_radius = 0.005f;
 	float bloom_strength = 0.1f;
 	bool useFXAA;
 	float _aspect_width = 1920;

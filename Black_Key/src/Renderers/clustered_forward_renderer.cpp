@@ -634,7 +634,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 2.5f)), glm::vec4(1.5f), glm::vec4(1.0f));
 	//Create Shadow render target
 	_shadowDepthImage = resource_manager->CreateImageEmpty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
@@ -2107,15 +2107,16 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		writer.update_set(engine->_device, bloomDescriptor);
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.pipeline);
 		
-		glm::vec2 srcImageDimension = glm::vec2(imageLevel.i_size);
+		glm::vec2 srcImageDimension = glm::vec2(nextImageLevel.i_size);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
 		BloomUpsamplePushConstants upsample_data;
 		upsample_data.ScreenDimensions = srcImageDimension;
 		upsample_data.radius = bloom_filter_radius;
+		
 
 		vkCmdPushConstants(cmd, upsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &upsample_data);
-		vkCmdDispatch(cmd, (uint32_t)upsample_data.ScreenDimensions.x / 16, (uint32_t)upsample_data.ScreenDimensions.y / 16, 1);
+		vkCmdDispatch(cmd, (uint32_t)nextImageLevel.i_size.x / 16, (uint32_t)nextImageLevel.i_size.y / 16, 1);
 
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2913,7 +2914,7 @@ void ClusteredForwardRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Post processing"))
 	{
 		ImGui::SeparatorText("Bloom");
-		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 12.0f);
+		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 2.0f);
 		ImGui::SliderFloat("Bloom strength", &bloom_strength, 0.1f, 1.0f);
 		ImGui::Checkbox("Use FXAA", &useFXAA);
 	}
