@@ -1,7 +1,6 @@
 #version 460 core
 
 layout (binding = 0) uniform sampler2D srcTexture;
-uniform sampler2D srcTexture;
 
 layout(push_constant) uniform UpSampleParams
 {
@@ -9,7 +8,7 @@ layout(push_constant) uniform UpSampleParams
 	float filterRadius;
 };
 
-layout(location = 0)in vec2 TexCoords;
+layout(location = 0)in vec2 texCoord;
 layout (location = 0) out vec3 upsample;
 
 void main()

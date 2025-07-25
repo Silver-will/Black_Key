@@ -237,6 +237,7 @@ void PipelineBuilder::enable_blending_additive()
     _colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     _colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     _colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    
 }
 
 void PipelineBuilder::enable_blending_alphablend()
@@ -249,6 +250,11 @@ void PipelineBuilder::enable_blending_alphablend()
     _colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     _colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     _colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+}
+
+void PipelineBuilder::set_custom_blending_configuration(VkPipelineColorBlendAttachmentState colorBlendAttachment)
+{
+    _colorBlendAttachment = colorBlendAttachment;
 }
 
 void PipelineBuilder::set_depth_format(VkFormat format)

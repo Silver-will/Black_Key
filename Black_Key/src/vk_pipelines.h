@@ -40,4 +40,5 @@ public:
     void enable_depthtest(bool depthWriteEnable, bool depthTestEnable, VkCompareOp op);
     void enable_blending_additive();
     void enable_blending_alphablend();
+    void set_custom_blending_configuration(VkPipelineColorBlendAttachmentState colorBlendAttachment);
 };
