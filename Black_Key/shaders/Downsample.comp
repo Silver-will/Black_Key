@@ -34,13 +34,16 @@ float KarisAverage(vec3 col)
 
 void main()
 {
-	ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 imageCoord = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 size = imageSize(dstTexture);
+
+	vec2 texCoord = (imageCoord * 2) /screenDimensions;
+	float x = 1.0 / screenDimensions.x;
+	float y = 1.0 / screenDimensions.y;
+	
 	//Check if current thread ID is within texture 
 	if(texCoord.x < size.x && texCoord.y < size.y)
 	{
-		uint x = 1;
-		uint y = 1;
 		vec3 downsample;
 
 		//Sample 13 texels around current texel
@@ -91,7 +94,6 @@ void main()
 	  downsample += (j+k+l+m)*0.125;       // ok
 	  break;
 	}
-	imageStore(dstTexture, texCoord, vec4(e, 1.0f));
+	imageStore(dstTexture, imageCoord, vec4(downsample, 1.0f));
 	}
-
 }

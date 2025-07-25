@@ -2071,8 +2071,10 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		writer.update_set(engine->_device, bloomDescriptor);
 		
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.pipeline);
+
+		glm::vec2 srcImageDimension = i == 0 ? glm::vec2(_windowExtent.width, _windowExtent.height) : glm::vec2(bloom_mip_maps[i - 1].i_size);
 		BloomDownsamplePushConstants downsample_data;
-		downsample_data.ScreenDimensions = imageLevel.size;
+		downsample_data.ScreenDimensions = srcImageDimension;
 		downsample_data.mipLevel = i > 0 ? 1 : 0;
 
 		auto check = (uint32_t)(downsample_data.ScreenDimensions.x / 16.0f);
@@ -2080,7 +2082,7 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		vkCmdPushConstants(cmd, downsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &downsample_data);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
-		vkCmdDispatch(cmd, (uint32_t)(downsample_data.ScreenDimensions.x/16.0f), (uint32_t)(downsample_data.ScreenDimensions.y / 16.0f), 1);
+		vkCmdDispatch(cmd, (uint32_t)(srcImageDimension.x/16.0f), (uint32_t)(srcImageDimension.y/ 16.0f), 1);
 
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
@@ -2104,10 +2106,12 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		
 		writer.update_set(engine->_device, bloomDescriptor);
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.pipeline);
+		
+		glm::vec2 srcImageDimension = glm::vec2(imageLevel.i_size);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
 		BloomUpsamplePushConstants upsample_data;
-		upsample_data.ScreenDimensions = nextImageLevel.size;
+		upsample_data.ScreenDimensions = srcImageDimension;
 		upsample_data.radius = bloom_filter_radius;
 
 		vkCmdPushConstants(cmd, upsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &upsample_data);
@@ -2189,7 +2193,7 @@ void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	
 	DownSampleBloom(cmd);
-	//UpSampleBloom(cmd);
+	UpSampleBloom(cmd);
 	//vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
