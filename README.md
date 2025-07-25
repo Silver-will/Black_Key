@@ -29,6 +29,7 @@ All the following scenes are rendered in engine:
 * Transparency
 * FXAA + MSAA
 * HDR + options for Filmic/Uncharted/unreal tonemappers
+* Physically based bloom implemented using compute shaders
 
 
 ## API Features
@@ -39,9 +40,8 @@ All the following scenes are rendered in engine:
 
 ##  Roadmap
 * [x] occlusion culling
-* [ ] Bloom
+* [x] Bloom
 * [ ] HBAO/GTAO/SSAO
-* [ ] Global illumination(SSGI(HBIL/SSIL)/Voxel GI/Radiance Cascades/SDFDDGI)
 
 ## Things to look into
 * Render Graph

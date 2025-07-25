@@ -757,6 +757,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	VkSamplerCreateInfo bloomSampl = sampl;
 	bloomSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	bloomSampl.addressModeV = bloomSampl.addressModeU;
+	bloomSampl.addressModeW = bloomSampl.addressModeU;
 	vkCreateSampler(engine->_device, &bloomSampl, nullptr, &bloomSampler);
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -2065,7 +2066,7 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		DescriptorWriter writer;
 		writer.write_image(0, imageLevel.mip.imageView , bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		if (i == 0)
-			writer.write_image(1, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			writer.write_image(1, _resolveImage.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		else
 			writer.write_image(1, bloom_mip_maps[i-1].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		writer.update_set(engine->_device, bloomDescriptor);
