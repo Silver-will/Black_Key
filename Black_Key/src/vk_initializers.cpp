@@ -142,7 +142,9 @@ VkRenderingAttachmentInfo vkinit::attachment_info(
         colorAttachment.resolveImageLayout = layout;
         colorAttachment.resolveImageView = *resolve;
         colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        //colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      
 
     }
     if (clear) {

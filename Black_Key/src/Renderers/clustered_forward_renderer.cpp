@@ -418,6 +418,11 @@ void ClusteredForwardRenderer::InitPipelines()
 	HDRinfo.imageFormat = _drawImage.imageFormat;
 	HdrPSO.build_pipelines(engine,HDRinfo);
 
+	PipelineCreationInfo upsampleBloomInfo;
+	upsampleBloomInfo.layouts.push_back(postprocess_descriptor_layout);
+	upsampleBloomInfo.imageFormat = bloom_mip_maps[0].mip.imageFormat;
+	upsamplePSO.build_pipelines(engine, upsampleBloomInfo);
+
 	PipelineCreationInfo earlyDepthInfo;
 	earlyDepthInfo.layouts.push_back(_gpuSceneDataDescriptorLayout);
 	earlyDepthInfo.depthFormat = _depthImage.imageFormat;
@@ -1908,7 +1913,6 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	VkRenderingAttachmentInfo depthAttachment3 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment3);
 	vkCmdBeginRendering(cmd, &backRenderInfo);
-
 	DrawBackground(cmd);
 	vkCmdEndRendering(cmd);
 	ReduceDepth(cmd);
@@ -2037,7 +2041,7 @@ void ClusteredForwardRenderer::ReduceDepth(VkCommandBuffer cmd)
 
 		glm::vec2 reduceData = { glm::vec2(levelWidth, levelHeight) };
 
-		vkCmdPushConstants(cmd, depth_reduce_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(reduceData), &reduceData);
+		vkCmdPushConstants(cmd, depth_reduce_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::vec2), &reduceData);
 		vkCmdDispatch(cmd, GetGroupCount(levelWidth, 32), GetGroupCount(levelHeight, 32), 1);
 		VkImageMemoryBarrier reduceBarrier = vkinit::image_barrier(_depthPyramid.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -2061,17 +2065,21 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		DescriptorWriter writer;
 		writer.write_image(0, imageLevel.mip.imageView , bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		if (i == 0)
-			writer.write_image(1, _resolveImage.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			writer.write_image(1, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		else
 			writer.write_image(1, bloom_mip_maps[i-1].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		writer.update_set(engine->_device, bloomDescriptor);
-
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
+		
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.pipeline);
 		BloomDownsamplePushConstants downsample_data;
 		downsample_data.ScreenDimensions = imageLevel.size;
 		downsample_data.mipLevel = i > 0 ? 1 : 0;
 
+		auto check = (uint32_t)(downsample_data.ScreenDimensions.x / 16.0f);
+		auto chek = (uint32_t)(downsample_data.ScreenDimensions.y / 16.0f);
 		vkCmdPushConstants(cmd, downsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &downsample_data);
+
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
 		vkCmdDispatch(cmd, (uint32_t)(downsample_data.ScreenDimensions.x/16.0f), (uint32_t)(downsample_data.ScreenDimensions.y / 16.0f), 1);
 
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2080,6 +2088,7 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 
 void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 {
+	//Original bloom compute shader
 	for (size_t i = bloom_mip_maps.size() - 1 ; i > 0; i--)
 	{
 		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
@@ -2088,12 +2097,13 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		auto& nextImageLevel = bloom_mip_maps[i - 1];
 		
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
+		
 		DescriptorWriter writer;
 		writer.write_image(0, nextImageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		writer.write_image(1, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		
 		writer.update_set(engine->_device, bloomDescriptor);
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.pipeline);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
 		BloomUpsamplePushConstants upsample_data;
@@ -2106,6 +2116,70 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
+	
+
+	/*
+	for (size_t i = bloom_mip_maps.size() - 1; i > 0; i--)
+	{
+		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
+
+		auto& imageLevel = bloom_mip_maps[i];
+		auto& nextImageLevel = bloom_mip_maps[i - 1];
+
+		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(nextImageLevel.mip.imageView, nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
+		vkCmdBeginRendering(cmd, &hdrRenderInfo);
+		DescriptorWriter writer;
+		writer.write_image(0, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		writer.update_set(engine->_device, bloomDescriptor);
+
+		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
+
+		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+		auto draw = [&](const RenderObject& r) {
+			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, upsamplePSO.renderImagePipeline.pipeline);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, upsamplePSO.renderImagePipeline.layout, 0, 1,
+				&bloomDescriptor, 0, nullptr);
+
+			VkViewport viewport = {};
+			viewport.x = 0;
+			viewport.y = 0;
+			viewport.width = (float)nextImageLevel.mip.imageExtent.width;
+			viewport.height = (float)nextImageLevel.mip.imageExtent.height;
+			viewport.minDepth = 0.f;
+			viewport.maxDepth = 1.f;
+			vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+			VkRect2D scissor = {};
+			scissor.offset.x = 0;
+			scissor.offset.y = 0;
+			scissor.extent.width = nextImageLevel.mip.imageExtent.width;
+			scissor.extent.height = nextImageLevel.mip.imageExtent.height;
+			vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+			if (r.indexBuffer != lastIndexBuffer)
+			{
+				lastIndexBuffer = r.indexBuffer;
+				vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			}
+			
+			BloomUpsamplePushConstants push_constants;
+			push_constants.radius = bloom_filter_radius;
+			push_constants.ScreenDimensions = glm::vec2(nextImageLevel.mip.imageExtent.width, nextImageLevel.mip.imageExtent.height);
+
+			vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(BloomUpsamplePushConstants), &push_constants);
+			vkCmdDraw(cmd, 3, 1, 0, 0);
+			};
+
+		draw(imageDrawCommands.OpaqueSurfaces[0]);
+
+		vkCmdEndRendering(cmd);
+
+		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+	*/
 }
 
 void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
@@ -2115,7 +2189,7 @@ void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	
 	DownSampleBloom(cmd);
-	UpSampleBloom(cmd);
+	//UpSampleBloom(cmd);
 	//vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -2140,7 +2214,6 @@ void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
 	writer.write_image(2, bloom_mip_maps[0].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(engine->_device, globalDescriptor);
-
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 	auto draw = [&](const RenderObject& r) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, HdrPSO.renderImagePipeline.pipeline);

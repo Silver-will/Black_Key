@@ -290,6 +290,7 @@
     <ClInclude Include="src\vk_util.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\bloom.vert" />
     <None Include="shaders\blur.frag" />
     <None Include="shaders\blur.vert" />
     <None Include="shaders\brdf_lut.comp" />

@@ -227,6 +227,71 @@ void RenderImagePipelineObject::clear_resources(VkDevice device)
 }
 
 
+void UpsamplePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
+{
+	VkShaderModule HDRVertexShader;
+	if (!vkutil::load_shader_module("shaders/bloom.vert.spv", engine->_device, &HDRVertexShader)) {
+		fmt::print("Error when building the shadow vertex shader module\n");
+	}
+
+	VkShaderModule UpsampleFrag;
+	if (!vkutil::load_shader_module("shaders/upsample.frag.spv", engine->_device, &UpsampleFrag)) {
+		fmt::print("Error when building the shadow fragment shader module\n");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(BloomUpsamplePushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkPipelineLayoutCreateInfo image_layout_info = vkinit::pipeline_layout_create_info();
+	image_layout_info.setLayoutCount = 1;
+	image_layout_info.pSetLayouts = info.layouts.data();
+	image_layout_info.pPushConstantRanges = &matrixRange;
+	image_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &image_layout_info, nullptr, &renderImagePipeline.layout));
+
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(HDRVertexShader, UpsampleFrag);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+
+	VkPipelineColorBlendAttachmentState colorState;
+	colorState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+	colorState.blendEnable = VK_TRUE;
+	colorState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorState.colorBlendOp = VK_BLEND_OP_ADD;
+	colorState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorState.alphaBlendOp = VK_BLEND_OP_ADD;
+	pipelineBuilder.set_custom_blending_configuration(colorState);
+	//pipelineBuilder.enable_blending_additive();
+	
+	pipelineBuilder.enable_depthtest(false, false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder._pipelineLayout = renderImagePipeline.layout;
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+
+	renderImagePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, HDRVertexShader, nullptr);
+	vkDestroyShaderModule(engine->_device, UpsampleFrag, nullptr);
+}
+
+
+void UpsamplePipelineObject::clear_resources(VkDevice device)
+{
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, renderImagePipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, renderImagePipeline.pipeline, nullptr);
+}
+
+
 void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule depthVertexShader;
