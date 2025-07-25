@@ -17,10 +17,18 @@ void main()
 	float x = filterRadius;
 	float y = filterRadius;
 
-	vec2 texCoord = (imageCoord)/ screenDimensions;
+	vec2 texCoord = vec2(imageCoord/screenDimensions);
 	vec3 upsample;
+	/*
+	vec3 e = texture(srcTexture, texCoord).rgb;		
 	//Check if current thread ID is within texture 
-	if(texCoord.x < screenDimensions.x && texCoord.y < screenDimensions.y)
+	if(imageCoord.x < size.x && imageCoord.y < size.y)
+	{
+		imageStore(dstTexture, imageCoord, vec4(e,0.0f));
+	}
+	*/	
+
+	if(imageCoord.x < size.x && imageCoord.y < size.y)
 	{
 		vec3 a = texture(srcTexture, vec2(texCoord.x - x, texCoord.y + y)).rgb;
 		vec3 b = texture(srcTexture, vec2(texCoord.x,     texCoord.y + y)).rgb;
@@ -46,7 +54,7 @@ void main()
 		vec3 srcVal = e;
 		vec3 dstVal = (e + upsample) / 2.0f;
 		vec3 original_val = imageLoad(dstTexture, imageCoord).rgb;
-		dstVal = (dstVal + original_val) / 2.0f; 
+		dstVal = dstVal + original_val;
 		imageStore(dstTexture, imageCoord, vec4(dstVal,1.0f));
 	}
 }
