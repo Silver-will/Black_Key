@@ -19,8 +19,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vma/vk_mem_alloc.h>
-
-#include <fmt/core.h>
+#include <print>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
@@ -302,7 +301,7 @@ struct EngineStats {
     do {                                                                \
         VkResult err = x;                                               \
         if (err) {                                                      \
-            fmt::println("Detected Vulkan error: {}", string_VkResult(err)); \
+            std::println("Detected Vulkan error: {}", string_VkResult(err)); \
             abort();                                                    \
         }                                                               \
     } while (0)

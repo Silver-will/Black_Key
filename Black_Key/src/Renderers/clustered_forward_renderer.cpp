@@ -7,7 +7,7 @@
 
 #include <chrono>
 #include <thread>
-#include <iostream>
+#include <print>
 #include <random>
 
 #include "../../../tracy/public/tracy/Tracy.hpp"
@@ -465,7 +465,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VkShaderModule cullLightShader;
 	if (!vkutil::load_shader_module("shaders/cluster_cull_light_shader.spv", engine->_device, &cullLightShader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 	VkPipelineShaderStageCreateInfo stageinfo{};
@@ -499,7 +499,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VkShaderModule cullObjectsShader;
 	if (!vkutil::load_shader_module("shaders/indirect_cull.comp.spv", engine->_device, &cullObjectsShader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 	VkPipelineShaderStageCreateInfo stageinfoObj{};
@@ -528,7 +528,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VkShaderModule depthReduceShader;
 	if (!vkutil::load_shader_module("shaders/depth_reduce.comp.spv", engine->_device, &depthReduceShader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 
@@ -561,7 +561,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VkShaderModule downsample_shader;
 	if (!vkutil::load_shader_module("shaders/downsample.spv", engine->_device, &downsample_shader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 
@@ -594,7 +594,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 
 	VkShaderModule upsample_shader;
 	if (!vkutil::load_shader_module("shaders/upsample.spv", engine->_device, &upsample_shader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 
@@ -1128,7 +1128,7 @@ void ClusteredForwardRenderer::BuildClusters()
 
 	VkShaderModule buildClusterShader;
 	if (!vkutil::load_shader_module("shaders/cluster_shader.spv", engine->_device, &buildClusterShader)) {
-		fmt::print("Error when building the compute shader \n");
+		std::print("Error when building the compute shader \n");
 	}
 
 	VkPipelineShaderStageCreateInfo stageinfo{};
@@ -1213,12 +1213,12 @@ void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
 	//Pipeline setup
 	VkShaderModule preFilterVertexShader;
 	if (!vkutil::load_shader_module("shaders/filter_cube.vert.spv", engine->_device, &preFilterVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule preFilterFragmentShader;
 	if (!vkutil::load_shader_module("shaders/pre_filter_envmap.frag.spv", engine->_device, &preFilterFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 
@@ -1430,12 +1430,12 @@ void ClusteredForwardRenderer::GenerateIrradianceCube()
 	//Pipeline setup
 	VkShaderModule irradianceVertexShader;
 	if (!vkutil::load_shader_module("shaders/filter_cube.vert.spv", engine->_device, &irradianceVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule irradianceFragmentShader;
 	if (!vkutil::load_shader_module("shaders/irradiance_cube.frag.spv", engine->_device, &irradianceFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};

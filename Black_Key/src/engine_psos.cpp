@@ -4,22 +4,23 @@
 #include "vk_initializers.h"
 #include "vk_images.h"
 #include <ktx.h>
+#include <print>
 
 void ShadowPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule shadowVertexShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.vert.spv", engine->_device, &shadowVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule shadowFragmentShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &shadowFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkShaderModule shadowGeometryShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.geom.spv", engine->_device, &shadowGeometryShader)) {
-		fmt::print("Error when building the shadow geometry shader module\n");
+		std::print("Error when building the shadow geometry shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -96,12 +97,12 @@ void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCrea
 {
 	VkShaderModule skyVertexShader;
 	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", engine->_device, &skyVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule skyFragmentShader;
 	if (!vkutil::load_shader_module("shaders/skybox.frag.spv", engine->_device, &skyFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -175,12 +176,12 @@ void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCr
 {
 	VkShaderModule HDRVertexShader;
 	if (!vkutil::load_shader_module("shaders/hdr.vert.spv", engine->_device, &HDRVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule HDRFragmentShader;
 	if (!vkutil::load_shader_module("shaders/hdr.frag.spv", engine->_device, &HDRFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -231,12 +232,12 @@ void UpsamplePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreat
 {
 	VkShaderModule HDRVertexShader;
 	if (!vkutil::load_shader_module("shaders/bloom.vert.spv", engine->_device, &HDRVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule UpsampleFrag;
 	if (!vkutil::load_shader_module("shaders/upsample.frag.spv", engine->_device, &UpsampleFrag)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -296,12 +297,12 @@ void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCre
 {
 	VkShaderModule depthVertexShader;
 	if (!vkutil::load_shader_module("shaders/depth_pass.vert.spv", engine->_device, &depthVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule depthFragmentShader;
 	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &depthFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 

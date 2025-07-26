@@ -16,12 +16,12 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine, PipelineCreat
 {
     VkShaderModule meshFragShader;
     if (!vkutil::load_shader_module("shaders/indirect_forward.frag.spv", engine->_device, &meshFragShader)) {
-        fmt::println("Error when building the triangle fragment shader module");
+        std::println("Error when building the triangle fragment shader module");
     }
 
     VkShaderModule meshVertexShader;
     if (!vkutil::load_shader_module("shaders/indirect_forward.vert.spv", engine->_device, &meshVertexShader)) {
-        fmt::println("Error when building the triangle vertex shader module");
+        std::println("Error when building the triangle vertex shader module");
     }
 
     VkPushConstantRange matrixRange{};
