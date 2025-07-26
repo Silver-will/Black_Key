@@ -2248,12 +2248,13 @@ void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
 		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-		push_constants.material_index = debugDepthTexture ? 1 : 0;
+		PostProcessPushConstants push_constants;
+		push_constants.use_smaa = use_smaa ? 1 : 0;
+		push_constants.use_fxaa = use_fxaa ? 1 : 0;
+		push_constants.bloom_strength = bloom_strength;
+		push_constants.display_debug_texture = debugDepthTexture ? 1 : 0;
 
-		vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+		vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PostProcessPushConstants), &push_constants);
 		vkCmdDraw(cmd, 3, 1, 0, 0);
 		};
 
@@ -2916,8 +2917,9 @@ void ClusteredForwardRenderer::DrawUI()
 	{
 		ImGui::SeparatorText("Bloom");
 		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 2.0f);
-		ImGui::SliderFloat("Bloom strength", &bloom_strength, 0.1f, 1.0f);
-		ImGui::Checkbox("Use FXAA", &useFXAA);
+		ImGui::SliderFloat("Bloom strength", &bloom_strength, 0.01f, 1.0f);
+		ImGui::Checkbox("Use FXAA", &use_fxaa);
+		ImGui::Checkbox("Use SMAA", &use_smaa);
 	}
 	if (ImGui::CollapsingHeader("Debugging"))
 	{
