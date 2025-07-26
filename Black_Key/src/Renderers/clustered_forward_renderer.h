@@ -95,6 +95,7 @@ private:
 	BlackKey::FrameData _frames[FRAME_OVERLAP];
 	BlackKey::FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
+
 	bool resize_requested = false;
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
@@ -111,8 +112,9 @@ private:
 	} delta;
 	VkExtent2D _windowExtent{ 1920,1080};
 	float bloom_filter_radius = 0.005f;
-	float bloom_strength = 0.1f;
-	bool useFXAA;
+	float bloom_strength = 0.08f;
+	bool use_fxaa = false;
+	bool use_smaa = false;
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 

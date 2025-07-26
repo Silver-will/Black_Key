@@ -249,6 +249,12 @@ union BloomFloatRad {
     uint32_t mip;
 };
 
+struct PostProcessPushConstants {
+    uint32_t use_fxaa;
+    uint32_t use_smaa;
+    uint32_t display_debug_texture;
+    float bloom_strength;
+};
 struct BloomDownsamplePushConstants {
     glm::vec2 ScreenDimensions;
     //BloomFloatRad val <-- 5 trillion IQ gaming

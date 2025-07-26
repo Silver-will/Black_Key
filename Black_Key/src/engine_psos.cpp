@@ -185,8 +185,8 @@ void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCr
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
-	matrixRange.size = sizeof(GPUDrawPushConstants);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	matrixRange.size = sizeof(PostProcessPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 //	VkDescriptorSetLayout layouts[] = { engine->_drawImageDescriptorLayout };
 
