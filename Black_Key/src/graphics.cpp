@@ -454,12 +454,12 @@ void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
 	//Pipeline setup
 	VkShaderModule brdfLutVertexShader;
 	if (!vkutil::load_shader_module("shaders/gen_brdf_lut.vert.spv", engine->_device, &brdfLutVertexShader)) {
-		fmt::print("Error when building the shadow vertex shader module\n");
+		std::println("Error when building the shadow vertex shader module");
 	}
 
 	VkShaderModule brdfLutFragmentShader;
 	if (!vkutil::load_shader_module("shaders/gen_brdf_lut.frag.spv", engine->_device, &brdfLutFragmentShader)) {
-		fmt::print("Error when building the shadow fragment shader module\n");
+		std::println("Error when building the shadow fragment shader module");
 	}
 
 	VkDescriptorSetLayout layouts[] = { lutBRDFSetLayout };
