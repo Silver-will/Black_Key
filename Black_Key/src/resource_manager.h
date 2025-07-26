@@ -1,7 +1,9 @@
 #pragma once
 
-#include <iostream>
 
+#include <fastgltf/core.hpp>
+#include <fastgltf/types.hpp>
+#include <fastgltf/tools.hpp>
 #include "vk_initializers.h"
 #include "vk_pipelines.h"
 #include "vk_types.h"
@@ -9,14 +11,6 @@
 #include "vk_loader.h"
 #include <glm/gtx/quaternion.hpp>
 
-
-#include <fastgltf/glm_element_traits.hpp>
-#include <fastgltf/parser.hpp>
-#include <fastgltf/tools.hpp>
-#include <fastgltf/util.hpp>
-#include <fastgltf/base64.hpp>
-#include <fastgltf/types.hpp>
-#include <iostream>
 #include <string>
 
 #include "engine_util.h"
