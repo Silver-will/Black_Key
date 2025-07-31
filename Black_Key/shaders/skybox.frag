@@ -9,5 +9,7 @@ layout (location = 0) out vec4 FragColor;
 
 void main() 
 {
-	FragColor = texture(samplerCubeMap, inUVW);
+	vec3 texCoords;
+	texCoords = vec3(inUVW.r,inUVW.g, inUVW.b);
+	FragColor = texture(samplerCubeMap, texCoords);
 }

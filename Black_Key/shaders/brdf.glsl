@@ -30,15 +30,25 @@ float F_Schlick(float u, float f0, float f90) {
     return f0 + (f90 - f0) * pow(1.0 - u, 5.0);
 }
 
-vec3 EvaluateIBL(vec3 N, vec3 diffuseColor, vec3 f0, vec3 f90, float perceptualRoughness, float NoV)
+vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 {
-    //vec3 r = reflect(N);
-    //vec3 Ld = texture(irradianceEnvMap, r).rgb * diffuseColor;
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 EvaluateIBL(vec3 N, vec3 R, vec3 diffuseColor, vec3 f0, vec3 f90, float roughness, float NoV)
+{
+    vec3 Ld = texture(irradianceMap, R).rgb * diffuseColor;
     //float lod = computeLODFromRoughness(perceptualRoughness);
     //vec3 Lld = preFilteredReflection(r, perceptualRoughness);
     //vec2 Ldfg = textureLod(BRDFLut, vec2(NoV, perceptualRoughness), 0.0).xy;
     //vec3 Lr =  (f0 * Ldfg.x + f90 * Ldfg.y) * Lld;
     //return Ld + Lr;
+    //vec3 F = F_SchlickR(NoV, f0, roughness);
+    //vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	//vec3 reflection = prefilteredReflection(R, roughness).rgb;	
+	//vec3 irradiance = texture(irradianceMap, N).rgb;
+    
+    //diffuseColor = diffuseColor * irradiance;
     return vec3(0.0);
 }
 
@@ -56,19 +66,29 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     float roughness = metal_rough.x;
     float metallic = metal_rough.y;
 
-    roughness = roughness * roughness;
-    vec3 F0 = (1.0 - metallic) + albedo;
+    roughness = roughness;
+    vec3 F0 = vec3(0.04); 
+	F0 = mix(F0, albedo, metallic);
     vec3 diffuse = (1.0 - metallic) * albedo;
 	
     float D = D_GGX_IMPROVED(roughness, NoH, N, H);
     vec3 F = fresnelSchlick(LoH, F0);
     float V_S = V_SmithGGXCorrelated(NoV, NoL, roughness);
 
+    float disney_D = D_Burley(roughness, LoH, NoL, NoV);
     vec3 Fs = (D * V_S) * F;
-    vec3 Fd = diffuse * D_Burley(roughness, LoH, NoL, NoV);
+    vec3 Fd = diffuse * disney_D;
 
-    
-    return vec3(Fd + Fs);
+    //Evaluate IBL Terms
+    vec3 F_IBL = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+    vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
+    vec3 texCoord = vec3(N.x, N.y, N.z);
+	vec3 irradiance = texture(irradianceMap, texCoord).rgb;
+
+    vec3 specular = reflection * (F_IBL * brdf.x + brdf.y);
+
+    return vec3(Fd * irradiance + Fs * specular) * sceneData.sunlightDirection.w * sceneData.sunlightColor.xyz;
 }
 
 
@@ -157,8 +177,4 @@ float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness)
 vec3 F_Schlick(float cosTheta, vec3 F0)
 {
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
-vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
-{
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }

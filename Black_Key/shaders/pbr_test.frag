@@ -77,11 +77,10 @@ void main()
     //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
-    
+    albedo = vec3(1.0f, 0.765557f, 0.336057f);
     //vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
-    //vec2 metallicRough  = texture(metalRoughTex, inUV).gb;
     
-	vec2 metallicRough = vec2(0.1, 0.8);
+	vec2 metallicRough = vec2(0.1, 0.98);
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
     vec3 N = CalculateNormalFromMap();
@@ -255,7 +254,7 @@ vec3 CalculateNormalFromMap()
 	vec3 B = cross(N, T) * inTangent.w;
 	mat3 TBN = mat3(T, B, N);
 	//return normalize(TBN * tangentNormal);
-	return inNormal;
+	return N;
 }
 
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
