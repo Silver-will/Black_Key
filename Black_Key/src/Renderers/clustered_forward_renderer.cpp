@@ -1037,9 +1037,9 @@ void ClusteredForwardRenderer::UpdateScene()
 void ClusteredForwardRenderer::LoadAssets()
 {
 	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/overcast.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/pisa_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
-	std::string structurePath{ "assets/sponza/sponza.gltf" };
+	std::string structurePath{ "assets/material_sphere.glb" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 

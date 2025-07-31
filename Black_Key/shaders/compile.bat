@@ -37,4 +37,5 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.comp -o upsample.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe downsample.comp -o downsample.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.frag -o upsample.frag.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe bloom.vert -o bloom.vert.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_test.frag -o pbr_test.frag.spv 
 pause

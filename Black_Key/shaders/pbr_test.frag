@@ -4,7 +4,6 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_nonuniform_qualifier : require
 
-#include "resource.glsl"
 #include "brdf.glsl"
 layout(early_fragment_tests) in;
 
@@ -22,7 +21,6 @@ layout (location = 8) in mat3 inTBN;
 layout (location = 0) out vec4 outFragColor;
 //vec3 Radiance(vec3 albedo, vec3 N, vec3 V, vec3 F0, float metallic, float roughness, float alphaRoughness, LightData light);
 float linearDepth(float depthSample);
-vec3 prefilteredReflection(vec3 R, float roughness);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
 vec3 CalcDiffuseContribution(vec3 W, vec3 N, PointLight light);
 vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, PointLight light);
@@ -56,6 +54,7 @@ layout( push_constant ) uniform constants
 
 void main() 
 {
+	//Calculate current fragment cluster
 	float linDepth = linearDepth(gl_FragCoord.z);
 	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
 	float sliceCountX = tileSizes.x;
@@ -74,50 +73,42 @@ void main()
 	uint lightCount = lightGrid[clusterIdx].count;
 	uint lightIndexOffset = lightGrid[clusterIdx].offset;
 
+	//PBR material values
     //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
-	
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
-    float ao = colorVal.a;
-
-    vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
+    
+    //vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
     //vec2 metallicRough  = texture(metalRoughTex, inUV).gb;
     
+	vec2 metallicRough = vec2(0.1, 0.8);
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
-    
     vec3 N = CalculateNormalFromMap();
-	
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
-    vec3 R = reflect(-V,N);
+	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
+	
 
-    vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, albedo, metallic);
-
-	vec3 Lo = vec3(0.0);
-    vec3 L = normalize(-sceneData.sunlightDirection.xyz);
-	vec3 Ld = vec3(1.0);
-    
-    Lo += specularContribution(L, V, N,sceneData.sunlightColor.xyz, F0, metallic, roughness);
-
+	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough);
+	//vec3 iblColor
 	//Calculate point lights
-	for(int i = 0; i < lightCount; i++)
-	{
-		uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
-		PointLight light = pointLight[lightVectorIndex];
-		Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
-		Ld += CalcDiffuseContribution(inFragPos,N,light);
-	}
+	//for(int i = 0; i < lightCount; i++)
+	//{
+		//uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
+		//PointLight light = pointLight[lightVectorIndex];
+		//Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
+		//Ld += CalcDiffuseContribution(inFragPos,N,light);
+	//}
 
-    vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-    vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
-	vec3 irradiance = texture(irradianceMap, N).rgb;
+    //vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+    //vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	//vec3 reflection = prefilteredReflection(R, roughness).rgb;	
+	//vec3 irradiance = texture(irradianceMap, N).rgb;
 
-    vec3 diffuse = irradiance * albedo * Ld;
+    //vec3 diffuse = irradiance * albedo * Ld;
 
 	// Specular reflectance
-	vec3 specular = reflection * (F * brdf.x + brdf.y);
+	/*vec3 specular = reflection * (F * brdf.x + brdf.y);
 
 	// Ambient part
 	vec3 kD = 1.0 - F;
@@ -125,9 +116,10 @@ void main()
 	vec3 ambient = (kD * diffuse + specular);
 	
 	vec3 color = ambient + Lo;
+	*/
+
 
     vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
-    //float depthValue = inViewPos.z;
     float depthValue = fragPosViewSpace.z;
 	int blend = 0;
     int layer = 0;
@@ -141,8 +133,7 @@ void main()
     vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-    //float shadow = textureProj(shadowCoord/shadowCoord.w, vec2(0.0), layer);
-	color *= shadow;
+	//color *= shadow;
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
@@ -182,18 +173,6 @@ float linearDepth(float depthSample){
     return linear;
 }
 
-
-vec3 prefilteredReflection(vec3 R, float roughness)
-{
-	const float MAX_REFLECTION_LOD = 9.0; // todo: param/const
-	float lod = roughness * MAX_REFLECTION_LOD;
-	float lodf = floor(lod);
-	float lodc = ceil(lod);
-	vec3 a = textureLod(preFilterMap, R, lodf).rgb;
-	vec3 b = textureLod(preFilterMap, R, lodc).rgb;
-	return mix(a, b, lod - lodf);
-}
-
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness)
 {
 	// Precalculate vectors and dot products	
@@ -209,9 +188,10 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metalli
 
 	if (dotNL > 0.0) {
 		// D = Normal distribution (Distribution of the microfacets)
-		float D = D_GGX(dotNH, roughness); 
+		//float D = D_GGX(dotNH, roughness); 
+		float D = D_GGX_IMPROVED(roughness, dotNH, N, H);
 		// G = Geometric shadowing term (Microfacets shadowing)
-		float G = G_SchlicksmithGGX(dotNL, dotNV, roughness);
+		float G = V_SmithGGXCorrelated(dotNV,dotNL, roughness);
 		// F = Fresnel factor (Reflectance depending on angle of incidence)
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
@@ -269,12 +249,13 @@ vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, flo
 vec3 CalculateNormalFromMap()
 {
     vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(inMaterialIndex+2)],inUV).rgb * 2.0 - vec3(1.0));
-	tangentNormal = vec3(1.0) - tangentNormal;
+	//tangentNormal = vec3(1.0) - tangentNormal;
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;
 	mat3 TBN = mat3(T, B, N);
-	return normalize(TBN * tangentNormal);
+	//return normalize(TBN * tangentNormal);
+	return inNormal;
 }
 
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
