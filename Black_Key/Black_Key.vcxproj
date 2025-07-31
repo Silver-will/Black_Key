@@ -167,7 +167,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>vulkan-1.lib;ktx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>D:\Repos\Black_Key\third_party\ktx\lib;C:\VulkanSDK\1.4.321.1\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -293,6 +293,7 @@
     <None Include="shaders\bloom.vert" />
     <None Include="shaders\blur.frag" />
     <None Include="shaders\blur.vert" />
+    <None Include="shaders\brdf.glsl" />
     <None Include="shaders\brdf_lut.comp" />
     <None Include="shaders\cascaded_shadows.frag" />
     <None Include="shaders\cascaded_shadows.geom" />
@@ -327,6 +328,8 @@
     <None Include="shaders\irradiance_cube.comp" />
     <None Include="shaders\irradiance_cube.frag" />
     <None Include="shaders\lights.glsl" />
+    <None Include="shaders\pbr_test.frag" />
+    <None Include="shaders\pbr_test.vert" />
     <None Include="shaders\pre_filter.comp" />
     <None Include="shaders\pre_filter_envmap.frag" />
     <None Include="shaders\resource.glsl" />

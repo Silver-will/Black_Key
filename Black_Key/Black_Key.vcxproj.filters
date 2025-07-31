@@ -388,5 +388,14 @@
     <None Include="shaders\bloom.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shaders\pbr_test.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pbr_test.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\brdf.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
