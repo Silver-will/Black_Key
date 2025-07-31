@@ -990,6 +990,7 @@ void ClusteredForwardRenderer::UpdateScene()
 	//some default lighting parameters
 	scene_data.sunlightColor = directLight.color;
 	scene_data.sunlightDirection = directLight.direction;
+	scene_data.sunlightDirection.w = 3.5f;
 	scene_data.lightCount = pointData.pointLights.size();
 
 	void* data = nullptr;
@@ -1037,7 +1038,7 @@ void ClusteredForwardRenderer::UpdateScene()
 void ClusteredForwardRenderer::LoadAssets()
 {
 	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/pisa_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/gcanyon_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
 	std::string structurePath{ "assets/material_sphere.glb" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
@@ -1324,7 +1325,7 @@ void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
 				}
 				// Update shader push constant block
 				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
-				pushBlock.mvp[1][1] *= -1;
+				//pushBlock.mvp[1][1] *= -1;
 				pushBlock.vertexBuffer = r.vertexBufferAddress;
 				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(black_key::PushBlock), &pushBlock);
 
@@ -1388,7 +1389,6 @@ void ClusteredForwardRenderer::GenerateIrradianceCube()
 	cubeSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	cubeSampl.addressModeV = cubeSampl.addressModeU;
 	cubeSampl.addressModeW = cubeSampl.addressModeU;
-	cubeSampl.mipLodBias = 0.0f;
 	cubeSampl.minLod = 0.0f;
 	cubeSampl.maxLod = numMips;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
@@ -1538,7 +1538,6 @@ void ClusteredForwardRenderer::GenerateIrradianceCube()
 				black_key::PushBlock pushBlock;
 				// Update shader push constant block
 				pushBlock.mvp = glm::perspective((float)(M_PI / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
-				pushBlock.mvp[1][1] *= -1;
 				pushBlock.vertexBuffer = r.vertexBufferAddress;
 				vkCmdPushConstants(cmd, irradianceLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(black_key::PushBlock), &pushBlock);
 				vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);

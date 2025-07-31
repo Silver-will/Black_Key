@@ -30,5 +30,8 @@ void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	outUVW = v.position.xyz;
-	gl_Position = PushConstants.mvp * vec4(outUVW, 1.0);
+	vec3 pos = outUVW;
+	outUVW.y *= -1.0f;
+	vec4 position = PushConstants.mvp * vec4(pos, 1.0);
+	gl_Position = position.xyww;
 }
