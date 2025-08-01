@@ -634,7 +634,9 @@ void ClusteredForwardRenderer::InitDefaultData()
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 2.5f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.0f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	//W stores light intensity
+	directLight.direction.w = 1.0f;
 	//Create Shadow render target
 	_shadowDepthImage = resource_manager->CreateImageEmpty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
@@ -666,7 +668,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	main_camera.type = Camera::CameraType::firstperson;
 	//mainCamera.flipY = true;
 	main_camera.movementSpeed = 2.5f;
-	main_camera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 1000.0f);
+	main_camera.setPerspective(45.0f, (float)_windowExtent.width / (float)_windowExtent.height, 0.1f, 2000.0f);
 	main_camera.setPosition(glm::vec3(-0.12f, -5.14f, -2.25f));
 	main_camera.setRotation(glm::vec3(-17.0f, 7.0f, 0.0f));
 
@@ -694,7 +696,6 @@ void ClusteredForwardRenderer::InitDefaultData()
 	for (int i = 0; i < numOfLights; i++)
 	{
 		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
-		//pointData.pointLights.push_back(PointLight(glm::vec4(3, 5, 4.1,1.0), glm::vec4(1.0),10.3f, 10.0f));
 	}
 	
 	glm::vec2 mip_extent(_windowExtent.width, _windowExtent.height);
@@ -757,7 +758,6 @@ void ClusteredForwardRenderer::InitDefaultData()
 	VkSamplerCreateInfo bloomSampl = sampl;
 	bloomSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	bloomSampl.addressModeV = bloomSampl.addressModeU;
-	bloomSampl.addressModeW = bloomSampl.addressModeU;
 	vkCreateSampler(engine->_device, &bloomSampl, nullptr, &bloomSampler);
 
 	VkSamplerCreateInfo cubeSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -990,7 +990,6 @@ void ClusteredForwardRenderer::UpdateScene()
 	//some default lighting parameters
 	scene_data.sunlightColor = directLight.color;
 	scene_data.sunlightDirection = directLight.direction;
-	scene_data.sunlightDirection.w = 3.5f;
 	scene_data.lightCount = pointData.pointLights.size();
 
 	void* data = nullptr;
@@ -1038,7 +1037,7 @@ void ClusteredForwardRenderer::UpdateScene()
 void ClusteredForwardRenderer::LoadAssets()
 {
 	//Load in skyBox image
-	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/gcanyon_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
+	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/uffizi_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
 
 	std::string structurePath{ "assets/material_sphere.glb" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
@@ -1836,8 +1835,8 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	ExecuteComputeCull(cmd, earlyDepthCull, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth));
 
 	vkutil::cullParams shadowCull;
-	shadowCull.viewmat = cascadeData.lightViewMatrices[1];
-	shadowCull.projmat = cascadeData.lightProjMatrices[1];
+	shadowCull.viewmat = cascadeData.lightViewMatrices[0];
+	shadowCull.projmat = cascadeData.lightProjMatrices[0];
 	shadowCull.frustrumCull = true;
 	shadowCull.occlusionCull = false;
 	shadowCull.aabb = false;
@@ -2075,14 +2074,14 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		glm::vec2 srcImageDimension = i == 0 ? glm::vec2(_windowExtent.width, _windowExtent.height) : glm::vec2(bloom_mip_maps[i - 1].i_size);
 		BloomDownsamplePushConstants downsample_data;
 		downsample_data.ScreenDimensions = srcImageDimension;
-		downsample_data.mipLevel = i > 0 ? 1 : 0;
+		downsample_data.mipLevel = i == 0 ? 0 : 1;
 
 		auto check = (uint32_t)(downsample_data.ScreenDimensions.x / 16.0f);
 		auto chek = (uint32_t)(downsample_data.ScreenDimensions.y / 16.0f);
 		vkCmdPushConstants(cmd, downsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &downsample_data);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
-		vkCmdDispatch(cmd, (uint32_t)(srcImageDimension.x/16.0f), (uint32_t)(srcImageDimension.y/ 16.0f), 1);
+		vkCmdDispatch(cmd, (uint32_t)(srcImageDimension.x/16.0f) + 1, (uint32_t)(srcImageDimension.y/ 16.0f) + 1, 1);
 
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
@@ -2116,7 +2115,7 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		
 
 		vkCmdPushConstants(cmd, upsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &upsample_data);
-		vkCmdDispatch(cmd, (uint32_t)nextImageLevel.i_size.x / 16, (uint32_t)nextImageLevel.i_size.y / 16, 1);
+		vkCmdDispatch(cmd, ((uint32_t)nextImageLevel.i_size.x / 16) + 1, ((uint32_t)nextImageLevel.i_size.y / 16) + 1, 1);
 
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2377,78 +2376,6 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.update_set(engine->_device, globalDescriptor);
 
-
-	//allocate bindless descriptor
-
-	/*MaterialPipeline* lastPipeline = nullptr;
-	MaterialInstance* lastMaterial = nullptr;
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-	auto draw = [&](const RenderObject& r) {
-		if (r.material != lastMaterial) {
-			lastMaterial = r.material;
-			if (r.material->pipeline != lastPipeline) {
-
-				lastPipeline = r.material->pipeline;
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1,
-					&globalDescriptor, 0, nullptr);
-
-				VkViewport viewport = {};
-				viewport.x = 0;
-				viewport.y = 0;
-				viewport.width = (float)_windowExtent.width;
-				viewport.height = (float)_windowExtent.height;
-				viewport.minDepth = 0.f;
-				viewport.maxDepth = 1.f;
-				vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-				VkRect2D scissor = {};
-				scissor.offset.x = 0;
-				scissor.offset.y = 0;
-				scissor.extent.width = _windowExtent.width;
-				scissor.extent.height = _windowExtent.height;
-
-				vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, resource_manager.GetBindlessSet(), 0, nullptr);
-
-			}
-
-			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
-				//&r.material->materialSet, 0, nullptr);
-		}
-		if (r.indexBuffer != lastIndexBuffer) {
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-		push_constants.material_index = r.material->material_index;
-
-		vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-
-		stats.drawcall_count++;
-		stats.triangle_count += r.indexCount / 3;
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-		};
-
-
-	stats.drawcall_count = 0;
-	stats.triangle_count = 0;
-
-	for (auto& r : draws) {
-		draw(drawCommands.OpaqueSurfaces[r]);
-	}
-
-	for (auto& r : drawCommands.TransparentSurfaces) {
-		draw(r);
-	}
-	*/
-
-
 	{
 		for (auto pass_enum : forward_passes)
 		{
@@ -2660,53 +2587,6 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 	writer.write_buffer(6, scene_manager->GetObjectDataBuffer()->buffer,
 		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, globalDescriptor);
-
-	/*
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-	auto draw = [&](const RenderObject& r) {
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
-			&globalDescriptor, 0, nullptr);
-
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)_windowExtent.width;
-		viewport.height = (float)_windowExtent.height;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = _windowExtent.width;
-		scissor.extent.height = _windowExtent.height;
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
-		if (r.indexBuffer != lastIndexBuffer)
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-		push_constants.material_index = r.material->material_index;
-
-		vkCmdPushConstants(cmd, depthPrePassPSO.earlyDepthPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-		};
-
-	for (auto& r : draws) {
-		draw(drawCommands.OpaqueSurfaces[r]);
-	}
-	*/
-
-
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, depthPrePassPSO.earlyDepthPipeline.layout, 0, 1,
@@ -2903,7 +2783,8 @@ void ClusteredForwardRenderer::DrawUI()
 			ImGui::SeparatorText("direction");
 			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
 			ImGui::SliderFloat3("x,y,z", pos, -7, 7);
-			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], 0.0f);
+			ImGui::SliderFloat("Intensity", &directLight.direction.w, 1.0, 20.0);
+			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], directLight.direction.w);
 
 			ImGui::SeparatorText("color");
 			float col[4] = { directLight.color.x, directLight.color.y, directLight.color.z, directLight.color.w };

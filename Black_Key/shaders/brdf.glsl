@@ -7,6 +7,10 @@ const float PI = 3.14159265359;
 float V_SmithGGXCorrelated(float NoV, float NoL, float roughness);
 float D_Burley(float roughness, float LoH, float NoL, float NoV);
 float D_GGX_IMPROVED(float roughness, float NoH, const vec3 n, const vec3 h);
+float DistributionGGX(vec3 N, vec3 H, float roughness);
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
+float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness);
+
 
 
 vec3 prefilteredReflection(vec3 R, float roughness)
@@ -57,8 +61,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     vec3 R = reflect(-V,N);
 	vec3 H = normalize(V + L);
 
-    float NoV = abs(dot(N, N)) + 1e-5;
-    //float NoV = clamp(dot(N, V), 0.0, 1.0);
+    float NoV = abs(dot(N, V)) + 1e-5;
 	float NoL = clamp(dot(N, L), 0.0, 1.0);
 	float NoH = clamp(dot(N, H), 0.0, 1.0);
     float LoH = clamp(dot(L, H), 0.0, 1.0);
@@ -72,8 +75,12 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     vec3 diffuse = (1.0 - metallic) * albedo;
 	
     float D = D_GGX_IMPROVED(roughness, NoH, N, H);
+    //float D = DistributionGGX(N, H, roughness);
     vec3 F = fresnelSchlick(LoH, F0);
-    float V_S = V_SmithGGXCorrelated(NoV, NoL, roughness);
+
+    //This uses 2 square roots
+    //float V_S = V_SmithGGXCorrelated(NoV, NoL, roughness);
+    float V_S = GeometrySmith(N, V, L, roughness);
 
     float disney_D = D_Burley(roughness, LoH, NoL, NoV);
     vec3 Fs = (D * V_S) * F;
@@ -88,7 +95,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
 
     vec3 specular = reflection * (F_IBL * brdf.x + brdf.y);
 
-    return vec3(Fd * irradiance + Fs * specular) * sceneData.sunlightDirection.w * sceneData.sunlightColor.xyz;
+    return (vec3(Fd * irradiance + Fs * specular) * sceneData.sunlightDirection.w) * sceneData.sunlightColor.xyz;
 }
 
 
@@ -159,8 +166,8 @@ float D_GGX(float dotNH, float roughness)
 float V_SmithGGXCorrelated(float NoV, float NoL, float roughness)
 {
     float a2 = roughness * roughness;
-    float GGXV = NoL * sqrt(NoV * NoV * (1.0 - a2) + a2);
-    float GGXL = NoV * sqrt(NoL * NoL * (1.0 - a2) + a2);
+    float GGXL = NoV * sqrt((-NoL * a2 + NoL) * NoL + a2);
+    float GGXV = NoL * sqrt((-NoV * a2 + NoV) * NoV + a2);
     return 0.5 / (GGXV + GGXL);
 }
 // Geometric Shadowing function --------------------------------------

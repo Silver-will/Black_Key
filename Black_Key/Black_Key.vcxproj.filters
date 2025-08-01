@@ -367,13 +367,13 @@
     <None Include="shaders\indirect_forward.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\conservative_rasterization.vert">
+    <None Include="shaders\conservative_voxelization.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\conservative_rasterization.frag">
+    <None Include="shaders\conservative_voxelization.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\conservative_rasterization.geom">
+    <None Include="shaders\conservative_voxelization.geom">
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\downsample.comp">
