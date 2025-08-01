@@ -76,7 +76,8 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine, Camera& mainCamera, GP
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::vec3 lightDir = glm::normalize(scene_data.sunlightDirection);
+		glm::vec3 lightDir = glm::vec3(scene_data.sunlightDirection.x, scene_data.sunlightDirection.y, scene_data.sunlightDirection.z);
+		lightDir = glm::normalize(lightDir);
 		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 		lightOrthoMatrix[1][1] *= -1;

@@ -74,13 +74,11 @@ void main()
 	uint lightIndexOffset = lightGrid[clusterIdx].offset;
 
 	//PBR material values
-    //vec4 colorVal = texture(colorTex, inUV).rgba;
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
-    albedo = vec3(1.0f, 0.765557f, 0.336057f);
-    //vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
-    
-	vec2 metallicRough = vec2(0.1, 0.98);
+    vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
+    metallicRough = vec2(0.01, 0.89);
+
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
     vec3 N = CalculateNormalFromMap();
@@ -89,7 +87,22 @@ void main()
 	
 
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough);
-	//vec3 iblColor
+
+	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
+    float depthValue = fragPosViewSpace.z;
+	int blend = 0;
+    int layer = 0;
+	for(int i = 0; i < 4 - 1; ++i) {
+		if(depthValue < sceneData.distances[i]) {	
+			layer = i + 1;
+		}
+	}
+
+    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
+
+    float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
+	color *= shadow;
+
 	//Calculate point lights
 	//for(int i = 0; i < lightCount; i++)
 	//{
@@ -98,41 +111,6 @@ void main()
 		//Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
 		//Ld += CalcDiffuseContribution(inFragPos,N,light);
 	//}
-
-    //vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-    //vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	//vec3 reflection = prefilteredReflection(R, roughness).rgb;	
-	//vec3 irradiance = texture(irradianceMap, N).rgb;
-
-    //vec3 diffuse = irradiance * albedo * Ld;
-
-	// Specular reflectance
-	/*vec3 specular = reflection * (F * brdf.x + brdf.y);
-
-	// Ambient part
-	vec3 kD = 1.0 - F;
-	kD *= 1.0 - metallic;	  
-	vec3 ambient = (kD * diffuse + specular);
-	
-	vec3 color = ambient + Lo;
-	*/
-
-
-    vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
-    float depthValue = fragPosViewSpace.z;
-	int blend = 0;
-    int layer = 0;
-	for(int i = 0; i < 4 - 1; ++i) {
-		if(depthValue < sceneData.distances[i]) {	
-			layer = i + 1;
-
-		}
-	}
-
-    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
-
-    float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-	//color *= shadow;
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
@@ -248,7 +226,6 @@ vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, flo
 vec3 CalculateNormalFromMap()
 {
     vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(inMaterialIndex+2)],inUV).rgb * 2.0 - vec3(1.0));
-	//tangentNormal = vec3(1.0) - tangentNormal;
     vec3 N = normalize(inNormal);
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;

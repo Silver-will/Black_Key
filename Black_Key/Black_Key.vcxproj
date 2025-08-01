@@ -301,9 +301,9 @@
     <None Include="shaders\cluster_info.glsl" />
     <None Include="shaders\cluster_shader.comp" />
     <None Include="shaders\cluster_cull_light_shader.comp" />
-    <None Include="shaders\conservative_rasterization.frag" />
-    <None Include="shaders\conservative_rasterization.geom" />
-    <None Include="shaders\conservative_rasterization.vert" />
+    <None Include="shaders\conservative_voxelization.frag" />
+    <None Include="shaders\conservative_voxelization.geom" />
+    <None Include="shaders\conservative_voxelization.vert" />
     <None Include="shaders\depth_reduce.comp" />
     <None Include="shaders\depth_pass.vert" />
     <None Include="shaders\downsample.comp" />
