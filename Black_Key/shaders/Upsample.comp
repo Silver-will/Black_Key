@@ -41,7 +41,7 @@ void main()
 		upsample = e*4.0;
 		upsample += (b+d+f+h)*2.0;
 		upsample += (a+c+g+i);
-		upsample *= 1.0 / 16.0;
+		upsample *= (1.0 / 16.0);
 
 		vec3 original_val = imageLoad(dstTexture, imageCoord).rgb;
 		vec3 dstVal = upsample + original_val;
