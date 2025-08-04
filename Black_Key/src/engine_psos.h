@@ -126,3 +126,13 @@ struct UpsamplePipelineObject {
 
 	void clear_resources(VkDevice device);
 };
+
+
+struct ConservativeVoxelization {
+	MaterialPipeline VoxelizationPipeline;
+	VkDescriptorSetLayout descriptorLayout;
+
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
+
+	void clear_resources(VkDevice device);
+};

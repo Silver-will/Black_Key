@@ -21,8 +21,8 @@ vec3 ToSRGB(vec3 v)   { return PowVec3(v, invGamma); }
 
 float sRGBToLuma(vec3 col)
 {
-    //return dot(col, vec3(0.2126f, 0.7152f, 0.0722f));
-	return dot(col, vec3(0.299f, 0.587f, 0.114f));
+    return dot(col, vec3(0.2126f, 0.7152f, 0.0722f));
+	//return dot(col, vec3(0.299f, 0.587f, 0.114f));
 }
 
 float KarisAverage(vec3 col)
@@ -66,7 +66,7 @@ void main()
 
 
 
-		// Check if we need to perform Karis average on each block of 4 samples
+	// Check if we need to perform Karis average on each block of 4 samples
 	vec3 groups[5];
 	switch (mipLevel)
 	{
@@ -92,6 +92,7 @@ void main()
 	  downsample += (a+c+g+i)*0.03125;     // ok
 	  downsample += (b+d+f+h)*0.0625;      // ok
 	  downsample += (j+k+l+m)*0.125;       // ok
+	  downsample = vec3(1.0,0.0,0.0);
 	  break;
 	}
 	imageStore(dstTexture, imageCoord, vec4(downsample, 1.0f));

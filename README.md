@@ -8,9 +8,11 @@ All the following scenes are rendered in engine:
 ![Clustered_LIGHTS](showcase/clustered_lights.png)
 *3000 point lights rendered on a 2016 intel laptop IGPU at 30 fps thanks to clustered forward shading*
 
-![CSM](showcase/shadows.png)
-*Cascaded shadow maps centered around a bounding sphere for cascade stability*
+![Sponza](showcase/sponza.png)
 
+
+![PBR_+_IBL](showcase/IBL.png)
+*PBR inspired by filament and with a disney diffuse brdf*
 ![Bistro](showcase/bistro.png)
 
 # Currently supported features

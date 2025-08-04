@@ -25,10 +25,18 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 }
 
 // ----------------------------------------------------------------------------
-vec3 fresnelSchlick(float cosTheta, vec3 F0)
+//vec3 fresnelSchlick(float cosTheta, vec3 F0)
+//{
+  //  return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+//}
+
+
+// Fresnel function ----------------------------------------------------
+vec3 F_Schlick(float cosTheta, vec3 F0)
 {
-    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
+
 
 float F_Schlick(float u, float f0, float f90) {
     return f0 + (f90 - f0) * pow(1.0 - u, 5.0);
@@ -56,18 +64,45 @@ vec3 EvaluateIBL(vec3 N, vec3 R, vec3 diffuseColor, vec3 f0, vec3 f90, float rou
     return vec3(0.0);
 }
 
+float RcpSinFromCos(float cosTheta)
+{
+    return inversesqrt(max(0.0,1.0 - (cosTheta * cosTheta)));
+}
+
+vec3 GetViewClampedNormal(vec3 N, vec3 V, inout float NdotV)
+{
+    NdotV = dot(N,V);
+
+    if(NdotV < 0)
+    {
+        N = (N - NdotV * V) * RcpSinFromCos(NdotV);
+        NdotV = 0;
+    }
+    return N;
+}
+
+vec3 GetViewReflectedNormal(vec3 N, vec3 V, inout float NdotV)
+{
+    NdotV = dot(N,V);
+    N += (2.0 * clamp(-NdotV, 0.0, 1.0)) * V;
+    NdotV = abs(NdotV);
+    return N;
+}
+
 vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough)
 {
     vec3 R = reflect(-V,N);
 	vec3 H = normalize(V + L);
 
-    float NoV = abs(dot(N, V)) + 1e-5;
+    //float NoV = abs(dot(N, V)) + 1e-5;
 	float NoL = clamp(dot(N, L), 0.0, 1.0);
 	float NoH = clamp(dot(N, H), 0.0, 1.0);
     float LoH = clamp(dot(L, H), 0.0, 1.0);
 
     float roughness = metal_rough.x;
     float metallic = metal_rough.y;
+    float NoV;
+    N = GetViewReflectedNormal(N, V,NoV);
 
     roughness = roughness;
     vec3 F0 = vec3(0.04); 
@@ -76,7 +111,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
 	
     float D = D_GGX_IMPROVED(roughness, NoH, N, H);
     //float D = DistributionGGX(N, H, roughness);
-    vec3 F = fresnelSchlick(LoH, F0);
+    vec3 F = F_Schlick(LoH, F0);
 
     //This uses 2 square roots
     //float V_S = V_SmithGGXCorrelated(NoV, NoL, roughness);
@@ -178,10 +213,4 @@ float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness)
 	float GL = dotNL / (dotNL * (1.0 - k) + k);
 	float GV = dotNV / (dotNV * (1.0 - k) + k);
 	return GL * GV;
-}
-
-// Fresnel function ----------------------------------------------------
-vec3 F_Schlick(float cosTheta, vec3 F0)
-{
-	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }

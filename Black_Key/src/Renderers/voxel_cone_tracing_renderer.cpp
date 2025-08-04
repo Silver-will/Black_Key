@@ -1,4 +1,5 @@
-#include "clustered_forward_renderer.h"
+#include "voxel_cone_tracing_renderer.h"
+
 #include "../vk_device.h"
 #include "../graphics.h"
 #include "../UI.h"
@@ -25,7 +26,7 @@ using namespace std::literals::string_literals;
 #define M_PI       3.14159265358979323846
 
 
-void ClusteredForwardRenderer::Init(VulkanEngine* engine)
+void VoxelConeTracingRenderer::Init(VulkanEngine* engine)
 {
 	assert(engine != nullptr);
 	this->engine = engine;
@@ -58,9 +59,9 @@ void ClusteredForwardRenderer::Init(VulkanEngine* engine)
 	_isInitialized = true;
 }
 
-void ClusteredForwardRenderer::ConfigureRenderWindow()
+void VoxelConeTracingRenderer::ConfigureRenderWindow()
 {
-	
+
 	glfwSetWindowUserPointer(engine->window, this);
 	glfwSetFramebufferSizeCallback(engine->window, FramebufferResizeCallback);
 	glfwSetKeyCallback(engine->window, KeyCallback);
@@ -68,7 +69,7 @@ void ClusteredForwardRenderer::ConfigureRenderWindow()
 	glfwSetInputMode(engine->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void ClusteredForwardRenderer::InitEngine()
+void VoxelConeTracingRenderer::InitEngine()
 {
 	//Request required GPU features and extensions
 	//vulkan 1.3 features
@@ -93,7 +94,7 @@ void ClusteredForwardRenderer::InitEngine()
 
 	VkPhysicalDeviceVulkan11Features features11{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
 	features11.shaderDrawParameters = true;
-	
+
 
 	VkPhysicalDeviceFeatures baseFeatures{};
 	baseFeatures.geometryShader = true;
@@ -101,7 +102,7 @@ void ClusteredForwardRenderer::InitEngine()
 	baseFeatures.sampleRateShading = true;
 	baseFeatures.drawIndirectFirstInstance = true;
 	baseFeatures.multiDrawIndirect = true;
-	
+
 	engine->init(baseFeatures, features11, features12, features);
 	resource_manager = std::make_shared<ResourceManager>(engine);
 	scene_manager = std::make_shared<SceneManager>();
@@ -111,12 +112,12 @@ void ClusteredForwardRenderer::InitEngine()
 
 }
 
-void ClusteredForwardRenderer::InitSwapchain()
+void VoxelConeTracingRenderer::InitSwapchain()
 {
 	CreateSwapchain(_windowExtent.width, _windowExtent.height);
 }
 
-void ClusteredForwardRenderer::InitRenderTargets()
+void VoxelConeTracingRenderer::InitRenderTargets()
 {
 	VkExtent3D drawImageExtent = {
 	_windowExtent.width,
@@ -228,7 +229,7 @@ void ClusteredForwardRenderer::InitRenderTargets()
 }
 
 
-void ClusteredForwardRenderer::InitCommands()
+void VoxelConeTracingRenderer::InitCommands()
 {
 	VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(engine->_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
@@ -245,7 +246,7 @@ void ClusteredForwardRenderer::InitCommands()
 	}
 }
 
-void ClusteredForwardRenderer::InitSyncStructures()
+void VoxelConeTracingRenderer::InitSyncStructures()
 {
 	VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -265,7 +266,7 @@ void ClusteredForwardRenderer::InitSyncStructures()
 	}
 }
 
-void ClusteredForwardRenderer::InitDescriptors()
+void VoxelConeTracingRenderer::InitDescriptors()
 {
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
@@ -397,7 +398,7 @@ void ClusteredForwardRenderer::InitDescriptors()
 }
 
 
-void ClusteredForwardRenderer::InitPipelines()
+void VoxelConeTracingRenderer::InitPipelines()
 {
 	PipelineCreationInfo info;
 	info.layouts.push_back(_gpuSceneDataDescriptorLayout);
@@ -416,12 +417,12 @@ void ClusteredForwardRenderer::InitPipelines()
 	skyInfo.layouts.push_back(_skyboxDescriptorLayout);
 	skyInfo.depthFormat = _depthImage.imageFormat;
 	skyInfo.imageFormat = _drawImage.imageFormat;
-	skyBoxPSO.build_pipelines(engine,skyInfo);
+	skyBoxPSO.build_pipelines(engine, skyInfo);
 
 	PipelineCreationInfo HDRinfo;
 	HDRinfo.layouts.push_back(postprocess_descriptor_layout);
 	HDRinfo.imageFormat = _drawImage.imageFormat;
-	HdrPSO.build_pipelines(engine,HDRinfo);
+	HdrPSO.build_pipelines(engine, HDRinfo);
 
 	PipelineCreationInfo upsampleBloomInfo;
 	upsampleBloomInfo.layouts.push_back(postprocess_descriptor_layout);
@@ -449,7 +450,7 @@ void ClusteredForwardRenderer::InitPipelines()
 }
 
 
-void ClusteredForwardRenderer::InitComputePipelines()
+void VoxelConeTracingRenderer::InitComputePipelines()
 {
 	VkPipelineLayoutCreateInfo cullLightsLayoutInfo = {};
 	cullLightsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -465,7 +466,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	cullLightsLayoutInfo.pPushConstantRanges = &pushConstant;
 	cullLightsLayoutInfo.pushConstantRangeCount = 1;
 
-	
+
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &cullLightsLayoutInfo, nullptr, &cull_lights_pso.layout));
 
 	VkShaderModule cullLightShader;
@@ -562,7 +563,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 	down_sample_bloom_layout_info.pPushConstantRanges = &pushConstant;
 	down_sample_bloom_layout_info.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(engine->_device, &down_sample_bloom_layout_info , nullptr, &downsample_bloom_pso.layout));
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &down_sample_bloom_layout_info, nullptr, &downsample_bloom_pso.layout));
 
 	VkShaderModule downsample_shader;
 	if (!vkutil::load_shader_module("shaders/downsample.spv", engine->_device, &downsample_shader)) {
@@ -625,7 +626,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 		vkDestroyPipelineLayout(engine->_device, cull_objects_pso.layout, nullptr);
 		vkDestroyPipeline(engine->_device, cull_objects_pso.pipeline, nullptr);
 		vkDestroyPipelineLayout(engine->_device, cull_lights_pso.layout, nullptr);
-		vkDestroyPipeline(engine->_device, cull_lights_pso.pipeline , nullptr);
+		vkDestroyPipeline(engine->_device, cull_lights_pso.pipeline, nullptr);
 		vkDestroyPipelineLayout(engine->_device, upsample_bloom_pso.layout, nullptr);
 		vkDestroyPipeline(engine->_device, upsample_bloom_pso.pipeline, nullptr);
 		vkDestroyPipelineLayout(engine->_device, downsample_bloom_pso.layout, nullptr);
@@ -634,7 +635,7 @@ void ClusteredForwardRenderer::InitComputePipelines()
 		});
 }
 
-void ClusteredForwardRenderer::InitDefaultData()
+void VoxelConeTracingRenderer::InitDefaultData()
 {
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
@@ -700,9 +701,9 @@ void ClusteredForwardRenderer::InitDefaultData()
 	std::uniform_real_distribution<> distRGB(0, 255.0f);
 	for (int i = 0; i < numOfLights; i++)
 	{
-		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f)/2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
+		pointData.pointLights.push_back(PointLight(glm::vec4(distFloat(rng), (distFloat(rng) + 25.0f) / 2.0f, distFloat(rng), 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), distRadius(rng), 10.0f));
 	}
-	
+
 	glm::vec2 mip_extent(_windowExtent.width, _windowExtent.height);
 	glm::ivec2 mip_int_extent(mip_extent.r, mip_extent.g);
 	//Create Bloom mip texture
@@ -713,9 +714,9 @@ void ClusteredForwardRenderer::InitDefaultData()
 		mip_int_extent /= 2;
 		mip.size = mip_extent;
 		mip.i_size = mip_int_extent;
-		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
+		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32,
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
-	
+
 		bloom_mip_maps.emplace_back(mip);
 	}
 	/*
@@ -824,7 +825,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 }
 
 
-void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
+void VoxelConeTracingRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 {
 	vkb::SwapchainBuilder swapchainBuilder{ engine->_chosenGPU,engine->_device,engine->_surface };
 
@@ -849,7 +850,7 @@ void ClusteredForwardRenderer::CreateSwapchain(uint32_t width, uint32_t height)
 }
 
 
-void ClusteredForwardRenderer::InitBuffers()
+void VoxelConeTracingRenderer::InitBuffers()
 {
 	ClusterValues.AABBVolumeGridSSBO = resource_manager->CreateBuffer(ClusterValues.numClusters * sizeof(VolumeTileAABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	float zNear = main_camera.getNearClip();
@@ -881,13 +882,13 @@ void ClusteredForwardRenderer::InitBuffers()
 	uint32_t val = 0;
 	for (uint32_t i = 0; i < 2; i++)
 	{
-		ClusterValues.lightGlobalIndex[i] = resource_manager->CreateAndUpload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT , VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
+		ClusterValues.lightGlobalIndex[i] = resource_manager->CreateAndUpload(sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &val);
 	}
-	
+
 }
 
 
-void ClusteredForwardRenderer::InitImgui()
+void VoxelConeTracingRenderer::InitImgui()
 {
 
 	// 1: create descriptor pool for IMGUI
@@ -956,7 +957,7 @@ void ClusteredForwardRenderer::InitImgui()
 		});
 }
 
-void ClusteredForwardRenderer::DestroySwapchain()
+void VoxelConeTracingRenderer::DestroySwapchain()
 {
 	vkDestroySwapchainKHR(engine->_device, swapchain, nullptr);
 
@@ -967,7 +968,7 @@ void ClusteredForwardRenderer::DestroySwapchain()
 	}
 }
 
-void ClusteredForwardRenderer::UpdateScene()
+void VoxelConeTracingRenderer::UpdateScene()
 {
 	float currentFrame = glfwGetTime();
 	float deltaTime = currentFrame - delta.lastFrame;
@@ -1039,7 +1040,7 @@ void ClusteredForwardRenderer::UpdateScene()
 	loadedScenes["plane"]->Draw(glm::mat4{ 1.f }, imageDrawCommands);
 }
 
-void ClusteredForwardRenderer::LoadAssets()
+void VoxelConeTracingRenderer::LoadAssets()
 {
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image("assets/textures/hdris/uffizi_cube.ktx", VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
@@ -1070,21 +1071,21 @@ void ClusteredForwardRenderer::LoadAssets()
 	resource_manager->write_material_array();
 }
 
-void ClusteredForwardRenderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void VoxelConeTracingRenderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	auto app = reinterpret_cast<VoxelConeTracingRenderer*>(glfwGetWindowUserPointer(window));
 	app->main_camera.processKeyInput(window, key, action);
 }
 
-void ClusteredForwardRenderer::CursorCallback(GLFWwindow* window, double xpos, double ypos)
+void VoxelConeTracingRenderer::CursorCallback(GLFWwindow* window, double xpos, double ypos)
 {
-	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	auto app = reinterpret_cast<VoxelConeTracingRenderer*>(glfwGetWindowUserPointer(window));
 	app->main_camera.processMouseMovement(window, xpos, ypos);
 }
 
-void ClusteredForwardRenderer::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
+void VoxelConeTracingRenderer::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-	auto app = reinterpret_cast<ClusteredForwardRenderer*>(glfwGetWindowUserPointer(window));
+	auto app = reinterpret_cast<VoxelConeTracingRenderer*>(glfwGetWindowUserPointer(window));
 	app->resize_requested = true;
 	if (width == 0 || height == 0)
 		app->stop_rendering = true;
@@ -1092,7 +1093,7 @@ void ClusteredForwardRenderer::FramebufferResizeCallback(GLFWwindow* window, int
 		app->stop_rendering = false;
 }
 
-void ClusteredForwardRenderer::PreProcessPass()
+void VoxelConeTracingRenderer::PreProcessPass()
 {
 	GenerateIrradianceCube();
 	GeneratePrefilteredCubemap();
@@ -1111,7 +1112,7 @@ void ClusteredForwardRenderer::PreProcessPass()
 		});
 }
 
-void ClusteredForwardRenderer::BuildClusters()
+void VoxelConeTracingRenderer::BuildClusters()
 {
 	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
 	ClusterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1175,7 +1176,7 @@ void ClusteredForwardRenderer::BuildClusters()
 		});
 }
 
-void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
+void VoxelConeTracingRenderer::GeneratePrefilteredCubemap()
 {
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 512;
@@ -1378,7 +1379,7 @@ void ClusteredForwardRenderer::GeneratePrefilteredCubemap()
 
 }
 
-void ClusteredForwardRenderer::GenerateIrradianceCube()
+void VoxelConeTracingRenderer::GenerateIrradianceCube()
 {
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	uint32_t dim = 64;
@@ -1588,7 +1589,7 @@ void ClusteredForwardRenderer::GenerateIrradianceCube()
 
 }
 
-void ClusteredForwardRenderer::Cleanup()
+void VoxelConeTracingRenderer::Cleanup()
 {
 	if (_isInitialized)
 	{
@@ -1606,7 +1607,7 @@ void ClusteredForwardRenderer::Cleanup()
 	engine = nullptr;
 }
 
-void ClusteredForwardRenderer::Draw()
+void VoxelConeTracingRenderer::Draw()
 {
 	ZoneScoped;
 	auto start_update = std::chrono::system_clock::now();
@@ -1721,13 +1722,13 @@ void ClusteredForwardRenderer::Draw()
 	_frameNumber++;
 }
 
-void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 {
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(shadowDataBuffer,engine);
+		vkutil::destroy_buffer(shadowDataBuffer, engine);
 		});
 
 	//write the buffer
@@ -1823,7 +1824,7 @@ void ClusteredForwardRenderer::DrawShadows(VkCommandBuffer cmd)
 	};
 
 }
-void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	auto main_start = std::chrono::system_clock::now();
@@ -1922,13 +1923,13 @@ void ClusteredForwardRenderer::DrawMain(VkCommandBuffer cmd)
 	ReduceDepth(cmd);
 }
 
-void ClusteredForwardRenderer::ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass)
+void VoxelConeTracingRenderer::ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass)
 {
-	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,engine);
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(gpuSceneDataBuffer,engine);
+		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		});
 
 	//write the buffer
@@ -2012,7 +2013,7 @@ inline uint32_t GetGroupCount(uint32_t threadCount, uint32_t localSize)
 	return (threadCount + localSize - 1) / localSize;
 }
 
-void ClusteredForwardRenderer::ReduceDepth(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::ReduceDepth(VkCommandBuffer cmd)
 {
 	VkImageMemoryBarrier depthReadBarriers[] =
 	{
@@ -2056,7 +2057,7 @@ void ClusteredForwardRenderer::ReduceDepth(VkCommandBuffer cmd)
 	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthWriteBarrier);
 
 }
-void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DownSampleBloom(VkCommandBuffer cmd)
 {
 	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	for (size_t i = 0; i < bloom_mip_maps.size(); i++)
@@ -2065,15 +2066,15 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 
 		auto& imageLevel = bloom_mip_maps[i];
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-		
+
 		DescriptorWriter writer;
-		writer.write_image(0, imageLevel.mip.imageView , bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		writer.write_image(0, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		if (i == 0)
 			writer.write_image(1, _resolveImage.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		else
-			writer.write_image(1, bloom_mip_maps[i-1].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			writer.write_image(1, bloom_mip_maps[i - 1].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		writer.update_set(engine->_device, bloomDescriptor);
-		
+
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.pipeline);
 
 		glm::vec2 srcImageDimension = i == 0 ? glm::vec2(_windowExtent.width, _windowExtent.height) : glm::vec2(bloom_mip_maps[i - 1].i_size);
@@ -2084,38 +2085,38 @@ void ClusteredForwardRenderer::DownSampleBloom(VkCommandBuffer cmd)
 		vkCmdPushConstants(cmd, downsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &downsample_data);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
-		vkCmdDispatch(cmd, (uint32_t)(srcImageDimension.x/16.0f) + 1, (uint32_t)(srcImageDimension.y/ 16.0f) + 1, 1);
+		vkCmdDispatch(cmd, (uint32_t)(srcImageDimension.x / 16.0f) + 1, (uint32_t)(srcImageDimension.y / 16.0f) + 1, 1);
 
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 }
 
-void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::UpSampleBloom(VkCommandBuffer cmd)
 {
 	//Original bloom compute shader
-	for (size_t i = bloom_mip_maps.size() - 1 ; i > 0; i--)
+	for (size_t i = bloom_mip_maps.size() - 1; i > 0; i--)
 	{
 		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
 
 		auto& imageLevel = bloom_mip_maps[i];
 		auto& nextImageLevel = bloom_mip_maps[i - 1];
-		
+
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-		
+
 		DescriptorWriter writer;
 		writer.write_image(0, nextImageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		writer.write_image(1, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		writer.update_set(engine->_device, bloomDescriptor);
 
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.pipeline);
-		
+
 		glm::vec2 srcImageDimension = glm::vec2(nextImageLevel.i_size);
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsample_bloom_pso.layout, 0, 1, &bloomDescriptor, 0, nullptr);
 		BloomUpsamplePushConstants upsample_data;
 		upsample_data.ScreenDimensions = srcImageDimension;
 		upsample_data.radius = bloom_filter_radius;
-		
+
 
 		vkCmdPushConstants(cmd, upsample_bloom_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomDownsamplePushConstants), &upsample_data);
 		vkCmdDispatch(cmd, ((uint32_t)nextImageLevel.i_size.x / 16) + 1, ((uint32_t)nextImageLevel.i_size.y / 16) + 1, 1);
@@ -2123,7 +2124,7 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
-	
+
 
 	/*
 	for (size_t i = bloom_mip_maps.size() - 1; i > 0; i--)
@@ -2170,7 +2171,7 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 				lastIndexBuffer = r.indexBuffer;
 				vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 			}
-			
+
 			BloomUpsamplePushConstants push_constants;
 			push_constants.radius = bloom_filter_radius;
 			push_constants.ScreenDimensions = glm::vec2(nextImageLevel.mip.imageExtent.width, nextImageLevel.mip.imageExtent.height);
@@ -2189,12 +2190,12 @@ void ClusteredForwardRenderer::UpSampleBloom(VkCommandBuffer cmd)
 	*/
 }
 
-void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawPostProcess(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	
+
 	DownSampleBloom(cmd);
 	//UpSampleBloom(cmd);
 	//vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2206,7 +2207,7 @@ void ClusteredForwardRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	vkCmdEndRendering(cmd);
 }
 
-void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawHdr(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	std::vector<uint32_t> draws;
@@ -2261,7 +2262,7 @@ void ClusteredForwardRenderer::DrawHdr(VkCommandBuffer cmd)
 
 	draw(imageDrawCommands.OpaqueSurfaces[0]);
 }
-void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawBackground(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	std::vector<uint32_t> b_draws;
@@ -2271,7 +2272,7 @@ void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(skySceneDataBuffer,engine);
+		vkutil::destroy_buffer(skySceneDataBuffer, engine);
 		});
 
 	//write the buffer
@@ -2329,17 +2330,17 @@ void ClusteredForwardRenderer::DrawBackground(VkCommandBuffer cmd)
 	skyDrawCommands.OpaqueSurfaces.clear();
 }
 
-void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawGeometry(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	stats.drawcall_count = 0;
 	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,engine);
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(gpuSceneDataBuffer,engine);
+		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		vkutil::destroy_buffer(shadowDataBuffer, engine);
 		});
 
@@ -2426,7 +2427,7 @@ void ClusteredForwardRenderer::DrawGeometry(VkCommandBuffer cmd)
 	draws.clear();
 }
 
-void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::CullLights(VkCommandBuffer cmd)
 {
 	CullData culling_information;
 
@@ -2446,7 +2447,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	culling_information.view = scene_data.view;
 
 	//culling_information.lightCount = pointData.pointLights.size();
-	
+
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.pipeline);
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cull_lights_pso.layout, 0, 1, &cullingDescriptor, 0, nullptr);
 	vkCmdPushConstants(cmd, cull_lights_pso.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::mat4), &scene_data.view);
@@ -2462,7 +2463,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	lightGridBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	lightGridBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	lightGridBarrier.size = VK_WHOLE_SIZE;
-	
+
 	/*lightGridBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 	lightGridBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	*/
@@ -2491,7 +2492,7 @@ void ClusteredForwardRenderer::CullLights(VkCommandBuffer cmd)
 	vkCmdPipelineBarrier2(cmd, &barrier_info);
 }
 
-void ClusteredForwardRenderer::GenerateAABB(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::GenerateAABB(VkCommandBuffer cmd)
 {
 	CullData culling_information;
 
@@ -2532,7 +2533,7 @@ void ClusteredForwardRenderer::GenerateAABB(VkCommandBuffer cmd)
 	};
 	vkCmdPipelineBarrier2(cmd, &barrier_info);
 }
-void ClusteredForwardRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
+void VoxelConeTracingRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
 	auto start_imgui = std::chrono::system_clock::now();
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -2548,7 +2549,7 @@ void ClusteredForwardRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView target
 	stats.ui_draw_time = elapsed_imgui.count() / 1000.f;
 }
 
-void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
+void VoxelConeTracingRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 {
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
@@ -2573,7 +2574,7 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
-		vkutil::destroy_buffer(gpuSceneDataBuffer,engine);
+		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		});
 
 	//write the buffer
@@ -2623,7 +2624,7 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 	}
 }
 
-void ClusteredForwardRenderer::Run()
+void VoxelConeTracingRenderer::Run()
 {
 	bool bQuit = false;
 
@@ -2665,7 +2666,7 @@ void ClusteredForwardRenderer::Run()
 	FrameMark;
 }
 
-void ClusteredForwardRenderer::ResizeSwapchain()
+void VoxelConeTracingRenderer::ResizeSwapchain()
 {
 	vkDeviceWaitIdle(engine->_device);
 
@@ -2698,7 +2699,7 @@ void ClusteredForwardRenderer::ResizeSwapchain()
 	resize_requested = false;
 }
 
-void ClusteredForwardRenderer::DrawUI()
+void VoxelConeTracingRenderer::DrawUI()
 {
 	// Demonstrate the various window flags. Typically you would just use the default!
 	static bool no_titlebar = false;
@@ -2852,3 +2853,4 @@ void ClusteredForwardRenderer::DrawUI()
 	}
 	ImGui::End();
 }
+

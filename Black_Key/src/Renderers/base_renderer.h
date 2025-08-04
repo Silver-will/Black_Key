@@ -30,3 +30,4 @@ struct BaseRenderer
 
 };
 
+constexpr unsigned int FRAME_OVERLAP = 2;

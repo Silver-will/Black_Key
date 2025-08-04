@@ -1,8 +1,8 @@
 #pragma once
 #include "base_renderer.h"
-#include <memory>
+#include "../vk_engine.h"
 
-struct ClusteredForwardRenderer : BaseRenderer
+struct VoxelConeTracingRenderer : public BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
 	void Cleanup() override;
@@ -57,7 +57,7 @@ struct ClusteredForwardRenderer : BaseRenderer
 	void CreateSwapchain(uint32_t width, uint32_t height);
 	void DestroySwapchain();
 	void ResizeSwapchain();
-	
+
 	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void CursorCallback(GLFWwindow* window, double xpos, double ypos);
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
@@ -108,7 +108,7 @@ private:
 	struct {
 		float lastFrame;
 	} delta;
-	VkExtent2D _windowExtent{ 1920,1080};
+	VkExtent2D _windowExtent{ 1920,1080 };
 	float bloom_filter_radius = 0.0001f;
 	float bloom_strength = 0.08f;
 	bool use_fxaa = false;
@@ -128,7 +128,7 @@ private:
 	AllocatedImage _depthPyramid;
 	std::vector<BlackKey::BloomMip> bloom_mip_maps;
 	uint32_t mip_chain_length = 5;
-	
+
 	IBLData IBL;
 	int draw_count = 0;
 
@@ -228,3 +228,4 @@ private:
 	}pointData;
 	DrawContext mainDrawContext;
 };
+

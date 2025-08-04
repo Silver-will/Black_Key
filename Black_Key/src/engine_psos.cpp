@@ -349,3 +349,9 @@ void EarlyDepthPipelineObject::clear_resources(VkDevice device)
 
 	vkDestroyPipeline(device, earlyDepthPipeline.pipeline, nullptr);
 }
+
+
+void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
+{
+
+}

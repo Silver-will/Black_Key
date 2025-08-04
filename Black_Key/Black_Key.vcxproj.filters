@@ -138,6 +138,9 @@
     <ClCompile Include="..\third_party\vk-bootstrap\src\VkBootstrap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Renderers\voxel_cone_tracing_renderer.cpp">
+      <Filter>Source Files\Renderers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -247,6 +250,9 @@
     </ClInclude>
     <ClInclude Include="..\third_party\vk-bootstrap\src\VkBootstrapDispatch.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderers\voxel_cone_tracing_renderer.h">
+      <Filter>Source Files\Renderers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

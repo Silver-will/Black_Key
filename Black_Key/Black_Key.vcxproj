@@ -226,6 +226,7 @@
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\Renderers\base_renderer.cpp" />
     <ClCompile Include="src\Renderers\clustered_forward_renderer.cpp" />
+    <ClCompile Include="src\Renderers\voxel_cone_tracing_renderer.cpp" />
     <ClCompile Include="src\resource_manager.cpp" />
     <ClCompile Include="src\stb_definition.cpp" />
     <ClCompile Include="src\material_system.cpp" />
@@ -266,6 +267,7 @@
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\Renderers\base_renderer.h" />
     <ClInclude Include="src\Renderers\clustered_forward_renderer.h" />
+    <ClInclude Include="src\Renderers\voxel_cone_tracing_renderer.h" />
     <ClInclude Include="src\resource_manager.h" />
     <ClInclude Include="src\material_system.h" />
     <ClInclude Include="src\UI.h" />
