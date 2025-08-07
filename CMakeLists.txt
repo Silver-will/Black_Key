@@ -10,7 +10,7 @@ if (POLICY CMP0141)
 endif()
 
 
-project ("A-Ray")
+project ("Black_Key")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,7 +29,7 @@ find_package(Vulkan REQUIRED)
 
 
 # Include sub-projects.
-add_subdirectory ("A-Ray")
+add_subdirectory ("Black_Key")
 add_subdirectory ("third_party/fastgltf")
 add_subdirectory ("third_party/glm")
 add_subdirectory ("third_party/glfw")
@@ -66,9 +66,9 @@ add_subdirectory ("third_party")
 endif()
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
-    A-Ray/
-    A-Ray/include/
-    A-Ray/src/
+    Black_Key/
+    Black_Key/include/
+    Black_Key/src/
     third_party/vma/include
     third_party/vma
     third_party/vma/src
