@@ -41,7 +41,7 @@ VulkanEngine* loadedEngine = nullptr;
 
 
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
-void VulkanEngine::init(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13)
+void VulkanEngine::init(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13, std::vector<const char*> array)
 {
 
 	assert(loadedEngine == nullptr);
@@ -222,7 +222,7 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
 
 
-void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13)
+void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13, std::vector<const char*> extensions)
 {
 	vkb::InstanceBuilder builder;
 
@@ -231,6 +231,7 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 		.request_validation_layers(bUseValidationLayers)
 		.use_default_debug_messenger()
 		.require_api_version(1, 3, 0)
+		.enable_extension("VK_KHR_get_physical_device_properties2");
 		.build();
 
 	vkb::Instance vkb_inst = inst_ret.value();
@@ -258,7 +259,9 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 		.select()
 		.value();
 
-
+	if (extensions[0] == "")
+		physicalDevice.enable_extensions_if_present(extensions);
+	
 	msaa_samples = vkinit::getMaxAvailableSampleCount(physicalDevice.properties);
 	if (msaa_samples > VK_SAMPLE_COUNT_4_BIT)
 		msaa_samples = VK_SAMPLE_COUNT_4_BIT;

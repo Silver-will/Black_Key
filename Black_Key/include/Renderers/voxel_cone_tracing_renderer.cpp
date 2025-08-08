@@ -76,6 +76,7 @@ void VoxelConeTracingRenderer::InitEngine()
 	VkPhysicalDeviceVulkan13Features features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 	features.dynamicRendering = true;
 	features.synchronization2 = true;
+	
 
 	//vulkan 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
@@ -103,7 +104,8 @@ void VoxelConeTracingRenderer::InitEngine()
 	baseFeatures.drawIndirectFirstInstance = true;
 	baseFeatures.multiDrawIndirect = true;
 
-	engine->init(baseFeatures, features11, features12, features);
+	std::vector<const char*> requested_extension{"VK_EXT_conservative_rasterization"};
+	engine->init(baseFeatures, features11, features12, features, requested_extension);
 	resource_manager = std::make_shared<ResourceManager>(engine);
 	scene_manager = std::make_shared<SceneManager>();
 	scene_manager->Init(resource_manager, engine);

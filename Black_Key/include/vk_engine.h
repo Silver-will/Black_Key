@@ -33,7 +33,7 @@ struct FrameData {
 class VulkanEngine {
 public:
 	//initializes everything in the engine
-	void init(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13);
+	void init(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13, std::vector<const char*> array ={""});
 
 	//shuts down the engine
 	void cleanup();
@@ -78,7 +78,7 @@ public:
 	
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 	//r
-	void init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13);
+	void init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysicalDeviceVulkan11Features features11, VkPhysicalDeviceVulkan12Features features12, VkPhysicalDeviceVulkan13Features features13, std::vector<const char*> extensions = { "" });
 	VkSampleCountFlagBits GetMSAASampleCount();
 private:
 	void init_imgui();

@@ -487,5 +487,88 @@ void EarlyDepthPipelineObject::clear_resources(VkDevice device)
 
 void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
+	VkShaderModule voxelization_frag_shader;
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.frag.spv").c_str(), engine->_device, &voxelization_frag_shader)) {
+		std::println("Error when building the triangle fragment shader module");
+	}
+	
+	VkShaderModule voxelization_geom_shader;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.geom.spv").c_str(), engine->_device, &voxelization_geom_shader)) {
+		std::println("Error when building the triangle fragment shader module");
+	}
 
+	VkShaderModule voxelization_vert_shader;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.vert.spv").c_str(), engine->_device, &voxelization_vert_shader)) {
+		std::println("Error when building the triangle vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+
+	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	opaquePipeline.layout = newLayout;
+	transparentPipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(voxelization_vert_shader, voxelization_frag_shader, voxelization_geom_shader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+
+	//Conservative rasterization setup
+		
+	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR"));
+	assert(vkGetPhysicalDeviceProperties2KHR);
+	VkPhysicalDeviceProperties2KHR deviceProps2{};
+	conservativeRasterProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT;
+	deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+	deviceProps2.pNext = &conservativeRasterProps;
+	vkGetPhysicalDeviceProperties2KHR(physicalDevice, &deviceProps2);
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	// create the transparent variant
+	pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, voxelization_frag_shader, nullptr);
+	vkDestroyShaderModule(engine->_device, voxelization_vert_shader, nullptr);
 }
+
