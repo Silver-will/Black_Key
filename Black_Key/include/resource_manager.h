@@ -8,6 +8,7 @@
 #include "vk_pipelines.h"
 #include "vk_types.h"
 #include "vk_images.h"
+#include "engine_psos.h"
 #include "vk_loader.h"
 #include <glm/gtx/quaternion.hpp>
 

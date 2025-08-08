@@ -427,6 +427,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
 
 void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
 {
+	std::string assets_path = ENGINE_ASSET_PATH;
 	VkFormat format = VK_FORMAT_R16G16_SFLOAT;
 	uint32_t dim = 512;
 	uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
@@ -453,12 +454,12 @@ void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
 
 	//Pipeline setup
 	VkShaderModule brdfLutVertexShader;
-	if (!vkutil::load_shader_module("shaders/gen_brdf_lut.vert.spv", engine->_device, &brdfLutVertexShader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/gen_brdf_lut.vert.spv").c_str(), engine->_device, &brdfLutVertexShader)) {
 		std::println("Error when building the shadow vertex shader module");
 	}
 
 	VkShaderModule brdfLutFragmentShader;
-	if (!vkutil::load_shader_module("shaders/gen_brdf_lut.frag.spv", engine->_device, &brdfLutFragmentShader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/gen_brdf_lut.frag.spv").c_str(), engine->_device, &brdfLutFragmentShader)) {
 		std::println("Error when building the shadow fragment shader module");
 	}
 

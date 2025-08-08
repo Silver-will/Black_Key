@@ -105,6 +105,9 @@ private:
 	bool debugLightClustering = false;
 	bool readDebugBuffer = false;
 
+
+	std::string assets_path;
+
 	struct {
 		float lastFrame;
 	} delta;

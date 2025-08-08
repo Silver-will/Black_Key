@@ -116,6 +116,8 @@ private:
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
+	std::string assets_path;
+
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;
 	AllocatedImage _drawImage;

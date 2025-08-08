@@ -1,5 +1,15 @@
 #include "engine_util.h"
 
+std::string GetAssetPath()
+{
+    //ENGINE_ASSET_PATH is predefined by cmake
+#if defined (ENGINE_ASSET_PATH)
+    return ENGINE_ASSET_PATH;
+#else
+    return "../..";
+#endif
+    return "assets/";
+}
 
 glm::vec4 BlackKey::Vec3Tovec4(glm::vec3 v, float fill) {
 	glm::vec4 ret;

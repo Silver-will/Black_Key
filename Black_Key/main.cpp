@@ -8,20 +8,11 @@ int main(int argc, char* argv[])
 	auto engine = std::make_shared<VulkanEngine>();
 	
 	std::unique_ptr<BaseRenderer> VXGIDemo = std::make_unique<VoxelConeTracingRenderer>();
+	
 	VXGIDemo->Init(engine.get());
 	VXGIDemo->Run();
 	VXGIDemo->Cleanup();
 	engine->cleanup();	
-	
 
-	/*
-	VulkanEngine engine;
-
-	engine.init();
-
-	engine.run();
-
-	engine.cleanup();
-	*/
 	return 0;
 }

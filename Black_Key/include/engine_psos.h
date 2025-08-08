@@ -128,6 +128,46 @@ struct UpsamplePipelineObject {
 };
 
 
+struct GLTFMetallic_Roughness {
+	MaterialPipeline opaquePipeline;
+	MaterialPipeline transparentPipeline;
+
+	VkDescriptorSetLayout materialLayout;
+
+	struct MaterialConstants {
+		glm::vec4 colorFactors;
+		glm::vec4 metal_rough_factors;
+		//padding, we need it anyway for uniform buffers
+		glm::vec4 extra[14];
+	};
+
+	struct MaterialResources {
+		AllocatedImage colorImage;
+		VkSampler colorSampler;
+		AllocatedImage metalRoughImage;
+		VkSampler metalRoughSampler;
+		AllocatedImage occlusionImage;
+		VkSampler occlusionSampler;
+		//Flag if the occlusion texture is separate from the metallicRoughness one
+		bool separate_occ_texture = false;
+		bool rough_metallic_texture_found = false;
+		bool normal_texture_found = false;
+		AllocatedImage normalImage;
+		VkSampler normalSampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
+	void clear_resources(VkDevice device);
+
+	MaterialInstance SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index = -1);
+	MaterialInstance WriteMaterial(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+};
+
+
 struct ConservativeVoxelization {
 	MaterialPipeline VoxelizationPipeline;
 	VkDescriptorSetLayout descriptorLayout;

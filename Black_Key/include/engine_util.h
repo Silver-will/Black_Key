@@ -58,5 +58,5 @@ namespace BlackKey{
 
 }
 
-
+std::string GetAssetPath();
 #endif

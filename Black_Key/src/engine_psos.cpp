@@ -6,20 +6,149 @@
 #include <ktx.h>
 #include <print>
 
+
+void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
+{
+	VkShaderModule meshFragShader;
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/pbr_test.frag.spv").c_str(), engine->_device, &meshFragShader)) {
+		std::println("Error when building the triangle fragment shader module");
+	}
+
+	VkShaderModule meshVertexShader;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/indirect_forward.vert.spv").c_str(), engine->_device, &meshVertexShader)) {
+		std::println("Error when building the triangle vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+
+	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	opaquePipeline.layout = newLayout;
+	transparentPipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.disable_blending();
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	// create the transparent variant
+	pipelineBuilder.enable_blending_additive();
+
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
+	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+}
+
+MaterialInstance GLTFMetallic_Roughness::SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index)
+{
+	MaterialInstance matData;
+	matData.passType = pass;
+	if (pass == vkutil::MaterialPass::transparency) {
+		matData.pipeline = &transparentPipeline;
+	}
+	else {
+		matData.pipeline = &opaquePipeline;
+	}
+
+	if (mat_index >= 0)
+		matData.material_index = mat_index;
+	return matData;
+}
+
+MaterialInstance GLTFMetallic_Roughness::WriteMaterial(VkDevice device, vkutil::MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+	MaterialInstance matData;
+	matData.passType = pass;
+	if (pass == vkutil::MaterialPass::transparency) {
+		matData.pipeline = &transparentPipeline;
+	}
+	else {
+		matData.pipeline = &opaquePipeline;
+	}
+
+	matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
+
+
+	writer.clear();
+	writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	if (resources.separate_occ_texture)
+	{
+		writer.write_image(4, resources.occlusionImage.imageView, resources.occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	}
+	writer.update_set(device, matData.materialSet);
+
+	return matData;
+}
+
+void GLTFMetallic_Roughness::clear_resources(VkDevice device)
+{
+	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+	vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
+	vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
+}
+
+
+
 void ShadowPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule shadowVertexShader;
-	if (!vkutil::load_shader_module("shaders/cascaded_shadows.vert.spv", engine->_device, &shadowVertexShader)) {
+	std::string assets_path = ENGINE_ASSET_PATH;
+
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/cascaded_shadows.vert.spv").c_str(), engine->_device, &shadowVertexShader)) {
 		std::print("Error when building the shadow vertex shader module\n");
 	}
 
 	VkShaderModule shadowFragmentShader;
-	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &shadowFragmentShader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/cascaded_shadows.frag.spv").c_str(), engine->_device, &shadowFragmentShader)) {
 		std::print("Error when building the shadow fragment shader module\n");
 	}
 
 	VkShaderModule shadowGeometryShader;
-	if (!vkutil::load_shader_module("shaders/cascaded_shadows.geom.spv", engine->_device, &shadowGeometryShader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/cascaded_shadows.geom.spv").c_str(), engine->_device, &shadowGeometryShader)) {
 		std::print("Error when building the shadow geometry shader module\n");
 	}
 
@@ -96,13 +225,14 @@ void ShadowPipelineResources::clear_resources(VkDevice device)
 void SkyBoxPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule skyVertexShader;
-	if (!vkutil::load_shader_module("shaders/skybox.vert.spv", engine->_device, &skyVertexShader)) {
-		std::print("Error when building the shadow vertex shader module\n");
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/skybox.vert.spv").c_str(), engine->_device, &skyVertexShader)) {
+		std::print("Error when building the skybox vertex shader module\n");
 	}
 
 	VkShaderModule skyFragmentShader;
-	if (!vkutil::load_shader_module("shaders/skybox.frag.spv", engine->_device, &skyFragmentShader)) {
-		std::print("Error when building the shadow fragment shader module\n");
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/skybox.frag.spv").c_str(), engine->_device, &skyFragmentShader)) {
+		std::print("Error when building the skybox fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -175,13 +305,14 @@ MaterialInstance BloomBlurPipelineObject::write_material(VkDevice device, vkutil
 void RenderImagePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule HDRVertexShader;
-	if (!vkutil::load_shader_module("shaders/hdr.vert.spv", engine->_device, &HDRVertexShader)) {
-		std::print("Error when building the shadow vertex shader module\n");
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/hdr.vert.spv").c_str(), engine->_device, &HDRVertexShader)) {
+		std::print("Error when building the fullscreen quad vertex shader module\n");
 	}
 
 	VkShaderModule HDRFragmentShader;
-	if (!vkutil::load_shader_module("shaders/hdr.frag.spv", engine->_device, &HDRFragmentShader)) {
-		std::print("Error when building the shadow fragment shader module\n");
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/hdr.frag.spv").c_str(), engine->_device, &HDRFragmentShader)) {
+		std::print("Error when building the fullscreen quad fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -231,13 +362,14 @@ void RenderImagePipelineObject::clear_resources(VkDevice device)
 void UpsamplePipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
 	VkShaderModule HDRVertexShader;
-	if (!vkutil::load_shader_module("shaders/bloom.vert.spv", engine->_device, &HDRVertexShader)) {
-		std::print("Error when building the shadow vertex shader module\n");
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/bloom.vert.spv").c_str(), engine->_device, &HDRVertexShader)) {
+		std::print("Error when building the bloom upsample vertex shader module\n");
 	}
 
 	VkShaderModule UpsampleFrag;
-	if (!vkutil::load_shader_module("shaders/upsample.frag.spv", engine->_device, &UpsampleFrag)) {
-		std::print("Error when building the shadow fragment shader module\n");
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/upsample.frag.spv").c_str(), engine->_device, &UpsampleFrag)) {
+		std::print("Error when building the bloom upsample fragment shader module\n");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -295,14 +427,16 @@ void UpsamplePipelineObject::clear_resources(VkDevice device)
 
 void EarlyDepthPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
 {
+	std::string assets_path = ENGINE_ASSET_PATH;
+
 	VkShaderModule depthVertexShader;
-	if (!vkutil::load_shader_module("shaders/depth_pass.vert.spv", engine->_device, &depthVertexShader)) {
-		std::print("Error when building the shadow vertex shader module\n");
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/depth_pass.vert.spv").c_str(), engine->_device, &depthVertexShader)) {
+		std::print("Error when building the early depth vertex shader module\n");
 	}
 
 	VkShaderModule depthFragmentShader;
-	if (!vkutil::load_shader_module("shaders/cascaded_shadows.frag.spv", engine->_device, &depthFragmentShader)) {
-		std::print("Error when building the shadow fragment shader module\n");
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/cascaded_shadows.frag.spv").c_str(), engine->_device, &depthFragmentShader)) {
+		std::print("Error when building the early depth fragment shader module\n");
 	}
 
 
