@@ -1,0 +1,64 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "ibl_helpers.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set = 0,binding = 0) uniform samplerCube environmentMap;
+layout(set = 0,binding = 1, rgba16f) writeonly uniform imageCube prefilteredMap;
+
+layout(push_constant) uniform Params {
+    vec2 mipmapSize;
+    float roughness;
+} constants;
+
+const vec2 cubemapSize = vec2(1024.0, 1024.0);
+const float originalSamples = cubemapSize.x * cubemapSize.y;
+const uint totalSamples = 1024u;
+
+// importance sampling GGX NDF 
+vec3 importanceSampleGGX(vec2 Xi, vec3 N, float roughness);
+
+void main()
+{   
+    ivec3 cubeCoord = ivec3(gl_GlobalInvocationID);
+    vec3 worldPos = cubeCoordToWorld(cubeCoord, constants.mipmapSize);
+    // tagent space from origin point
+    vec3 N = normalize(worldPos);
+    // assume view direction always equal to outgoing direction
+    vec3 R = N;
+    vec3 V = N;
+
+    float roughness = max(constants.roughness, 0.04);
+    float totalWeight = 0.0;   
+    vec3 prefilteredColor = vec3(0.0);     
+    for(uint i = 0u; i < totalSamples; ++i)
+    {
+        // generate sample vector towards the alignment of the specular lobe
+        vec2 Xi = hammersleySequence(i, totalSamples);
+        vec3 H = importanceSampleGGX(Xi, N, roughness);
+        float dotHV = dot(H, V);
+        vec3 L = normalize(2.0 * dotHV * H - V);
+
+        float dotNL = max(dot(N, L), 0.0);
+        if(dotNL > 0.0)
+        {
+            float dotNH = max(dot(N, H), 0.0);
+            dotHV = max(dotHV, 0.0);
+            // sample from the environment's mip level based on roughness/pdf
+            float D = d_ggx(dotNH, roughness);
+            float pdf = D * dotNH / (4.0 * dotHV) + 0.0001; 
+
+            float saTexel  = 4.0 * PI / (6.0 * originalSamples);
+            float saSample = 1.0 / (totalSamples * pdf + 0.0001);
+            float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
+
+            prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * dotNL;
+            totalWeight += dotNL;
+        }
+    }
+    prefilteredColor = prefilteredColor / totalWeight;
+
+    imageStore(prefilteredMap, cubeCoord, vec4(prefilteredColor, 1.0));
+}

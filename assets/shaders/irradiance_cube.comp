@@ -1,0 +1,54 @@
+#version 460 core
+
+#extension GL_GOOGLE_include_directive : require
+#include "ibl_helpers.glsl"
+#include "helper_functions.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0, rgba16f) uniform readonly imageCube environmentMap;
+layout(binding = 1, rgba16f) writeonly uniform imageCube irradianceMap;
+
+const float sampleDelta = 0.025;
+const float totalSamples = (TWO_PI / sampleDelta) * (HALF_PI / sampleDelta); 
+const float invTotalSamples = 1.0 / totalSamples;
+
+const float deltaPhi = (2.0f * float(PI)) / 180.0f;
+const float deltaTheta = (0.5f * float(PI)) / 64.0f;
+
+const vec2 cubemapSize = vec2(1024.0, 1024.0);
+
+void main()
+{
+	ivec3 cubeCoord = ivec3(gl_GlobalInvocationID);
+    vec3 worldPos = cubeCoordToWorld(cubeCoord, cubemapSize);
+    // tangent space from origin point
+    vec3 normal = normalize(worldPos);
+    vec3 up = vec3(0.0, 1.0, 0.0);
+    vec3 right = normalize(cross(up, normal));
+    up = cross(normal, right);
+
+    vec3 irradiance = vec3(0.0);
+    for(float phi = 0.0; phi < TWO_PI; phi += sampleDelta)
+    {
+        float sinPhi = sin(phi);
+        float cosPhi = cos(phi);
+        
+        for(float theta = 0.0; theta < HALF_PI; theta += sampleDelta)
+        {
+            float sinTheta = sin(theta);
+            float cosTheta = cos(theta);
+
+            // spherical to cartesian, in tangent space
+            vec3 sphereCoord = vec3(sinTheta * cosPhi,  sinTheta * sinPhi, cosTheta);
+            // tangent space to world
+            vec3 sampleVec = sphereCoord.x * right + sphereCoord.y * up + sphereCoord.z * normal; 
+            // world to cube coord
+            ivec3 sampleCoord = texCoordToCube(sampleVec, cubemapSize);
+
+            irradiance += imageLoad(environmentMap, sampleCoord).rgb * cosTheta * sinTheta;
+        }
+    }
+    irradiance *= PI * invTotalSamples;
+    imageStore(irradianceMap, cubeCoord, vec4(irradiance,1.0));
+}
