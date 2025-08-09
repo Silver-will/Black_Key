@@ -18,16 +18,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Vulkan SDK
 find_package(Vulkan REQUIRED)    
 
-
-
-#set(KTX_FEATURE_LOADTEST_APPS OFF CACHE BOOL "" FORCE)
-#set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
-#set(KTX_FEATURE_ASTC=OFF)
-#set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
-#set(KTX_FEATURE_STATIC_LIBRARY OFF CACHE BOOL "" FORCE)
-#set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
-
-
 # Include sub-projects.
 add_subdirectory ("Black_Key")
 add_subdirectory ("third_party/fastgltf")

@@ -266,3 +266,8 @@ void PipelineBuilder::set_vertex_input_state(VkPipelineVertexInputStateCreateInf
 {
     _vertexInputInfo = vertexInfo;
 }
+
+void PipelineBuilder::set_next_rasterization_state(void* next)
+{
+    _rasterizer.pNext = next;
+}

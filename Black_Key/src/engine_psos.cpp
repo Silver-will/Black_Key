@@ -526,8 +526,7 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
 
-	opaquePipeline.layout = newLayout;
-	transparentPipeline.layout = newLayout;
+	voxelizationPipeline.layout = newLayout;
 
 	// build the stage-create-info for both vertex and fragment stages. This lets
 	// the pipeline know the shader modules per stage
@@ -543,14 +542,22 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 
 	//Conservative rasterization setup
 		
-	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR"));
+	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(engine->_instance, "vkGetPhysicalDeviceProperties2KHR"));
 	assert(vkGetPhysicalDeviceProperties2KHR);
 	VkPhysicalDeviceProperties2KHR deviceProps2{};
 	conservativeRasterProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT;
 	deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
 	deviceProps2.pNext = &conservativeRasterProps;
-	vkGetPhysicalDeviceProperties2KHR(physicalDevice, &deviceProps2);
+	vkGetPhysicalDeviceProperties2KHR(engine->_chosenGPU, &deviceProps2);
 
+	VkPipelineRasterizationConservativeStateCreateInfoEXT conservativeRasterStateCI{};
+	conservativeRasterStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT;
+	conservativeRasterStateCI.conservativeRasterizationMode = VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
+	conservativeRasterStateCI.extraPrimitiveOverestimationSize = conservativeRasterProps.maxExtraPrimitiveOverestimationSize;
+
+	// Conservative rasterization state has to be chained into the pipeline rasterization state create info structure
+	pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
+	
 	//render format
 	pipelineBuilder.set_color_attachment_format(info.imageFormat);
 	pipelineBuilder.set_depth_format(info.depthFormat);
@@ -559,16 +566,10 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 	pipelineBuilder._pipelineLayout = newLayout;
 
 	// finally build the pipeline
-	opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-
-	// create the transparent variant
-	pipelineBuilder.enable_blending_additive();
-
-	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+	voxelizationPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
 	vkDestroyShaderModule(engine->_device, voxelization_frag_shader, nullptr);
 	vkDestroyShaderModule(engine->_device, voxelization_vert_shader, nullptr);
+	vkDestroyShaderModule(engine->_device, voxelization_geom_shader, nullptr);
 }
 

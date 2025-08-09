@@ -231,7 +231,7 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 		.request_validation_layers(bUseValidationLayers)
 		.use_default_debug_messenger()
 		.require_api_version(1, 3, 0)
-		.enable_extension("VK_KHR_get_physical_device_properties2");
+		.enable_extension("VK_KHR_get_physical_device_properties2")
 		.build();
 
 	vkb::Instance vkb_inst = inst_ret.value();

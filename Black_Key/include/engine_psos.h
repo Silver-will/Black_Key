@@ -169,9 +169,11 @@ struct GLTFMetallic_Roughness {
 
 
 struct ConservativeVoxelization {
-	MaterialPipeline VoxelizationPipeline;
-	VkDescriptorSetLayout descriptorLayout;
+	MaterialPipeline voxelizationPipeline;
+	VkDescriptorSetLayout materialLayout;
 
+	// Fetch and store conservative rasterization state props for display purposes
+	VkPhysicalDeviceConservativeRasterizationPropertiesEXT conservativeRasterProps{};
 	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
 
 	void clear_resources(VkDevice device);
