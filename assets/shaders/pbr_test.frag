@@ -76,7 +76,9 @@ void main()
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
-    metallicRough = vec2(0.01, 0.89);
+
+	vec3 occlusion = texture(material_textures[nonuniformEXT(inMaterialIndex+3)],inUV).rgb;
+	vec3 emmision = texture(material_textures[nonuniformEXT(inMaterialIndex+4)],inUV).rgb;
 
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
@@ -87,6 +89,7 @@ void main()
 
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough);
 
+	color *= occlusion;
 	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     float depthValue = fragPosViewSpace.z;
 	int blend = 0;
@@ -102,6 +105,7 @@ void main()
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
 	color *= shadow;
 
+	//color = emmision;
 	//Calculate point lights
 	//for(int i = 0; i < lightCount; i++)
 	//{
@@ -229,8 +233,7 @@ vec3 CalculateNormalFromMap()
 	vec3 T = normalize(inTangent.xyz);
 	vec3 B = cross(N, T) * inTangent.w;
 	mat3 TBN = mat3(T, B, N);
-	//return normalize(TBN * tangentNormal);
-	return N;
+	return normalize(TBN * tangentNormal);
 }
 
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)

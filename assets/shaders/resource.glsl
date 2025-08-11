@@ -68,6 +68,7 @@ struct GLTFMaterialData{
 	int has_occlusion_tex;
 	int has_emission;
 	int pad;
+	vec4 emission_color;
 };
 
 layout(set = 1, binding = 0) uniform GLTFMaterialDataBuffer{

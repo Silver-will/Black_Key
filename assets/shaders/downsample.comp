@@ -92,7 +92,6 @@ void main()
 	  downsample += (a+c+g+i)*0.03125;     // ok
 	  downsample += (b+d+f+h)*0.0625;      // ok
 	  downsample += (j+k+l+m)*0.125;       // ok
-	  downsample = vec3(1.0,0.0,0.0);
 	  break;
 	}
 	imageStore(dstTexture, imageCoord, vec4(downsample, 1.0f));

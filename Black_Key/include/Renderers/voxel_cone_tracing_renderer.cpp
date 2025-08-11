@@ -1046,7 +1046,7 @@ void VoxelConeTracingRenderer::LoadAssets()
 {
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image(std::string(assets_path + "/textures/hdris/uffizi_cube.ktx").c_str(), VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-	std::string structurePath{ assets_path + "/models/material_sphere.glb" };
+	std::string structurePath{ assets_path + "/models/sponza/sponza.gltf" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 
@@ -2199,7 +2199,7 @@ void VoxelConeTracingRenderer::DrawPostProcess(VkCommandBuffer cmd)
 	vkutil::transition_image(cmd, _depthResolveImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	DownSampleBloom(cmd);
-	//UpSampleBloom(cmd);
+	UpSampleBloom(cmd);
 	//vkutil::transition_image(cmd, bloom_mip_maps[0].mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	VkClearValue clear{ 1.0f, 1.0f, 1.0f, 1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_hdrImage.imageView, nullptr, &clear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
