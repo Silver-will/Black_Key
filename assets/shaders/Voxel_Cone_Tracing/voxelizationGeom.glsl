@@ -3,9 +3,9 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#include "/voxelConeTracing/voxelization.glsl"
+#include "voxelization.glsl"
 
-layout(set = 0, binding = 0) uniform  MatrixData{   
+layout(set = 0, binding = 1) uniform  MatrixData{   
 	mat4 viewProj[3];
 	mat4 viewProjInv[3];
 	vec2 viewPortSizes[3];
@@ -48,7 +48,7 @@ void RasterizeToMostVisibleAxis(out vec4 positionsClip[3])
 	out_Frag.trianglePosW[2] = gl_in[2].gl_Position.xyz;
 }
 
-void cvEmitVertex(vec4 posClip)
+void EmitAndPassVertex(vec4 posClip)
 {
 	gl_Position = posClip;
 	out_Frag.posW = (matrixData.viewProjInv[gl_ViewportIndex] * posClip).xyz;

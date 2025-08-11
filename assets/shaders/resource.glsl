@@ -64,8 +64,10 @@ layout(set = 0, binding = 11) uniform  ShadowData{
 struct GLTFMaterialData{   
 	vec4 colorFactors;
 	vec4 metal_rough_factors;
-	int colorTexID;
-	int metalRoughTexID;
+	int has_metalRough;
+	int has_occlusion_tex;
+	int has_emission;
+	int pad;
 };
 
 layout(set = 1, binding = 0) uniform GLTFMaterialDataBuffer{

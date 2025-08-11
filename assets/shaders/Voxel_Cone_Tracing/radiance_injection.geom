@@ -3,6 +3,8 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
+#extension GL_GOOGLE_include_directive : require
+#include "voxelizatonGeom.glsl"
 
 in Vertex
 {

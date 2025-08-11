@@ -9,54 +9,19 @@
 #include "atomicOperations.glsl"
 #include "settings.glsl"
 
-uniform int u_clipmapLevel;
-uniform int u_clipmapResolution;
-uniform int u_clipmapResolutionWithBorder;
+layout(set = 0, binding = 0) uniform  VoxelConfigurationData{   
+	vec3 regionMin;
+	uint clipmapLevel;
+	vec3 regionMax;
+	uint clipmapResolution;
+	vec3 prevRegionMin;
+	uint clipMapResolutionWithBorder;
+	vec3 prevRegionMax;
+	float downsampleTransitionRegionSize;
+	float maxExtent;
+	float voxelSize;
+} voxelConfigData;
 
-uniform vec3 u_regionMin;
-uniform vec3 u_regionMax;
-uniform vec3 u_prevRegionMin;
-uniform vec3 u_prevRegionMax;
-uniform float u_downsampleTransitionRegionSize;
-uniform float u_maxExtent;
-uniform float u_voxelSize;
-
-//layout(r32ui) uniform volatile coherent uimage3D u_voxelAlbedo;
-
-// Computation of an extended triangle in clip space based on 
-// "Conservative Rasterization", GPU Gems 2 Chapter 42 by Jon Hasselgren, Tomas Akenine-Möller and Lennart Ohlsson:
-// http://http.developer.nvidia.com/GPUGems2/gpugems2_chapter42.html
-void computeExtendedTriangle(vec2 halfPixelSize, vec3 triangleNormalClip, inout vec4 trianglePositionsClip[3], out vec4 triangleAABBClip)
-{
-	float trianglePlaneD = dot(trianglePositionsClip[0].xyz, triangleNormalClip); 
-    float nSign = sign(triangleNormalClip.z);
-        
-    // Compute plane equations
-    vec3 plane[3];
-    plane[0] = cross(trianglePositionsClip[0].xyw - trianglePositionsClip[2].xyw, trianglePositionsClip[2].xyw);
-    plane[1] = cross(trianglePositionsClip[1].xyw - trianglePositionsClip[0].xyw, trianglePositionsClip[0].xyw);
-    plane[2] = cross(trianglePositionsClip[2].xyw - trianglePositionsClip[1].xyw, trianglePositionsClip[1].xyw);
-    
-    // Move the planes by the appropriate semidiagonal
-    plane[0].z -= nSign * dot(halfPixelSize, abs(plane[0].xy));
-    plane[1].z -= nSign * dot(halfPixelSize, abs(plane[1].xy));
-    plane[2].z -= nSign * dot(halfPixelSize, abs(plane[2].xy));
-	
-	// Compute triangle AABB in clip space
-    triangleAABBClip.xy = min(trianglePositionsClip[0].xy, min(trianglePositionsClip[1].xy, trianglePositionsClip[2].xy));
-	triangleAABBClip.zw = max(trianglePositionsClip[0].xy, max(trianglePositionsClip[1].xy, trianglePositionsClip[2].xy));
-    
-    triangleAABBClip.xy -= halfPixelSize;
-    triangleAABBClip.zw += halfPixelSize;
-	
-	for (int i = 0; i < 3; ++i)
-    {
-        // Compute intersection of the planes
-        trianglePositionsClip[i].xyw = cross(plane[i], plane[(i + 1) % 3]);
-        trianglePositionsClip[i].xyw /= trianglePositionsClip[i].w;
-        trianglePositionsClip[i].z = -(trianglePositionsClip[i].x * triangleNormalClip.x + trianglePositionsClip[i].y * triangleNormalClip.y - trianglePlaneD) / triangleNormalClip.z;
-    }
-}
 
 ivec3 computeImageCoords(vec3 posW)
 {

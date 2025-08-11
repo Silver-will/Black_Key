@@ -19,7 +19,6 @@ layout (location = 8) in mat3 inTBN;
 
 
 layout (location = 0) out vec4 outFragColor;
-//vec3 Radiance(vec3 albedo, vec3 N, vec3 V, vec3 F0, float metallic, float roughness, float alphaRoughness, LightData light);
 float linearDepth(float depthSample);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
 vec3 CalcDiffuseContribution(vec3 W, vec3 N, PointLight light);

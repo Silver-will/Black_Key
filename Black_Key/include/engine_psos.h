@@ -137,8 +137,10 @@ struct GLTFMetallic_Roughness {
 	struct MaterialConstants {
 		glm::vec4 colorFactors;
 		glm::vec4 metal_rough_factors;
-		//padding, we need it anyway for uniform buffers
-		glm::vec4 extra[14];
+		int has_metalRough;
+		int has_occlusion_tex;
+		int has_emission;
+		int pad;
 	};
 
 	struct MaterialResources {
@@ -148,10 +150,13 @@ struct GLTFMetallic_Roughness {
 		VkSampler metalRoughSampler;
 		AllocatedImage occlusionImage;
 		VkSampler occlusionSampler;
+		AllocatedImage emissionImage;
+		VkSampler emissionSampler;
 		//Flag if the occlusion texture is separate from the metallicRoughness one
 		bool separate_occ_texture = false;
 		bool rough_metallic_texture_found = false;
 		bool normal_texture_found = false;
+		bool emissive_texture_found = false;
 		AllocatedImage normalImage;
 		VkSampler normalSampler;
 		VkBuffer dataBuffer;
@@ -169,7 +174,10 @@ struct GLTFMetallic_Roughness {
 
 
 struct ConservativeVoxelization {
-	MaterialPipeline voxelizationPipeline;
+	MaterialPipeline conservative_opacity_pipeline;
+	MaterialPipeline conservative_radiance_pipeline;
+	MaterialPipeline msaa_opacity_pipeline;
+	MaterialPipeline msaa_radiance_pipeline;
 	VkDescriptorSetLayout materialLayout;
 
 	// Fetch and store conservative rasterization state props for display purposes

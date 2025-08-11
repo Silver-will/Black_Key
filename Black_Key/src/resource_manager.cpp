@@ -285,18 +285,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
         file.materials[mat.name.c_str()] = newMat;
-
-
-        GLTFMetallic_Roughness::MaterialConstants constants;
-        constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
-        constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
-        constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
-        constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
-
-        constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
-        constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
-        // write material parameters to buffer
-        sceneMaterialConstants[data_index] = constants;
+       
 
         vkutil::MaterialPass passType = vkutil::MaterialPass::forward;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
@@ -313,11 +302,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         materialResources.normalSampler = defaultSamplerLinear;
         materialResources.occlusionImage = _whiteImage;
         materialResources.occlusionSampler = defaultSamplerLinear;
+        materialResources.emissionImage = _whiteImage;
+        materialResources.emissionSampler = defaultSamplerLinear;
 
 
-        // set the uniform buffer for the material data
-        materialResources.dataBuffer = file.materialDataBuffer.buffer;
-        materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
+      
         // grab textures from gltf file
         if (mat.pbrData.baseColorTexture.has_value()) {
             size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
@@ -358,11 +347,41 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             materialResources.separate_occ_texture = true;
         }
 
+        if (mat.emissiveTexture.has_value())
+        {
+            size_t img = gltf.textures[mat.emissiveTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.emissiveTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.emissionImage = images[img];
+            materialResources.emissionSampler = file.samplers[sampler];
+
+            materialResources.emissive_texture_found = true;
+        }
+
+        GLTFMetallic_Roughness::MaterialConstants constants;
+        constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
+        constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
+        constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
+        constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
+
+        constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
+        constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
+        // write material parameters to buffer
+        constants.has_metalRough = materialResources.rough_metallic_texture_found ? 1 : 0;
+        constants.has_emission = materialResources.emissive_texture_found ? 1 : 0;
+        constants.has_occlusion_tex = materialResources.separate_occ_texture ? 1 : 0;
+
+        // set the uniform buffer for the material data
+        materialResources.dataBuffer = file.materialDataBuffer.buffer;
+        materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
+
+        sceneMaterialConstants[data_index] = constants;
+
         // build material
 #if USE_BINDLESS 1
         //Store each textures Materials
         bindless_resources.push_back(materialResources);
-        newMat->material_index = material_index * 4;
+        newMat->material_index = material_index * 5;
         newMat->data = SetMaterialProperties(passType, newMat->material_index);
 #else
         newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
@@ -661,6 +680,7 @@ void ResourceManager::write_material_array()
         writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
         writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);
         writer.write_image(1, bindless_resources[i].occlusionImage.imageView, bindless_resources[i].occlusionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 3);
+        writer.write_image(1, bindless_resources[i].emissionImage.imageView, bindless_resources[i].emissionSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 4);
         writer.write_image(2, storageImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, i);
     }
 

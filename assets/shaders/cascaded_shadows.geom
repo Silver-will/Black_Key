@@ -1,7 +1,4 @@
 #version 460 core
-
-#extension GL_GOOGLE_include_directive : require
-
 layout(set = 0, binding = 0) uniform  ShadowData{   
 	mat4 shadowMatrices[4];
 } shadowData;

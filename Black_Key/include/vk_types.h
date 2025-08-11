@@ -148,6 +148,7 @@ struct PipelineCreationInfo {
     std::vector<VkDescriptorSetLayout> layouts;
     VkFormat depthFormat = VK_FORMAT_MAX_ENUM;
     VkFormat imageFormat = VK_FORMAT_MAX_ENUM;
+    VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 };
 
 struct clusterParams {

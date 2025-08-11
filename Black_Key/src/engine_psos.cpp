@@ -489,17 +489,17 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 {
 	VkShaderModule voxelization_frag_shader;
 	std::string assets_path = ENGINE_ASSET_PATH;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.frag.spv").c_str(), engine->_device, &voxelization_frag_shader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_opacity_voxelization.frag.spv").c_str(), engine->_device, &voxelization_frag_shader)) {
 		std::println("Error when building the triangle fragment shader module");
 	}
 	
 	VkShaderModule voxelization_geom_shader;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.geom.spv").c_str(), engine->_device, &voxelization_geom_shader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_opacity_voxelization.geom.spv").c_str(), engine->_device, &voxelization_geom_shader)) {
 		std::println("Error when building the triangle fragment shader module");
 	}
 
 	VkShaderModule voxelization_vert_shader;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_voxelization.vert.spv").c_str(), engine->_device, &voxelization_vert_shader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/conservative_opacity_voxelization.vert.spv").c_str(), engine->_device, &voxelization_vert_shader)) {
 		std::println("Error when building the triangle vertex shader module");
 	}
 
@@ -526,7 +526,7 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
 
-	voxelizationPipeline.layout = newLayout;
+	conservative_opacity_pipeline.layout = newLayout;
 
 	// build the stage-create-info for both vertex and fragment stages. This lets
 	// the pipeline know the shader modules per stage
@@ -534,10 +534,10 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 	pipelineBuilder.set_shaders(voxelization_vert_shader, voxelization_frag_shader, voxelization_geom_shader);
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(info.msaa_samples);
 	pipelineBuilder.disable_blending();
-	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineBuilder.disable_depthtest();
 
 
 	//Conservative rasterization setup
@@ -566,7 +566,7 @@ void ConservativeVoxelization::build_pipelines(VulkanEngine* engine, PipelineCre
 	pipelineBuilder._pipelineLayout = newLayout;
 
 	// finally build the pipeline
-	voxelizationPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+	conservative_opacity_pipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
 
 	vkDestroyShaderModule(engine->_device, voxelization_frag_shader, nullptr);
 	vkDestroyShaderModule(engine->_device, voxelization_vert_shader, nullptr);
