@@ -2,6 +2,16 @@
 #include "lights.glsl"
 #define MAX_MATERIAL_COUNT 65536
 
+struct ObjectData{
+    mat4 model;
+	vec4 spherebounds;
+	uint texture_index;
+    uint firstIndex;
+    uint indexCount;
+	vec3 pad;
+	VertexBuffer vertexBuffer;
+}; 
+
 
 struct Vertex {
 	vec3 position;
@@ -73,6 +83,6 @@ struct GLTFMaterialData{
 
 layout(set = 1, binding = 0) uniform GLTFMaterialDataBuffer{
 	GLTFMaterialData material_data[MAX_MATERIAL_COUNT];	
-};
+}object_material_description;
 layout(set = 1, binding = 1) uniform sampler2D material_textures[];
 layout(rgba8, set = 1, binding = 2) uniform image2D storage_image[];

@@ -15,16 +15,6 @@ layout (location = 6) out vec2 outUV;
 layout (location = 7) out vec4 outTangent;
 layout (location = 8) out mat3 outTBN;
 
-struct ObjectData{
-    mat4 model;
-	vec4 spherebounds;
-	uint texture_index;
-    uint firstIndex;
-    uint indexCount;
-	vec3 pad;
-	VertexBuffer vertexBuffer;
-}; 
-
 layout(set = 0, binding = 10) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
