@@ -160,8 +160,9 @@ struct GLTFMetallic_Roughness {
 		bool emissive_texture_found = false;
 		AllocatedImage normalImage;
 		VkSampler normalSampler;
-		VkBuffer dataBuffer;
+		AllocatedBuffer material_description_Buffer;
 		uint32_t dataBufferOffset;
+		MaterialConstants material_description;
 	};
 
 	DescriptorWriter writer;

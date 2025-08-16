@@ -27,9 +27,9 @@ void main()
 		//Anti aliasing
 		if(PushConstants.use_fxaa == 1) HDRColor = FXAA(TexCoords);
 
-		vec3 color = mix(HDRColor, bloomColor, PushConstants.bloom_strength).rgb;
-		//vec3 color = HDRColor.rgb;
-		color = neutral(color);
+		//vec3 color = mix(HDRColor, bloomColor, PushConstants.bloom_strength).rgb;
+		vec3 color = HDRColor.rgb;
+		color = uchimura(color);
 	
 	// gamma correct
 		FragColor = vec4(pow(color, vec3(1.0/2.2)),1.0);

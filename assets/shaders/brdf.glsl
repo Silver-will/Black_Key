@@ -10,8 +10,24 @@ float D_GGX_IMPROVED(float roughness, float NoH, const vec3 n, const vec3 h);
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
 float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness);
+float D_Lambert();
 
+float geometrySchlickGGX(float nDotV, float rough){
+    float r = (rough + 1.0);
+    float k = r*r / 8.0;
 
+    float num = nDotV;
+    float denom = 1 / (nDotV * (1.0 - k) + k);
+
+    return num * denom;
+}
+
+float geometrySmith(float nDotV, float nDotL, float rough){
+    float ggx2  = geometrySchlickGGX(nDotV, rough);
+    float ggx1  = geometrySchlickGGX(nDotL, rough);
+
+    return ggx1 * ggx2;
+}
 
 vec3 prefilteredReflection(vec3 R, float roughness)
 {
@@ -24,12 +40,11 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 	return mix(a, b, lod - lodf);
 }
 
-// ----------------------------------------------------------------------------
-//vec3 fresnelSchlick(float cosTheta, vec3 F0)
-//{
-  //  return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-//}
 
+vec3 fresnelSchlick(float cosTheta, vec3 F0){
+    float val = 1.0 - cosTheta;
+    return F0 + (1.0 - F0) * (val*val*val*val*val); //Faster than pow
+}
 
 // Fresnel function ----------------------------------------------------
 vec3 F_Schlick(float cosTheta, vec3 F0)
@@ -89,8 +104,82 @@ vec3 GetViewReflectedNormal(vec3 N, vec3 V, inout float NdotV)
     return N;
 }
 
-vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough)
+/*
+vec3 calcDirLight(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow){
+    //Variables common to BRDFs
+    vec3 R = reflect(-V,N);
+	vec3 H = normalize(V + L);
+    
+    float NoV = abs(dot(N, V)) + 1e-5;
+	float NoL = clamp(dot(N, L), 0.0, 1.0);
+	float NoH = clamp(dot(N, H), 0.0, 1.0);
+    float LoH = clamp(dot(L, H), 0.0, 1.0);
+    vec3 radianceIn = sceneData.sunlightColor.xyz;
+
+    //Cook-Torrance BRDF
+    float NDF = distributionGGX(N, halfway, rough);
+    float G   = geometrySmith(nDotV, nDotL, rough);
+    vec3  F   = fresnelSchlick(max(dot(halfway,viewDir), 0.0), F0);
+
+    //Finding specular and diffuse component
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metal;
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * nDotV * nDotL;
+    vec3 specular = numerator / max (denominator, 0.0001);
+
+    vec3 radiance = (kD * (albedo / M_PI) + specular ) * radianceIn * nDotL;
+    radiance *= (1.0 - shadow);
+
+    return radiance;
+}
+*/
+vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,vec3 F0, vec2 metal_rough, float shadow, float NoV, float NoH, float NoL)
 {
+    vec3 H  = normalize(L + V);
+
+    vec3 radianceIn = sceneData.sunlightColor.xyz;
+
+    float rough = metal_rough.x;
+    float metal = metal_rough.y;
+    //Cook-Torrance BRDF
+    float NDF = DistributionGGX(N, H, rough);
+    float G   = geometrySmith(NoV, NoL, rough);
+    vec3  F   = fresnelSchlick(max(dot(H,V), 0.0), F0);
+
+    //Finding specular and diffuse component
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metal;
+    //kD = vec3(D_Burley(rough, LoH, NoL, NoV));
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * NoV * NoL;
+    vec3 specular = numerator / max (denominator, 0.0001);
+
+    vec3 radiance = (kD * (albedo / PI) + specular ) * radianceIn * NoL * sceneData.sunlightColor.w;
+    radiance *= shadow;
+
+    return radiance;
+}
+
+vec3 CalculatePointLightContribution()
+{
+    //Calculate point lights
+	//for(int i = 0; i < lightCount; i++)
+	//{
+		//uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
+		//PointLight light = pointLight[lightVectorIndex];
+		//Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
+		//Ld += CalcDiffuseContribution(inFragPos,N,light);
+	//}
+    return vec3(0.0f);
+}
+vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow)
+{
+    /*
     vec3 R = reflect(-V,N);
 	vec3 H = normalize(V + L);
 
@@ -131,6 +220,48 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     vec3 specular = reflection * (F_IBL * brdf.x + brdf.y);
 
     return (vec3(Fd * irradiance + Fs * specular) * sceneData.sunlightDirection.w) * sceneData.sunlightColor.xyz;
+    */
+
+    vec3 R = reflect(-V,N);
+	vec3 H = normalize(V + L);
+     //float NoV = abs(dot(N, V)) + 1e-5;
+	float NoL = clamp(dot(N, L), 0.0, 1.0);
+	float NoH = clamp(dot(N, H), 0.0, 1.0);
+    float LoH = clamp(dot(L, H), 0.0, 1.0);
+
+    float roughness = metal_rough.x;
+    float metallic = metal_rough.y;
+    float NoV;
+    N = GetViewReflectedNormal(N, V,NoV);
+
+    roughness = roughness;
+    vec3 F0 = vec3(0.04); 
+	F0 = mix(F0, albedo, metallic);
+
+    vec3 radiance = vec3(0.0f);
+    radiance += CalculateDirectionalLightContribution(N,V,L,albedo,F0,metal_rough,shadow,NoV,NoH,NoL);
+
+    //Calculate point lights here.
+
+    vec3 F_IBL = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+    float disney_D = D_Burley(roughness, LoH, NoL, NoV);
+    float lam = D_Lambert();
+    vec3  kD = 1.0 - F_IBL;
+    kD *= 1.0 - metallic;
+    //kD = vec3(lam);
+    vec3 texCoord = vec3(N.x, N.y, N.z);
+    vec3 irradiance = texture(irradianceMap, texCoord).rgb;
+    vec3 diffuse = albedo * irradiance;
+
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(preFilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+
+    vec3 specular = prefilteredColor * (F_IBL * brdf.x + brdf.y);
+
+    radiance += (kD * diffuse + specular);
+
+    return radiance;
 }
 
 

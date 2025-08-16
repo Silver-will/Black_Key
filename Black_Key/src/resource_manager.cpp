@@ -1,5 +1,6 @@
 #include "resource_manager.h"
 #include "stb_image.h"
+#include "vk_buffer.h"
 #include "vk_engine.h"
 #include <print>
 
@@ -363,7 +364,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
         constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
         constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
-
+        
+        constants.emission_color = glm::vec4(0.0);
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
         // write material parameters to buffer
@@ -371,8 +373,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
         constants.has_emission = materialResources.emissive_texture_found ? 1 : 0;
         constants.has_occlusion_tex = materialResources.separate_occ_texture ? 1 : 0;
 
-        // set the uniform buffer for the material data
-        materialResources.dataBuffer = file.materialDataBuffer.buffer;
+        materialResources.material_description_Buffer = vkutil::create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+        void* dataBufferPtr = nullptr;
+        vmaMapMemory(engine->_allocator, materialResources.material_description_Buffer.allocation, &dataBufferPtr);
+        GLTFMetallic_Roughness::MaterialConstants* ptr = (GLTFMetallic_Roughness::MaterialConstants*)dataBufferPtr;
+        *ptr = constants;
+        vmaUnmapMemory(engine->_allocator, materialResources.material_description_Buffer.allocation);
         materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
 
         sceneMaterialConstants[data_index] = constants;
@@ -675,7 +681,7 @@ void ResourceManager::write_material_array()
     for (int i = 0; i < bindless_resources.size(); i++)
     {
         int offset = i * 5;
-        writer.write_buffer(0, bindless_resources[i].dataBuffer, sizeof(GLTFMetallic_Roughness::MaterialConstants), bindless_resources[i].dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2);
+        writer.write_buffer(0, bindless_resources[i].material_description_Buffer.buffer, sizeof(GLTFMetallic_Roughness::MaterialConstants), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i);
         writer.write_image(1, bindless_resources[i].colorImage.imageView, bindless_resources[i].colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset);
         writer.write_image(1, bindless_resources[i].metalRoughImage.imageView, bindless_resources[i].metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 1);
         writer.write_image(1, bindless_resources[i].normalImage.imageView, bindless_resources[i].normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, offset + 2);

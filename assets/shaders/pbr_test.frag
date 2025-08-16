@@ -72,27 +72,31 @@ void main()
 	uint lightCount = lightGrid[clusterIdx].count;
 	uint lightIndexOffset = lightGrid[clusterIdx].offset;
 
+
+	//Check material description for available texture data
+	GLTFMaterialData mat_description = object_material_description.material_data[nonuniformEXT(inMaterialIndex / 5)];
+	
 	//PBR material values
     vec4 colorVal = texture(material_textures[nonuniformEXT(inMaterialIndex)],inUV).rgba;
     vec3 albedo =  pow(colorVal.rgb,vec3(2.2));
     vec2 metallicRough  = texture(material_textures[nonuniformEXT(inMaterialIndex+1)],inUV).gb;
 
 	vec3 occlusion = texture(material_textures[nonuniformEXT(inMaterialIndex+3)],inUV).rgb;
-	vec3 emmision = texture(material_textures[nonuniformEXT(inMaterialIndex+4)],inUV).rgb;
+	vec3 emission = texture(material_textures[nonuniformEXT(inMaterialIndex+4)],inUV).rgb;
 
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
+	
+	//metallicRough.x = 0.1;
+	//metallicRough.y = 0.999;
+
     vec3 N = CalculateNormalFromMap();
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
-
-	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough);
-
-	color *= occlusion;
+	//Evaluate shadow term
 	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     float depthValue = fragPosViewSpace.z;
-	int blend = 0;
     int layer = 0;
 	for(int i = 0; i < 4 - 1; ++i) {
 		if(depthValue < sceneData.distances[i]) {	
@@ -100,20 +104,24 @@ void main()
 		}
 	}
 
-    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);	
+    vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
+	//color *= shadow;
+
+	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
 	color *= shadow;
 
-	//color = emmision;
-	//Calculate point lights
-	//for(int i = 0; i < lightCount; i++)
-	//{
-		//uint lightVectorIndex = globalLightIndexList[lightIndexOffset + i];
-		//PointLight light = pointLight[lightVectorIndex];
-		//Lo += PointLightContribution(inFragPos, V, N, F0, metallic, roughness,light);
-		//Ld += CalcDiffuseContribution(inFragPos,N,light);
-	//}
+	if(mat_description.has_emission == 1)
+	{
+		color += emission;	
+	}
+
+	if(mat_description.has_occlusion_tex == 1)
+	{
+		color *= occlusion;
+	}
+	
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{

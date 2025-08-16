@@ -2,16 +2,6 @@
 #include "lights.glsl"
 #define MAX_MATERIAL_COUNT 65536
 
-struct ObjectData{
-    mat4 model;
-	vec4 spherebounds;
-	uint texture_index;
-    uint firstIndex;
-    uint indexCount;
-	vec3 pad;
-	VertexBuffer vertexBuffer;
-}; 
-
 
 struct Vertex {
 	vec3 position;
@@ -22,9 +12,20 @@ struct Vertex {
 	vec4 tangent;
 }; 
 
+
 layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
+
+struct ObjectData{
+    mat4 model;
+	vec4 spherebounds;
+	uint texture_index;
+    uint firstIndex;
+    uint indexCount;
+	vec3 pad;
+	VertexBuffer vertexBuffer;
+}; 
 
 
 layout(set = 0, binding = 0) uniform  SceneData{   

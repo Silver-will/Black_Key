@@ -1,9 +1,3 @@
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe sky.comp -o sky.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe gradient.comp -o gradient.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe gradient_color.comp -o gradient_color.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe colored_triangle.frag -o colored_triangle.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe colored_triangle_mesh.vert -o colored_triangle_mesh.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe tex_image.frag -o tex_image.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_cluster.vert -o pbr_cluster.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_cluster.frag -o pbr_cluster.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe skybox.vert -o skybox.vert.spv
@@ -13,8 +7,6 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cascaded_shadows.frag -o cascaded_shadows.f
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cascaded_shadows.geom -o cascaded_shadows.geom.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe hdr.vert -o hdr.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe hdr.frag -o hdr.frag.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe blur.vert -o blur.vert.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe blur.frag -o blur.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe depth_pass.vert -o depth_pass.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe filter_cube.vert -o filter_cube.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe irradiance_cube.frag -o irradiance_cube.frag.spv
@@ -36,6 +28,5 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe indirect_forward.frag -o indirect_forward.f
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.comp -o upsample.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe downsample.comp -o downsample.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.frag -o upsample.frag.spv 
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe bloom.vert -o bloom.vert.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_test.frag -o pbr_test.frag.spv 
 pause
