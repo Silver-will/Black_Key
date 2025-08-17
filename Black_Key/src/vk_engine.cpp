@@ -255,6 +255,7 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 		.set_required_features_13(features13)
 		.set_required_features_12(features12)
 		.set_required_features_11(features11)
+		//.add_required_extension()
 		.set_surface(_surface)
 		.select()
 		.value();

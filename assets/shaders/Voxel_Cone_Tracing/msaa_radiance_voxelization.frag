@@ -1,4 +1,8 @@
 #version 460 core
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : require
+
 #include "voxelizationFrag.glsl"
 #include "../brdf.glsl"
 
@@ -36,7 +40,9 @@ void main()
         
         
         emission.rgb = clamp(emission.rgb, 0.0, 1.0);
-        storeVoxelColorAtomicRGBA8Avg6Faces(voxel_radiance, posW, emission);
+        //storeVoxelColorAtomicRGBA8Avg6Faces(voxel_radiance, posW, emission);
+        emission.a = 1;
+        imageAtomicAdd(voxel_radiance, posW, emission);
     }
     else
     {
@@ -57,7 +63,24 @@ void main()
         vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
          
-        lightContribution += SimplifiedSurfaceShading(N,V,L,color.rgb, metallicRough);
+        vec3 R = reflect(-V,N);
+	    vec3 H = normalize(V + L);
+        //float NoV = abs(dot(N, V)) + 1e-5;
+	    float NoL = clamp(dot(N, L), 0.0, 1.0);
+	    float NoH = clamp(dot(N, H), 0.0, 1.0);
+        float LoH = clamp(dot(L, H), 0.0, 1.0);
+
+        float roughness = metal_rough.x;
+        float metallic = metal_rough.y;
+        float NoV;
+        N = GetViewReflectedNormal(N, V,NoV);
+
+        roughness = roughness;
+        vec3 F0 = vec3(0.04); 
+	    F0 = mix(F0, albedo, metallic);
+
+        vec3 radiance = vec3(0.0f);
+        lightContribution += CalculateDirectionalLightContribution(N,V,L,albedo,F0,metal_rough,shadow,NoV,NoH,NoL);
 
         
         if (all(equal(lightContribution, vec3(0.0))))
@@ -67,8 +90,8 @@ void main()
         radiance = clamp(lightContribution, 0.0, 1.0);
 		
 		ivec3 faceIndices = computeVoxelFaceIndices(-normal);
-        storeVoxelColorAtomicRGBA8Avg(u_voxelRadiance, posW, vec4(radiance, 1.0), faceIndices, abs(normal));
-	
+        //storeVoxelColorAtomicRGBA8Avg(u_voxelRadiance, posW, vec4(radiance, 1.0), faceIndices, abs(normal));
+	    imageAtomicAdd(voxel_radiance, posW, vec4(radiance,1.0));
     }
    
 }
