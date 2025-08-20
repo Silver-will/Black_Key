@@ -1,5 +1,3 @@
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_cluster.vert -o pbr_cluster.vert.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_cluster.frag -o pbr_cluster.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe skybox.vert -o skybox.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe skybox.frag -o skybox.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cascaded_shadows.vert -o cascaded_shadows.vert.spv
@@ -19,8 +17,6 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe gen_brdf_lut.frag -o gen_brdf_lut.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pre_filter_envmap.frag -o pre_filter_envmap.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cluster_shader.comp -o cluster_shader.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cluster_cull_light_shader.comp -o cluster_cull_light_shader.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_bindless.vert -o pbr_bindless.vert.spv
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_bindless.frag -o pbr_bindless.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe indirect_cull.comp -o indirect_cull.comp.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe depth_reduce.comp -o depth_reduce.comp.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe indirect_forward.vert -o indirect_forward.vert.spv
@@ -29,4 +25,7 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.comp -o upsample.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe downsample.comp -o downsample.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.frag -o upsample.frag.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_test.frag -o pbr_test.frag.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.vert -o voxel_cone_tracing/cons_voxelization.vert.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.geom -o voxel_cone_tracing/cons_voxelization.geom.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.frag -o voxel_cone_tracing/cons_voxelization.frag.spv 
 pause

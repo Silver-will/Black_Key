@@ -1,4 +1,7 @@
 //Scene resources to be updated once per frame
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+
 #include "lights.glsl"
 #define MAX_MATERIAL_COUNT 65536
 

@@ -65,17 +65,6 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 vec3 EvaluateIBL(vec3 N, vec3 R, vec3 diffuseColor, vec3 f0, vec3 f90, float roughness, float NoV)
 {
     vec3 Ld = texture(irradianceMap, R).rgb * diffuseColor;
-    //float lod = computeLODFromRoughness(perceptualRoughness);
-    //vec3 Lld = preFilteredReflection(r, perceptualRoughness);
-    //vec2 Ldfg = textureLod(BRDFLut, vec2(NoV, perceptualRoughness), 0.0).xy;
-    //vec3 Lr =  (f0 * Ldfg.x + f90 * Ldfg.y) * Lld;
-    //return Ld + Lr;
-    //vec3 F = F_SchlickR(NoV, f0, roughness);
-    //vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	//vec3 reflection = prefilteredReflection(R, roughness).rgb;	
-	//vec3 irradiance = texture(irradianceMap, N).rgb;
-    
-    //diffuseColor = diffuseColor * irradiance;
     return vec3(0.0);
 }
 
