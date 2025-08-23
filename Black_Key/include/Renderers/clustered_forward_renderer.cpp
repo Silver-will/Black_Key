@@ -644,7 +644,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	//W stores light intensity
 	directLight.direction.w = 1.0f;
 	//Create Shadow render target
-	_shadowDepthImage = resource_manager->CreateImageEmpty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
 
 	//Create default images
@@ -667,7 +667,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
 	depthPyramidLevels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
 
-	_depthPyramid = resource_manager->CreateImageEmpty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
+	_depthPyramid = resource_manager->CreateImage(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
 
@@ -714,7 +714,7 @@ void ClusteredForwardRenderer::InitDefaultData()
 		mip_int_extent /= 2;
 		mip.size = mip_extent;
 		mip.i_size = mip_int_extent;
-		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
+		mip.mip = resource_manager->CreateImage(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32, 
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
 	
 		bloom_mip_maps.emplace_back(mip);

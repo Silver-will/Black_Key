@@ -834,46 +834,7 @@ GPUMeshBuffers ResourceManager::UploadMesh(std::span<uint32_t> indices, std::spa
 
 }
 
-AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
-{
-    AllocatedImage newImage;
-    newImage.imageFormat = format;
-    newImage.imageExtent = size;
-
-    VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size);
-    if (mipmapped) {
-        img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
-    }
-
-    // always allocate images on dedicated GPU memory
-    VmaAllocationCreateInfo allocinfo = {};
-    allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    // allocate and create the image
-    VK_CHECK(vmaCreateImage(engine->_allocator, &img_info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
-
-    // if the format is a depth format, we will need to have it use the correct
-    // aspect flag
-    VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-    if (format == VK_FORMAT_D32_SFLOAT) {
-        aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
-    }
-
-    // build a image-view for the image
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag, VK_IMAGE_VIEW_TYPE_2D);
-    view_info.subresourceRange.levelCount = img_info.mipLevels;
-
-    VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
-
-    deletionQueue.push_function([=]() {
-        DestroyImage(newImage);
-        });
-    return newImage;
-}
-
-
-AllocatedImage ResourceManager::CreateImageEmpty(VkExtent3D size, VkFormat format, VkImageUsageFlags usage,VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples, int mipLevels)
+AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage,VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples, int mipLevels)
 {
     AllocatedImage newImage;
     newImage.imageFormat = format;
@@ -904,7 +865,9 @@ AllocatedImage ResourceManager::CreateImageEmpty(VkExtent3D size, VkFormat forma
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
-
+    deletionQueue.push_function([=]() {
+        DestroyImage(newImage);
+        });
     return newImage;
 }
 

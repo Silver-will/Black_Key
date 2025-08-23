@@ -13,7 +13,14 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) flat in uint materialIn;
 layout (location = 4) flat in uint matBufIn;
 
-layout(set = 0, binding = 2) uniform writeonly image3D voxel_radiance;
+layout(set = 0, binding = 2, r32ui) uniform volatile uimage3D voxel_radiance;
+layout(set = 0, binding = 3) uniform sampler2DArray shadowMap;
+layout(set = 0, binding = 4) uniform  ShadowData{   
+	mat4 shadowMatrices[4];
+} shadowData;
+
+
+void imageAtomicRGBA8Avg(ivec3 coords, vec4 value);
 
 void main()
 {
@@ -22,6 +29,8 @@ void main()
         discard;
 
     float lod;
+
+    ivec3 im_size = imageSize(voxel_radiance);
     
     //Grab current objects material information
     GLTFMaterialData mat_data = object_material_description.material_data[matBufIn];
@@ -38,15 +47,18 @@ void main()
         emission.rgb = clamp(emission.rgb, 0.0, 1.0);
         //storeVoxelColorAtomicRGBA8Avg6Faces(voxel_radiance, posW, emission);
         emission.a = 1;
-        ivec3 coords = ComputeVoxelizationCoordinate(posW);
-        imageAtomicAdd(voxel_radiance, coords, emission);
+
+        ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
+        
+        imageAtomicRGBA8Avg(coords, emission);
+       
     }
     else
     {
         //Sample diffuse texture
         vec4 color = vec4(0.0);
         
-        //Clipmap specific texture sampling
+        // Clipmap specific texture sampling
         //lod = log2(float(textureSize(material_textures[nonuniformEXT(materialIn)], 0).x) / voxelConfigData.clipmapResolution);
         //color.rgb += textureLod(material_textures[nonuniformEXT(materialIn)], inUV, lod).rgb;
         color.rgb += texture(material_textures[nonuniformEXT(materialIn)], inUV).rgb;
@@ -74,10 +86,10 @@ void main()
 
         roughness = roughness;
         vec3 F0 = vec3(0.04); 
-	    F0 = mix(F0, albedo, metallic);
+	    F0 = mix(F0, color.rgb, metallic);
 
         float shadow = 0.9f;
-        lightContribution += CalculateDirectionalLightContribution(N,V,L,albedo,F0,metal_rough,shadow,NoV,NoH,NoL);
+        lightContribution += CalculateDirectionalLightContribution(N,V,L,color.rgb,F0,metallicRough,shadow,NoV,NoH,NoL);
 
         
         if (all(equal(lightContribution, vec3(0.0))))
@@ -86,11 +98,37 @@ void main()
 		vec3 radiance = lightContribution * color.rgb * color.a;
         radiance = clamp(lightContribution, 0.0, 1.0);
 		
-		//ivec3 faceIndices = computeVoxelFaceIndices(-normal);
+        //ivec3 faceIndices = computeVoxelFaceIndices(-normal);
         //storeVoxelColorAtomicRGBA8Avg(u_voxelRadiance, posW, vec4(radiance, 1.0), faceIndices, abs(normal));
-        vec3 coords = ComputeVoxelizationCoordinate(posW);
-	    imageAtomicAdd(voxel_radiance, coords, vec4(radiance,1.0));
+        ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
+	    //imageAtomicAdd(voxel_radiance, coords, vec4(radiance,1.0));
+
+        imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
     }
    
 }
+
+
+
+void imageAtomicRGBA8Avg(ivec3 coords, vec4 value)
+{
+    value.rgb *= 255.0;                 // optimize following calculations
+    uint newVal = convertVec4ToRGBA8(value);
+    uint prevStoredVal = 0;
+    uint curStoredVal;
+	int i = 0;
+	const int maxIterations = 100;
+
+    while((curStoredVal = imageAtomicCompSwap(voxel_radiance, coords, prevStoredVal, newVal)) != prevStoredVal && i < maxIterations)
+    {
+        prevStoredVal = curStoredVal;
+        vec4 rval = convertRGBA8ToVec4(curStoredVal);
+        rval.rgb = (rval.rgb * rval.a); // Denormalize
+        vec4 curValF = rval + value;    // Add
+        curValF.rgb /= curValF.a;       // Renormalize
+        newVal = convertVec4ToRGBA8(curValF);
+		++i;
+    }
+}
+
 #endif

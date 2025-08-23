@@ -11,7 +11,7 @@ layout (location = 2) out vec2 outUV;
 layout (location = 3) flat out uint material_tex_In;
 layout (location = 4) flat out uint material_buff_In;
 
-layout(set = 0, binding = 10) readonly buffer ObjectBuffer{   
+layout(set = 0, binding = 1) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
 

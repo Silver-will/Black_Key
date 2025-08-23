@@ -339,6 +339,14 @@ void VoxelConeTracingRenderer::InitDescriptors()
 
 	{
 		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		voxelization_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 65536);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
@@ -426,6 +434,11 @@ void VoxelConeTracingRenderer::InitPipelines()
 	HDRinfo.imageFormat = _drawImage.imageFormat;
 	HdrPSO.build_pipelines(engine, HDRinfo);
 
+	PipelineCreationInfo voxelInfo;
+	voxelInfo.layouts.push_back(voxelization_descriptor_layout);
+	voxelInfo.layouts.push_back(resource_manager->bindless_descriptor_layout);
+	voxelInfo.imageFormat = voxelizer.voxel_radiance_image.imageFormat;
+	voxelizationPSO.build_pipelines(engine, voxelInfo);
 	/*
 	PipelineCreationInfo upsampleBloomInfo;
 	upsampleBloomInfo.layouts.push_back(postprocess_descriptor_layout);
@@ -445,11 +458,7 @@ void VoxelConeTracingRenderer::InitPipelines()
 			cascadedShadows.clear_resources(engine->_device);
 			skyBoxPSO.clear_resources(engine->_device);
 			HdrPSO.clear_resources(engine->_device);
-		});
-
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(engine->_device, _shadowDepthImage.imageView, nullptr);
-		vmaDestroyImage(engine->_allocator, _shadowDepthImage.image, _shadowDepthImage.allocation);
+			voxelizationPSO.clear_resources(engine->_device);
 		});
 }
 
@@ -648,9 +657,18 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	//W stores light intensity
 	directLight.direction.w = 1.0f;
 	//Create Shadow render target
-	_shadowDepthImage = resource_manager->CreateImageEmpty(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
+	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
 
+	//Create 3D texture for GPU scene Voxelization
+	voxelizer.voxel_radiance_image = resource_manager->CreateImage(
+		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
+		, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_3D, false);
+
+	/*voxelizer.voxel_opacity_image = resource_manager->CreateImage(
+		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
+		, VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_3D, false);
+	*/
 	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = resource_manager->CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -671,7 +689,7 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
 	depthPyramidLevels = BlackKey::GetImageMipLevels(depthPyramidWidth, depthPyramidHeight);
 
-	_depthPyramid = resource_manager->CreateImageEmpty(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
+	_depthPyramid = resource_manager->CreateImage(VkExtent3D(depthPyramidWidth, depthPyramidHeight, 1), VK_FORMAT_R32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		VK_IMAGE_VIEW_TYPE_2D, true, 1, VK_SAMPLE_COUNT_1_BIT, depthPyramidLevels);
 
@@ -718,7 +736,7 @@ void VoxelConeTracingRenderer::InitDefaultData()
 		mip_int_extent /= 2;
 		mip.size = mip_extent;
 		mip.i_size = mip_int_extent;
-		mip.mip = resource_manager->CreateImageEmpty(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32,
+		mip.mip = resource_manager->CreateImage(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32,
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
 
 		bloom_mip_maps.emplace_back(mip);
@@ -1603,6 +1621,7 @@ void VoxelConeTracingRenderer::Cleanup()
 		for (auto& frame : _frames) {
 			frame._deletionQueue.flush();
 		}
+		resource_manager->cleanup();
 
 		DestroySwapchain();
 		engine->cleanup();
@@ -1725,6 +1744,97 @@ void VoxelConeTracingRenderer::Draw()
 	_frameNumber++;
 }
 
+void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
+{
+	ZoneScoped;
+	stats.drawcall_count = 0;
+	//allocate uniform buffers for this pass
+	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+
+	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
+		vkutil::destroy_buffer(shadowDataBuffer, engine);
+		});
+
+
+	//write our allocated uniform buffers
+	void* shadowDataPtr = nullptr;
+	vmaMapMemory(engine->_allocator, shadowDataBuffer.allocation, &shadowDataPtr);
+	shadowData* ptr = (shadowData*)shadowDataPtr;
+	*ptr = shadow_data;
+	vmaUnmapMemory(engine->_allocator, shadowDataBuffer.allocation);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	void* sceneDataPtr = nullptr;
+	vmaMapMemory(engine->_allocator, gpuSceneDataBuffer.allocation, &sceneDataPtr);
+	GPUSceneData* sceneUniformData = (GPUSceneData*)sceneDataPtr;
+	*sceneUniformData = scene_data;
+	vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, voxelization_descriptor_layout);
+
+	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, scene_manager->GetObjectDataBuffer()->buffer,
+		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	writer.write_image(2, voxelizer.voxel_radiance_image.imageView, depthSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(3, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_buffer(4, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+	writer.update_set(engine->_device, globalDescriptor);
+
+	{
+		for (auto pass_enum : forward_passes)
+		{
+			auto pass = scene_manager->GetMeshPass(pass_enum);
+			if (pass->flat_objects.size() > 0)
+			{
+				stats.drawcall_count++;
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
+					&globalDescriptor, 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
+
+
+				VkViewport viewport = {};
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = (float)_windowExtent.width;
+				viewport.height = (float)_windowExtent.height;
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
+
+				vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+				VkRect2D scissor = {};
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _windowExtent.width;
+				scissor.extent.height = _windowExtent.height;
+				vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+				vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
+				//calculate final mesh matrix
+				GPUDrawPushConstants push_constants;
+				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
+				vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
+
+			}
+		}
+	}
+	// we delete the draw commands now that we processed them
+	drawCommands.OpaqueSurfaces.clear();
+	drawCommands.TransparentSurfaces.clear();
+	draws.clear();
+}
+
 void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 {
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
@@ -1749,51 +1859,6 @@ void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.update_set(engine->_device, globalDescriptor);
 
-
-	/*
-	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-	auto draw = [&](const RenderObject& r) {
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
-			&globalDescriptor, 0, nullptr);
-
-
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = (float)_shadowDepthImage.imageExtent.width;
-		viewport.height = (float)_shadowDepthImage.imageExtent.height;
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
-		scissor.extent.width = _shadowDepthImage.imageExtent.width;
-		scissor.extent.height = _shadowDepthImage.imageExtent.height;
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
-		if (r.indexBuffer != lastIndexBuffer)
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
-		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
-		push_constants.worldMatrix = r.transform;
-		push_constants.vertexBuffer = r.vertexBufferAddress;
-
-		vkCmdPushConstants(cmd, cascadedShadows.shadowPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-
-		stats.shadow_drawcall_count++;
-		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-		};
-	for (auto& r : draws) {
-		draw(drawCommands.OpaqueSurfaces[r]);
-	}
-	*/
 	{
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.pipeline);
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, cascadedShadows.shadowPipeline.layout, 0, 1,
@@ -1827,6 +1892,7 @@ void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 	};
 
 }
+
 void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 {
 	ZoneScoped;
@@ -2127,70 +2193,6 @@ void VoxelConeTracingRenderer::UpSampleBloom(VkCommandBuffer cmd)
 		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
-
-
-	/*
-	for (size_t i = bloom_mip_maps.size() - 1; i > 0; i--)
-	{
-		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
-
-		auto& imageLevel = bloom_mip_maps[i];
-		auto& nextImageLevel = bloom_mip_maps[i - 1];
-
-		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(nextImageLevel.mip.imageView, nullptr, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		VkRenderingInfo hdrRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, nullptr);
-		vkCmdBeginRendering(cmd, &hdrRenderInfo);
-		DescriptorWriter writer;
-		writer.write_image(0, imageLevel.mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		writer.update_set(engine->_device, bloomDescriptor);
-
-		VkDescriptorSet bloomDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
-
-		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-		auto draw = [&](const RenderObject& r) {
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, upsamplePSO.renderImagePipeline.pipeline);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, upsamplePSO.renderImagePipeline.layout, 0, 1,
-				&bloomDescriptor, 0, nullptr);
-
-			VkViewport viewport = {};
-			viewport.x = 0;
-			viewport.y = 0;
-			viewport.width = (float)nextImageLevel.mip.imageExtent.width;
-			viewport.height = (float)nextImageLevel.mip.imageExtent.height;
-			viewport.minDepth = 0.f;
-			viewport.maxDepth = 1.f;
-			vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-			VkRect2D scissor = {};
-			scissor.offset.x = 0;
-			scissor.offset.y = 0;
-			scissor.extent.width = nextImageLevel.mip.imageExtent.width;
-			scissor.extent.height = nextImageLevel.mip.imageExtent.height;
-			vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-			if (r.indexBuffer != lastIndexBuffer)
-			{
-				lastIndexBuffer = r.indexBuffer;
-				vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-			}
-
-			BloomUpsamplePushConstants push_constants;
-			push_constants.radius = bloom_filter_radius;
-			push_constants.ScreenDimensions = glm::vec2(nextImageLevel.mip.imageExtent.width, nextImageLevel.mip.imageExtent.height);
-
-			vkCmdPushConstants(cmd, HdrPSO.renderImagePipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(BloomUpsamplePushConstants), &push_constants);
-			vkCmdDraw(cmd, 3, 1, 0, 0);
-			};
-
-		draw(imageDrawCommands.OpaqueSurfaces[0]);
-
-		vkCmdEndRendering(cmd);
-
-		vkutil::transition_image(cmd, nextImageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		vkutil::transition_image(cmd, imageLevel.mip.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	}
-	*/
 }
 
 void VoxelConeTracingRenderer::DrawPostProcess(VkCommandBuffer cmd)
@@ -2800,6 +2802,12 @@ void VoxelConeTracingRenderer::DrawUI()
 			ImGui::TreePop();
 		}
 	}
+
+	if (ImGui::CollapsingHeader("Global Illumination"))
+	{
+		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_texture_resolution ,64, 64, 512);
+	}
+
 	if (ImGui::CollapsingHeader("Post processing"))
 	{
 		ImGui::SeparatorText("Bloom");

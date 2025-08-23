@@ -1,8 +1,14 @@
 #ifndef VOXELIZATION_FRAG_GLSL
 #define VOXELIZATION_FRAG_GLSL
-
-
 #extension GL_GOOGLE_include_directive : require
+#include "conversion.glsl"
+
+struct VoxelData{
+	float r;
+	float g;
+	float b;
+	uint voxel_num;
+};
 
 ivec3 ComputeVoxelizationCoordinate(vec3 posW, ivec3 image_dim)
 {

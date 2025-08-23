@@ -1,6 +1,7 @@
 #pragma once
 #include "base_renderer.h"
 #include "../vk_engine.h"
+#include "../voxelizer.h"
 
 struct VoxelConeTracingRenderer : public BaseRenderer
 {
@@ -32,7 +33,7 @@ struct VoxelConeTracingRenderer : public BaseRenderer
 	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
 
-
+	void VoxelizeGeometry(VkCommandBuffer cmd);
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
@@ -83,6 +84,7 @@ private:
 	RenderImagePipelineObject HdrPSO;
 	UpsamplePipelineObject upsamplePSO;
 	EarlyDepthPipelineObject depthPrePassPSO;
+	ConservativeVoxelizationPipelineObject voxelizationPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;
@@ -162,7 +164,11 @@ private:
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
 	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
-	//VkDescriptorSetLayout _
+	VkDescriptorSetLayout voxelization_descriptor_layout;
+	VkDescriptorSetLayout VXGI_descriptor_layout;
+
+	//Voxel cone tracing parameters
+	Voxelizer voxelizer;
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;

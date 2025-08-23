@@ -175,7 +175,7 @@ struct GLTFMetallic_Roughness {
 };
 
 
-struct ConservativeVoxelization {
+struct ConservativeVoxelizationPipelineObject {
 	MaterialPipeline conservative_opacity_pipeline;
 	MaterialPipeline conservative_radiance_pipeline;
 	MaterialPipeline msaa_opacity_pipeline;
