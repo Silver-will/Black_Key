@@ -512,6 +512,8 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT |
 		VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -524,7 +526,7 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
 
-	conservative_opacity_pipeline.layout = newLayout;
+	conservative_radiance_pipeline.layout = newLayout;
 
 	// build the stage-create-info for both vertex and fragment stages. This lets
 	// the pipeline know the shader modules per stage
@@ -535,7 +537,9 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_level(info.msaa_samples);
 	pipelineBuilder.disable_blending();
+	pipelineBuilder.disable_color_write();
 	pipelineBuilder.disable_depthtest();
+	pipelineBuilder.set_stencil_test(VK_TRUE);
 
 
 	//Conservative rasterization setup
@@ -552,13 +556,12 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	conservativeRasterStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT;
 	conservativeRasterStateCI.conservativeRasterizationMode = VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
 	conservativeRasterStateCI.extraPrimitiveOverestimationSize = conservativeRasterProps.maxExtraPrimitiveOverestimationSize;
-
 	// Conservative rasterization state has to be chained into the pipeline rasterization state create info structure
 	pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
 	
 	//render format
 	pipelineBuilder.set_color_attachment_format(info.imageFormat);
-	pipelineBuilder.set_depth_format(info.depthFormat);
+	//pipelineBuilder.set_depth_format(info.depthFormat);
 
 	// use the triangle layout we created
 	pipelineBuilder._pipelineLayout = newLayout;

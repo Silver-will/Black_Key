@@ -1,4 +1,14 @@
-#include "resource.glsl"
+#include "global_resources.glsl"
+
+
+layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
+layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
+layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
+layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
+layout(set = 0, binding = 11) uniform  ShadowData{   
+	mat4 shadowMatrices[4];
+} shadowData;
+
 
 #define MEDIUMP_FLT_MAX    65504.0
 #define saturateMediump(x) min(x, MEDIUMP_FLT_MAX)
@@ -93,38 +103,6 @@ vec3 GetViewReflectedNormal(vec3 N, vec3 V, inout float NdotV)
     return N;
 }
 
-/*
-vec3 calcDirLight(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow){
-    //Variables common to BRDFs
-    vec3 R = reflect(-V,N);
-	vec3 H = normalize(V + L);
-    
-    float NoV = abs(dot(N, V)) + 1e-5;
-	float NoL = clamp(dot(N, L), 0.0, 1.0);
-	float NoH = clamp(dot(N, H), 0.0, 1.0);
-    float LoH = clamp(dot(L, H), 0.0, 1.0);
-    vec3 radianceIn = sceneData.sunlightColor.xyz;
-
-    //Cook-Torrance BRDF
-    float NDF = distributionGGX(N, halfway, rough);
-    float G   = geometrySmith(nDotV, nDotL, rough);
-    vec3  F   = fresnelSchlick(max(dot(halfway,viewDir), 0.0), F0);
-
-    //Finding specular and diffuse component
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metal;
-
-    vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * nDotV * nDotL;
-    vec3 specular = numerator / max (denominator, 0.0001);
-
-    vec3 radiance = (kD * (albedo / M_PI) + specular ) * radianceIn * nDotL;
-    radiance *= (1.0 - shadow);
-
-    return radiance;
-}
-*/
 vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,vec3 F0, vec2 metal_rough, float shadow, float NoV, float NoH, float NoL)
 {
     vec3 H  = normalize(L + V);

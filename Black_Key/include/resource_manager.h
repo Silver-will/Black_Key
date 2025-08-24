@@ -42,7 +42,8 @@ struct ResourceManager
 	AllocatedBuffer CreateAndUpload(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, void* data);
 	AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
-	AllocatedImage CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkImageViewType viewType, bool mipmapped, int layers = 1, VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, int mipLevels = -1);
+	AllocatedImage CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkImageViewType viewType, bool mipmapped, int layers = 1, 
+		VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, int mipLevels = -1, VkImageType image_type = VK_IMAGE_TYPE_2D);
 	void DestroyImage(const AllocatedImage& img);
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 	VkFilter extract_filter(fastgltf::Filter filter);

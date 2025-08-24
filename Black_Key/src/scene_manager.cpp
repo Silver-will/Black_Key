@@ -280,7 +280,6 @@ SceneManager::MeshPass* SceneManager::GetMeshPass(vkutil::MaterialPass passType)
 			return &shadow_pass;
 		case vkutil::MaterialPass::transparency:
 			return &transparency_pass;
-
 	}
 }
 

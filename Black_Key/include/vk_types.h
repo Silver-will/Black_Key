@@ -33,7 +33,8 @@ namespace vkutil{
         transparency,
         forward,
         early_depth,
-        shadow_pass
+        shadow_pass,
+        voxel_gi
     };
 
     struct cullParams {

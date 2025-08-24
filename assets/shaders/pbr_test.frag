@@ -5,6 +5,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #include "brdf.glsl"
+#include "forward_resource.glsl"
 layout(early_fragment_tests) in;
 
 layout (location = 0) in vec3 inNormal;

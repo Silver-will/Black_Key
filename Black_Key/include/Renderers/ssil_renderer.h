@@ -1,9 +1,8 @@
 #pragma once
 #include "base_renderer.h"
-#include "../vk_engine.h"
-#include "../voxelizer.h"
+#include <memory>
 
-struct VoxelConeTracingRenderer : public BaseRenderer
+struct ClusteredForwardRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
 	void Cleanup() override;
@@ -23,25 +22,19 @@ struct VoxelConeTracingRenderer : public BaseRenderer
 	void GenerateIrradianceCube();
 	void GenerateBRDFLUT();
 	void GeneratePrefilteredCubemap();
-	// Light clustering building
-	void BuildClusters();
-	void CullLights(VkCommandBuffer cmd);
-	void GenerateAABB(VkCommandBuffer cmd);
 	//Bloom compute pass
 	void DownSampleBloom(VkCommandBuffer cmd);
 	void UpSampleBloom(VkCommandBuffer cmd);
-	void ReduceDepth(VkCommandBuffer cmd);
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
 
-	void VoxelizeGeometry(VkCommandBuffer cmd);
+	void GBufferPass(VkCommandBuffer cmd);
+	void LightingPass(VkCommandBuffer cmd);
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
 	void DrawBackground(VkCommandBuffer cmd);
 	void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
-	void DrawGeometry(VkCommandBuffer cmd);
 	void DrawHdr(VkCommandBuffer cmd);
-	void DrawEarlyDepth(VkCommandBuffer cmd);
 
 	void ConfigureRenderWindow();
 	void InitEngine();
@@ -80,11 +73,7 @@ private:
 	GLTFMetallic_Roughness metalRoughMaterial;
 	ShadowPipelineResources cascadedShadows;
 	SkyBoxPipelineResources skyBoxPSO;
-	BloomBlurPipelineObject postProcessPSO;
 	RenderImagePipelineObject HdrPSO;
-	UpsamplePipelineObject upsamplePSO;
-	EarlyDepthPipelineObject depthPrePassPSO;
-	ConservativeVoxelizationPipelineObject voxelizationPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;
@@ -107,9 +96,6 @@ private:
 	bool debugLightClustering = false;
 	bool readDebugBuffer = false;
 
-
-	std::string assets_path;
-
 	struct {
 		float lastFrame;
 	} delta;
@@ -121,15 +107,17 @@ private:
 	float _aspect_width = 1920;
 	float _aspect_height = 1080;
 
+	std::string assets_path;
+
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
-	AllocatedImage _depthResolveImage;
+	AllocatedImage pbr_materials;
+	AllocatedImage pbr_materials;
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
 	AllocatedImage _shadowDepthImage;
-	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;
 	std::vector<BlackKey::BloomMip> bloom_mip_maps;
 	uint32_t mip_chain_length = 5;
@@ -164,11 +152,7 @@ private:
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
 	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
-	VkDescriptorSetLayout voxelization_descriptor_layout;
-	VkDescriptorSetLayout VXGI_descriptor_layout;
-
-	//Voxel cone tracing parameters
-	Voxelizer voxelizer;
+	//VkDescriptorSetLayout _
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
@@ -186,7 +170,6 @@ private:
 	VkSampler depthSampler;
 	VkSampler depthReductionSampler;
 	VkSampler bloomSampler;
-	VkSampler voxelSampler;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;
@@ -238,4 +221,3 @@ private:
 	}pointData;
 	DrawContext mainDrawContext;
 };
-

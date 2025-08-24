@@ -102,6 +102,7 @@ void VoxelConeTracingRenderer::InitEngine()
 	baseFeatures.sampleRateShading = true;
 	baseFeatures.drawIndirectFirstInstance = true;
 	baseFeatures.multiDrawIndirect = true;
+	baseFeatures.fragmentStoresAndAtomics = true;
 
 
 	std::vector<const char*> requested_extension{"VK_EXT_conservative_rasterization", "VK_EXT_shader_atomic_float" };
@@ -341,7 +342,10 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		//hahaha why is it 11 you ask
+		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		voxelization_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -663,7 +667,8 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	//Create 3D texture for GPU scene Voxelization
 	voxelizer.voxel_radiance_image = resource_manager->CreateImage(
 		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
-		, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_3D, false);
+		, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_VIEW_TYPE_3D, false, 1, VK_SAMPLE_COUNT_1_BIT, -1, VK_IMAGE_TYPE_3D);
 
 	/*voxelizer.voxel_opacity_image = resource_manager->CreateImage(
 		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
@@ -803,6 +808,17 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	cubeSampl.maxLod = (float)11;
 	cubeSampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 	vkCreateSampler(engine->_device, &cubeSampl, nullptr, &cubeMapSampler);
+
+	VkSamplerCreateInfo voxelSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	voxelSampl.magFilter = VK_FILTER_NEAREST;
+	voxelSampl.minFilter = VK_FILTER_LINEAR;
+	voxelSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	voxelSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	voxelSampl.addressModeV = voxelSampl.addressModeU;
+	voxelSampl.addressModeW = voxelSampl.addressModeU;
+	voxelSampl.mipLodBias = 0.0f;
+	vkCreateSampler(engine->_device, &voxelSampl, nullptr, &voxelSampler);
+
 
 	cubeSampl.maxLod = 1;
 	cubeSampl.maxAnisotropy = 1.0f;
@@ -1679,6 +1695,7 @@ void VoxelConeTracingRenderer::Draw()
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _depthPyramid.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	DrawMain(cmd);
 
@@ -1782,9 +1799,9 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_buffer(1, scene_manager->GetObjectDataBuffer()->buffer,
 		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	writer.write_image(2, voxelizer.voxel_radiance_image.imageView, depthSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(3, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_buffer(4, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(2, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(3, voxelizer.voxel_radiance_image.imageView, voxelSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 	writer.update_set(engine->_device, globalDescriptor);
 
@@ -1794,18 +1811,17 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 			auto pass = scene_manager->GetMeshPass(pass_enum);
 			if (pass->flat_objects.size() > 0)
 			{
-				stats.drawcall_count++;
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, voxelizationPSO.conservative_radiance_pipeline.pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, voxelizationPSO.conservative_radiance_pipeline.layout, 0, 1,
 					&globalDescriptor, 0, nullptr);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, voxelizationPSO.conservative_radiance_pipeline.layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
 
 
 				VkViewport viewport = {};
 				viewport.x = 0;
 				viewport.y = 0;
-				viewport.width = (float)_windowExtent.width;
-				viewport.height = (float)_windowExtent.height;
+				viewport.width = (float)voxelizer.voxel_texture_resolution;
+				viewport.height = (float)voxelizer.voxel_texture_resolution;
 				viewport.minDepth = 0.f;
 				viewport.maxDepth = 1.f;
 
@@ -1814,16 +1830,16 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				VkRect2D scissor = {};
 				scissor.offset.x = 0;
 				scissor.offset.y = 0;
-				scissor.extent.width = _windowExtent.width;
-				scissor.extent.height = _windowExtent.height;
+				scissor.extent.width = voxelizer.voxel_texture_resolution;
+				scissor.extent.height = voxelizer.voxel_texture_resolution;
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 				vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
 				//calculate final mesh matrix
 				GPUDrawPushConstants push_constants;
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
-				vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
+				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::forward)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 
 			}
@@ -1900,14 +1916,24 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	cullBarriers.clear();
 
 	//Begin Compute shader culling passes
+	//We reuse the early depth culling results for the forward pass
 	vkutil::cullParams earlyDepthCull;
 	earlyDepthCull.viewmat = scene_data.view;
 	earlyDepthCull.projmat = scene_data.proj;
-	earlyDepthCull.frustrumCull = false;
+	earlyDepthCull.frustrumCull = true;
 	earlyDepthCull.occlusionCull = true;
 	earlyDepthCull.aabb = false;
 	earlyDepthCull.drawDist = main_camera.getFarClip();
 	ExecuteComputeCull(cmd, earlyDepthCull, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth));
+
+	vkutil::cullParams GICull;
+	GICull.viewmat = scene_data.view;
+	GICull.projmat = scene_data.proj;
+	GICull.frustrumCull = false;
+	GICull.occlusionCull = false;
+	GICull.aabb = false;
+	GICull.drawDist = main_camera.getFarClip();
+	ExecuteComputeCull(cmd, GICull, scene_manager->GetMeshPass(vkutil::MaterialPass::forward));
 
 	vkutil::cullParams shadowCull;
 	shadowCull.viewmat = cascadeData.lightViewMatrices[0];
@@ -1957,6 +1983,7 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
+	VoxelizeGeometry(cmd);
 	//GenerateAABB(cmd);
 	//Compute shader pass for clustered light culling
 	CullLights(cmd);
@@ -1976,6 +2003,8 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	DrawGeometry(cmd);
 
 	vkCmdEndRendering(cmd);
+
+	//vkCmdDraw();
 	auto end = std::chrono::system_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;

@@ -48,7 +48,7 @@ VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptor
 VkDescriptorBufferInfo buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range);
 VkSamplerCreateInfo create_sampler(VkFilter filter, VkSamplerMipmapMode mipMode, VkSamplerAddressMode addressMode, int mipCount);
 
-VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers = 1,VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
+VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers = 1,VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT, VkImageType image_type = VK_IMAGE_TYPE_2D);
 VkImageCreateInfo image_cubemap_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, uint32_t mipCount);
 VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags, VkImageViewType viewType, int layerCount = 1);
 VkImageViewCreateInfo imageview_cubemap_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);

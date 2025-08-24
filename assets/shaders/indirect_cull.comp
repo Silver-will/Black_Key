@@ -128,6 +128,11 @@ bool projectSphere(vec3 C, float r, float znear, float P00, float P11, out vec4 
 
 bool IsVisibleFrustum(ObjectData object)
 {
+	if(cullData.cullingEnabled)
+	{
+		//If we don't want to cull e.g VXGI
+		return true;
+	}
 	vec3 corners[] = vec3[8](
 		vec3( 1, 1, 1),
 		vec3(1, 1, -1),

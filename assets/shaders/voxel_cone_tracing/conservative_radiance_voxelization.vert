@@ -3,7 +3,8 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 
-#include "../resource.glsl"
+#include "../types.glsl"
+#include "../global_resources.glsl"
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outFragPos;

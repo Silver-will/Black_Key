@@ -834,13 +834,14 @@ GPUMeshBuffers ResourceManager::UploadMesh(std::span<uint32_t> indices, std::spa
 
 }
 
-AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage,VkImageViewType viewType, bool mipmapped, int layers, VkSampleCountFlagBits msaaSamples, int mipLevels)
+AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage,VkImageViewType viewType, bool mipmapped,
+    int layers, VkSampleCountFlagBits msaaSamples, int mipLevels, VkImageType image_type)
 {
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
 
-    VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size, layers, msaaSamples);
+    VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size, layers, msaaSamples, image_type);
     if (mipmapped) {
         img_info.mipLevels = mipLevels != -1 ? mipLevels : static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
     }

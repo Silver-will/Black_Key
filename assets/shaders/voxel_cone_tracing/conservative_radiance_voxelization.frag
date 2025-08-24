@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_atomic_float : require
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_buffer_reference : require
 
 #include "voxelizationFrag.glsl"
 #include "../brdf.glsl"
@@ -13,11 +14,7 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) flat in uint materialIn;
 layout (location = 4) flat in uint matBufIn;
 
-layout(set = 0, binding = 2, r32ui) uniform volatile uimage3D voxel_radiance;
-layout(set = 0, binding = 3) uniform sampler2DArray shadowMap;
-layout(set = 0, binding = 4) uniform  ShadowData{   
-	mat4 shadowMatrices[4];
-} shadowData;
+layout(set = 0, binding = 3, r32ui) uniform volatile uimage3D voxel_radiance;
 
 
 void imageAtomicRGBA8Avg(ivec3 coords, vec4 value);

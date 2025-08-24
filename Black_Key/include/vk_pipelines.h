@@ -33,6 +33,8 @@ public:
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader, VkShaderModule geometryShader = NULL);
     void set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void disable_blending();
+    void disable_color_write();
+    void set_stencil_test(uint32_t stencil_state);
     void set_multisampling_none();
     void set_multisampling_level(VkSampleCountFlagBits samples);
     void disable_depthtest();

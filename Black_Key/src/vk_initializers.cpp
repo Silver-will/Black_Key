@@ -291,13 +291,13 @@ VkDescriptorBufferInfo vkinit::buffer_info(VkBuffer buffer, VkDeviceSize offset,
 }
 
 //> image_set
-VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers, VkSampleCountFlagBits samples)
+VkImageCreateInfo vkinit::image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, int layers, VkSampleCountFlagBits samples, VkImageType image_type)
 {
     VkImageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.pNext = nullptr;
 
-    info.imageType = VK_IMAGE_TYPE_2D;
+    info.imageType = image_type;
 
     info.format = format;
     info.extent = extent;

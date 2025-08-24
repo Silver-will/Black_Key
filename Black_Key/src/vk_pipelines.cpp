@@ -183,6 +183,12 @@ void PipelineBuilder::set_multisampling_level(VkSampleCountFlagBits samples)
     _multisampling.rasterizationSamples = samples;
 }
 
+void PipelineBuilder::disable_color_write()
+{
+    // empty write mask
+    _colorBlendAttachment.colorWriteMask = 0;
+
+}
 
 void PipelineBuilder::disable_blending()
 {
@@ -203,6 +209,11 @@ void PipelineBuilder::disable_depthtest()
     _depthStencil.back = {};
     _depthStencil.minDepthBounds = 0.f;
     _depthStencil.maxDepthBounds = 1.f;
+}
+
+void PipelineBuilder::set_stencil_test(uint32_t stencil_state)
+{
+    _depthStencil.stencilTestEnable = stencil_state;
 }
 
 void PipelineBuilder::set_color_attachment_format(VkFormat format)
