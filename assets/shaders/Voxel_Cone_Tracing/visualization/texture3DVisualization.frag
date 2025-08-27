@@ -11,7 +11,7 @@ const float EPSILON = 0.00001;
 
 void main() 
 {
-	out_color = In.color;
+	out_color = inColor;
 	
 	//if (u_borderWidth > EPSILON)
 		//out_color = mix(u_borderColor, In.color, min(min(In.uv.x, min(In.uv.y, min((1.0 - In.uv.x), (1.0 - In.uv.y)))) / u_borderWidth, 1.0));

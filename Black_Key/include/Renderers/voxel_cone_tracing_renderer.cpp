@@ -1044,6 +1044,9 @@ void VoxelConeTracingRenderer::UpdateScene()
 	scene_data.sunlightDirection = directLight.direction;
 	scene_data.lightCount = pointData.pointLights.size();
 
+	voxel_vis_data.viewproj = scene_data.viewproj;
+	voxel_vis_data.resolution = glm::vec3(voxelizer.voxel_res);
+
 	void* data = nullptr;
 	vmaMapMemory(engine->_allocator, ClusterValues.lightSSBO.allocation, &data);
 	memcpy(data, pointData.pointLights.data(), pointData.pointLights.size() * sizeof(PointLight));
@@ -1919,8 +1922,23 @@ void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 
 void VoxelConeTracingRenderer::VisualizeTexture3D(VkCommandBuffer cmd)
 {
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, postprocess_descriptor_layout);
+	ZoneScoped;
+	//allocate uniform buffers for this pass
+	AllocatedBuffer visDataBuffer = vkutil::create_buffer(sizeof(Texture3DVisualizationData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		vkutil::destroy_buffer(visDataBuffer, engine);
+		});
+
+
+	//write our allocated uniform buffers
+	void* visualizationDataPtr = nullptr;
+	vmaMapMemory(engine->_allocator, visDataBuffer.allocation, &visualizationDataPtr);
+	Texture3DVisualizationData* ptr = (Texture3DVisualizationData*)visualizationDataPtr;
+	*ptr = voxel_vis_data;
+	vmaUnmapMemory(engine->_allocator, visDataBuffer.allocation);
+
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, voxelization_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_image(0, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -2879,6 +2897,8 @@ void VoxelConeTracingRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Global Illumination"))
 	{
 		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_res ,64, 64, 512);
+		ImGui::SliderFloat("Voxel padding", &bloom_filter_radius, 0.01f, 1.0f);
+		ImGui::SliderFloat("Voxel size", &bloom_strength, 0.01f, 1.0f);
 	}
 
 	if (ImGui::CollapsingHeader("Post processing"))

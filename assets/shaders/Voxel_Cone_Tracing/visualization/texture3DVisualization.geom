@@ -18,16 +18,16 @@ vec3 toWorld(vec3 p, vec3 offset)
 void createQuad(vec4 v0, vec4 v1, vec4 v2, vec4 v3)
 {
 	gl_Position = v0;
-	Out.uv = vec2(0.0, 0.0);
+	outUV = vec2(0.0, 0.0);
 	EmitVertex();
 	gl_Position = v1;
-	Out.uv = vec2(0.0, 1.0);
+	outUV = vec2(0.0, 1.0);
 	EmitVertex();
 	gl_Position = v3;
-	Out.uv = vec2(1.0, 0.0);
+	outUV = vec2(1.0, 0.0);
 	EmitVertex();
 	gl_Position = v2;
-	Out.uv = vec2(1.0, 1.0);
+	outUV = vec2(1.0, 1.0);
 	EmitVertex();
 	EndPrimitive();
 }
@@ -59,7 +59,7 @@ void main()
 	
 	//Create 6 quads modelling a cube
 	
-	OutColor = colors;
+	outColor = color;
 	createQuad(v0, v2, v6, v4);
 	createQuad(v1, v5, v7, v3);
 	createQuad(v0, v4, v5, v1);

@@ -230,9 +230,9 @@ struct GPUSceneData {
 struct Texture3DVisualizationData{
     glm::mat4 viewproj;
     glm::vec3 resolution;
-    float texel_size;
-    glm::vec3 position;
-    float padding;
+    float texel_size{0.01f};
+    glm::vec3 position = glm::vec3(0.0f);
+    float padding{0.01f};
     glm::vec3 border_color;
     float border_alpha;
 };

@@ -8,4 +8,4 @@ layout(set = 0, binding = 0) uniform Texture3DData{
     float border_alpha;    
 } tex_3d_data;
 
-layout(set = 0, binding = 1) uniform volatile uimage3D voxel_radiance;
+layout(set = 0, binding = 1, r32ui) uniform volatile uimage3D voxel_radiance;

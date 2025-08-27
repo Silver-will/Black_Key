@@ -111,6 +111,8 @@ private:
 	bool readDebugBuffer = false;
 
 
+	Texture3DVisualizationData voxel_vis_data;
+
 	std::string assets_path;
 
 	struct {
