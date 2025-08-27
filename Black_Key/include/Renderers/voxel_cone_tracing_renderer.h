@@ -34,6 +34,7 @@ struct VoxelConeTracingRenderer : public BaseRenderer
 	void ExecuteComputeCull(VkCommandBuffer cmd, vkutil::cullParams& cullParams, SceneManager::MeshPass* meshPass);
 
 	void VoxelizeGeometry(VkCommandBuffer cmd);
+	void VisualizeTexture3D(VkCommandBuffer cmd);
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
@@ -85,6 +86,7 @@ private:
 	UpsamplePipelineObject upsamplePSO;
 	EarlyDepthPipelineObject depthPrePassPSO;
 	ConservativeVoxelizationPipelineObject voxelizationPSO;
+	VoxelizationVisualizationPipelineObject voxelVisualizationPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;
@@ -102,6 +104,7 @@ private:
 	bool render_shadowMap{ true };
 	bool stop_rendering{ false };
 	bool debugShadowMap = false;
+	bool visualize_voxel_texture = false;
 	bool use_bindless = true;
 	bool debugBuffer = false;
 	bool debugLightClustering = false;
@@ -166,6 +169,7 @@ private:
 	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;
 	VkDescriptorSetLayout voxelization_descriptor_layout;
 	VkDescriptorSetLayout VXGI_descriptor_layout;
+	VkDescriptorSetLayout texture_3D_visualizer_layout;
 
 	//Voxel cone tracing parameters
 	Voxelizer voxelizer;

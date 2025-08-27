@@ -2,7 +2,7 @@
 #include "base_renderer.h"
 #include <memory>
 
-struct ClusteredForwardRenderer : BaseRenderer
+struct SSGIRenderer : BaseRenderer
 {
 	void Init(VulkanEngine* engine) override;
 	void Cleanup() override;
@@ -111,12 +111,10 @@ private:
 
 	Cascade cascadeData;
 	DeletionQueue _mainDeletionQueue;
-	AllocatedImage _drawImage;
-	AllocatedImage _depthImage;
-	AllocatedImage pbr_materials;
-	AllocatedImage pbr_materials;
-	AllocatedImage _resolveImage;
-	AllocatedImage _hdrImage;
+	AllocatedImage draw_image;
+	AllocatedImage depth_image;
+	AllocatedImage normal_image;
+	AllocatedImage albedo_image;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _depthPyramid;
 	std::vector<BlackKey::BloomMip> bloom_mip_maps;

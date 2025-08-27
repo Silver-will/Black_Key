@@ -27,5 +27,9 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe upsample.frag -o upsample.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe pbr_test.frag -o pbr_test.frag.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.vert -o voxel_cone_tracing/cons_voxelization.vert.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.geom -o voxel_cone_tracing/cons_voxelization.geom.spv 
-C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.frag -o voxel_cone_tracing/cons_voxelization.frag.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.frag -o voxel_cone_tracing/cons_voxelization.frag.spv
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.vert -o voxel_cone_tracing/visualization/texture3DVisualization.vert.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.geom -o voxel_cone_tracing/visualization/texture3DVisualization.geom.spv 
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.frag -o voxel_cone_tracing/visualization/texture3DVisualization.frag.spv  
+
 pause

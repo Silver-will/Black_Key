@@ -227,6 +227,16 @@ struct GPUSceneData {
     glm::vec4 debugValues; //x for light clusters
   };
 
+struct Texture3DVisualizationData{
+    glm::mat4 viewproj;
+    glm::vec3 resolution;
+    float texel_size;
+    glm::vec3 position;
+    float padding;
+    glm::vec3 border_color;
+    float border_alpha;
+};
+
 struct shadowData {
     glm::mat4 lightSpaceMatrices[4];
    // glm::vec4 distances;

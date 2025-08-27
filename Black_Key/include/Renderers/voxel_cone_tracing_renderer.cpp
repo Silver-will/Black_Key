@@ -3,6 +3,7 @@
 #include "../vk_device.h"
 #include "../graphics.h"
 #include "../UI.h"
+#include "../voxelizer.h"
 
 #include <VkBootstrap.h>
 
@@ -351,6 +352,13 @@ void VoxelConeTracingRenderer::InitDescriptors()
 
 	{
 		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		texture_3D_visualizer_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+	}
+
+	{
+		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 65536);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 65536);
@@ -441,14 +449,15 @@ void VoxelConeTracingRenderer::InitPipelines()
 	PipelineCreationInfo voxelInfo;
 	voxelInfo.layouts.push_back(voxelization_descriptor_layout);
 	voxelInfo.layouts.push_back(resource_manager->bindless_descriptor_layout);
-	voxelInfo.imageFormat = voxelizer.voxel_radiance_image.imageFormat;
+	voxelInfo.imageFormat = _resolveImage.imageFormat;
 	voxelizationPSO.build_pipelines(engine, voxelInfo);
-	/*
-	PipelineCreationInfo upsampleBloomInfo;
-	upsampleBloomInfo.layouts.push_back(postprocess_descriptor_layout);
-	upsampleBloomInfo.imageFormat = bloom_mip_maps[0].mip.imageFormat;
-	upsamplePSO.build_pipelines(engine, upsampleBloomInfo);
-	*/
+
+
+	PipelineCreationInfo voxelVisualizationInfo;
+	voxelVisualizationInfo.layouts.push_back(texture_3D_visualizer_layout);
+	voxelVisualizationInfo.imageFormat = _resolveImage.imageFormat;
+	voxelVisualizationInfo.depthFormat = _depthImage.imageFormat;
+	voxelVisualizationPSO.build_pipelines(engine, voxelVisualizationInfo);
 
 	PipelineCreationInfo earlyDepthInfo;
 	earlyDepthInfo.layouts.push_back(_gpuSceneDataDescriptorLayout);
@@ -664,12 +673,11 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
 
-	//Create 3D texture for GPU scene Voxelization
 	voxelizer.voxel_radiance_image = resource_manager->CreateImage(
-		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
-		, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VkExtent3D(voxelizer.voxel_res, voxelizer.voxel_res, voxelizer.voxel_res)
+		, VK_FORMAT_R32_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_IMAGE_VIEW_TYPE_3D, false, 1, VK_SAMPLE_COUNT_1_BIT, -1, VK_IMAGE_TYPE_3D);
-
+	//voxelizer.InitializeVoxelizer(resource_manager);
 	/*voxelizer.voxel_opacity_image = resource_manager->CreateImage(
 		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
 		, VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_3D, false);
@@ -1081,7 +1089,7 @@ void VoxelConeTracingRenderer::UpdateScene()
 void VoxelConeTracingRenderer::LoadAssets()
 {
 	_skyImage = vkutil::load_cubemap_image(std::string(assets_path + "/textures/hdris/uffizi_cube.ktx").c_str(), VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-	std::string structurePath{ assets_path + "/models/Sponza/Sponza.gltf" };
+	std::string structurePath{ assets_path + "/models/sponza/sponza.gltf" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 
@@ -1820,8 +1828,8 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				VkViewport viewport = {};
 				viewport.x = 0;
 				viewport.y = 0;
-				viewport.width = (float)voxelizer.voxel_texture_resolution;
-				viewport.height = (float)voxelizer.voxel_texture_resolution;
+				viewport.width = (float)voxelizer.voxel_res;
+				viewport.height = (float)voxelizer.voxel_res;
 				viewport.minDepth = 0.f;
 				viewport.maxDepth = 1.f;
 
@@ -1830,8 +1838,8 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				VkRect2D scissor = {};
 				scissor.offset.x = 0;
 				scissor.offset.y = 0;
-				scissor.extent.width = voxelizer.voxel_texture_resolution;
-				scissor.extent.height = voxelizer.voxel_texture_resolution;
+				scissor.extent.width = voxelizer.voxel_res;
+				scissor.extent.height = voxelizer.voxel_res;
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 				vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -1909,6 +1917,21 @@ void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 
 }
 
+void VoxelConeTracingRenderer::VisualizeTexture3D(VkCommandBuffer cmd)
+{
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, postprocess_descriptor_layout);
+
+	DescriptorWriter writer;
+	writer.write_image(0, _resolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(1, _depthResolveImage.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(2, bloom_mip_maps[0].mip.imageView, bloomSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	writer.update_set(engine->_device, globalDescriptor);
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+}
+
 void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 {
 	ZoneScoped;
@@ -1983,18 +2006,39 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		render_shadowMap = false;
 	}
 
+	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
+	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+
+	VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
+	vkCmdBeginRendering(cmd, &voxelRenderInfo);
+
 	VoxelizeGeometry(cmd);
+	
+	vkCmdEndRendering(cmd);
+
 	//GenerateAABB(cmd);
+	
 	//Compute shader pass for clustered light culling
 	CullLights(cmd);
 
-	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
+	//VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 	VkClearValue depthClear;
 	depthClear.depthStencil.depth = 1.0f;
 	VkRenderingAttachmentInfo depthAttachment2 = vkinit::attachment_info(_depthImage.imageView, &_depthResolveImage.imageView, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	if (visualize_voxel_texture)
+	{
+		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, &depthAttachment2);
+		vkCmdBeginRendering(cmd, &visualizeRenderInfo);
+
+		VisualizeTexture3D(cmd);
+
+		vkCmdEndRendering(cmd);
+	}
+	else
+	{
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
 
 	auto start = std::chrono::system_clock::now();
@@ -2008,7 +2052,7 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	auto end = std::chrono::system_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
-
+	}
 	auto main_end = std::chrono::system_clock::now();
 	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
 	//stats.frametime = main_elapsed.count() / 1000.f;
@@ -2834,7 +2878,7 @@ void VoxelConeTracingRenderer::DrawUI()
 
 	if (ImGui::CollapsingHeader("Global Illumination"))
 	{
-		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_texture_resolution ,64, 64, 512);
+		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_res ,64, 64, 512);
 	}
 
 	if (ImGui::CollapsingHeader("Post processing"))

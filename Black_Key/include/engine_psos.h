@@ -188,3 +188,13 @@ struct ConservativeVoxelizationPipelineObject {
 
 	void clear_resources(VkDevice device);
 };
+
+struct VoxelizationVisualizationPipelineObject {
+	MaterialPipeline texture_3D_pipeline;
+	MaterialPipeline voxel_visualization_pipeline;
+	VkDescriptorSetLayout materialLayout;
+
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
+
+	void clear_resources(VkDevice device);
+};

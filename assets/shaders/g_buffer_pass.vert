@@ -3,15 +3,11 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 
-#include "types.glsl"
-#include "global_resources.glsl"
+#include "resource.glsl"
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) flat out uint outMaterialIndex;
-layout (location = 2) out vec3 outColor;
 layout (location = 3) out vec3 outFragPos;
-layout (location = 4) out vec3 outViewPos;
-layout (location = 5) out vec3 outPos;
 layout (location = 6) out vec2 outUV;
 layout (location = 7) out vec4 outTangent;
 layout (location = 8) out mat3 outTBN;
@@ -47,11 +43,8 @@ void main()
 
 	outTBN = mat3(T, B, N);
 	outNormal = normalMatrix * v.normal;
-	//outColor = v.color.xyz * materialData.colorFactors.xyz;	
-	outColor = v.color.xyz;
 	outFragPos = vec3(fragPos.xyz);
-	outViewPos = (sceneData.view * fragPos).xyz;
-	outPos = v.position;
+	outViewPos = (sceneData.view * position).xyz;
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
 	outTangent.xyz = normalMatrix * v.tangent.xyz;

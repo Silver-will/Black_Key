@@ -55,6 +55,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine, PipelineCreat
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
 	pipelineBuilder.disable_blending();
+	//No need to write depth. z-prepass already populated the depth buffer
 	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	//render format
@@ -489,17 +490,17 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	VkShaderModule voxelization_frag_shader;
 	std::string assets_path = ENGINE_ASSET_PATH;
 	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/cons_voxelization.frag.spv").c_str(), engine->_device, &voxelization_frag_shader)) {
-		std::println("Error when building the triangle fragment shader module");
+		std::println("Error when building the voxelization fragment shader module");
 	}
 	
 	VkShaderModule voxelization_geom_shader;
 	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/cons_voxelization.geom.spv").c_str(), engine->_device, &voxelization_geom_shader)) {
-		std::println("Error when building the triangle fragment shader module");
+		std::println("Error when building the voxelization fragment shader module");
 	}
 
 	VkShaderModule voxelization_vert_shader;
 	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/cons_voxelization.vert.spv").c_str(), engine->_device, &voxelization_vert_shader)) {
-		std::println("Error when building the triangle vertex shader module");
+		std::println("Error when building the voxelization vertex shader module");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -579,4 +580,80 @@ void ConservativeVoxelizationPipelineObject::clear_resources(VkDevice device)
 	vkDestroyPipelineLayout(device, conservative_radiance_pipeline.layout, nullptr);
 
 	vkDestroyPipeline(device, conservative_radiance_pipeline.pipeline, nullptr);
+}
+
+
+void VoxelizationVisualizationPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
+{
+	VkShaderModule texture_visualization_frag;
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/visualization/texture3DVisualization.frag.spv").c_str(), engine->_device, &texture_visualization_frag)) {
+		std::println("Error when building the voxel visualization fragment shader module");
+	}
+
+	VkShaderModule texture_visualization_geom;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/visualization/texture3DVisualization.geom.spv").c_str(), engine->_device, &texture_visualization_geom)) {
+		std::println("Error when building the voxel visualization fragment shader module");
+	}
+
+	VkShaderModule texture_visualization_geom;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/visualization/texture3DVisualization.vert.spv").c_str(), engine->_device, &texture_visualization_geom)) {
+		std::println("Error when building the voxel visualization vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+
+	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT |
+		VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 1;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	texture_3D_pipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(texture_visualization_geom, texture_visualization_frag, texture_visualization_geom);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(info.msaa_samples);
+	pipelineBuilder.enable_blending_alphablend();
+	pipelineBuilder.enable_depthtest(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	texture_3D_pipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, texture_visualization_frag, nullptr);
+	vkDestroyShaderModule(engine->_device, texture_visualization_geom, nullptr);
+	vkDestroyShaderModule(engine->_device, texture_visualization_geom, nullptr);
+}
+
+void VoxelizationVisualizationPipelineObject::clear_resources(VkDevice device)
+{
+	vkDestroyPipelineLayout(device, texture_3D_pipeline.layout, nullptr);
+
+	vkDestroyPipeline(device, texture_3D_pipeline.pipeline, nullptr);
 }

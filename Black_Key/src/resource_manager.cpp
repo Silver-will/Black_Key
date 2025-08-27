@@ -692,6 +692,7 @@ void ResourceManager::write_material_array()
 
     bindless_set = bindless_material_descriptor.allocate(engine->_device, bindless_descriptor_layout);
     writer.update_set(engine->_device, bindless_set);
+    bindless_resources.clear();
 }
 
 VkDescriptorSet* ResourceManager::GetBindlessSet()
