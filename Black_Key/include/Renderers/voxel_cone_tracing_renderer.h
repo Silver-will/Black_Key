@@ -101,14 +101,14 @@ private:
 	bool resize_requested = false;
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
-	bool render_shadowMap{ true };
-	bool stop_rendering{ false };
-	bool debugShadowMap = false;
-	bool visualize_voxel_texture = false;
-	bool use_bindless = true;
-	bool debugBuffer = false;
-	bool debugLightClustering = false;
-	bool readDebugBuffer = false;
+	bool render_shadowMap{true};
+	bool stop_rendering{false};
+	bool debugShadowMap{false};
+	bool visualize_voxel_texture{false};
+	bool use_bindless {true};
+	bool debugBuffer{false};
+	bool debugLightClustering{false};
+	bool readDebugBuffer{false};
 
 
 	Texture3DVisualizationData voxel_vis_data;

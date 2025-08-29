@@ -37,9 +37,6 @@ void main()
 	vec3 pos = gl_in[0].gl_Position.xyz;
 	ivec3 samplePos = ivec3(pos);
 	
-	// Target correct clipmap level
-	//samplePos.y += u_clipmapLevel * u_resolution.y;
-		
 	//vec4 colors[6] = vec4[](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));
 	vec4 color = imageLoad(voxel_radiance, samplePos);
 

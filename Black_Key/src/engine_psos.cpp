@@ -596,8 +596,8 @@ void VoxelizationVisualizationPipelineObject::build_pipelines(VulkanEngine* engi
 		std::println("Error when building the voxel visualization fragment shader module");
 	}
 
-	VkShaderModule texture_visualization_geom;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/visualization/texture3DVisualization.vert.spv").c_str(), engine->_device, &texture_visualization_geom)) {
+	VkShaderModule texture_visualization_vert;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/voxel_cone_tracing/visualization/texture3DVisualization.vert.spv").c_str(), engine->_device, &texture_visualization_vert)) {
 		std::println("Error when building the voxel visualization vertex shader module");
 	}
 
@@ -609,7 +609,7 @@ void VoxelizationVisualizationPipelineObject::build_pipelines(VulkanEngine* engi
 	DescriptorLayoutBuilder layoutBuilder;
 
 	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT |
 		VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -627,8 +627,8 @@ void VoxelizationVisualizationPipelineObject::build_pipelines(VulkanEngine* engi
 	// build the stage-create-info for both vertex and fragment stages. This lets
 	// the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
-	pipelineBuilder.set_shaders(texture_visualization_geom, texture_visualization_frag, texture_visualization_geom);
-	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_shaders(texture_visualization_vert, texture_visualization_frag, texture_visualization_geom);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_multisampling_level(info.msaa_samples);
@@ -648,7 +648,7 @@ void VoxelizationVisualizationPipelineObject::build_pipelines(VulkanEngine* engi
 
 	vkDestroyShaderModule(engine->_device, texture_visualization_frag, nullptr);
 	vkDestroyShaderModule(engine->_device, texture_visualization_geom, nullptr);
-	vkDestroyShaderModule(engine->_device, texture_visualization_geom, nullptr);
+	vkDestroyShaderModule(engine->_device, texture_visualization_vert, nullptr);
 }
 
 void VoxelizationVisualizationPipelineObject::clear_resources(VkDevice device)

@@ -5,6 +5,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_buffer_reference : require
 
+
 #include "voxelizationFrag.glsl"
 #include "../brdf.glsl"
 
@@ -100,6 +101,7 @@ void main()
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
 	    //imageAtomicAdd(voxel_radiance, coords, vec4(radiance,1.0));
 
+       // debugPrintfEXT("Radiance at this voxel = %v4f", vec4(lightContribution,1.0));
         imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
     }
    

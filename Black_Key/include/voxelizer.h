@@ -7,11 +7,13 @@
 
 struct Voxelizer {
 	int voxel_res = 128;
+	int debug_vertex_count;
 
 	AllocatedImage voxel_radiance_image;
 	AllocatedImage voxel_opacity_image;
 
 	void InitializeVoxelizer(std::shared_ptr<ResourceManager> resource_manager);
+	void InitializeResources(ResourceManager* resource_manager);
 	GPUMeshBuffers voxel_buffer;
 	AllocatedBuffer vertex_buffer;
 };

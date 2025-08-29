@@ -6,6 +6,11 @@
 #include "types.glsl"
 
 
+layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
+layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
+layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
+layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
+
 layout (set = 0, binding = 6) readonly buffer lightSSBO{
     PointLight pointLight[];
 };
@@ -24,3 +29,7 @@ layout (set = 0, binding = 8) readonly buffer lightIndexSSBO{
 layout (set = 0, binding = 9) readonly buffer lightGridSSBO{
     LightGrid lightGrid[];
 };
+
+layout(set = 0, binding = 11) uniform  ShadowData{   
+	mat4 shadowMatrices[4];
+} shadowData;

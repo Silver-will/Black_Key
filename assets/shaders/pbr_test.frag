@@ -3,9 +3,10 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_debug_printf : require
+
 
 #include "brdf.glsl"
-#include "forward_resource.glsl"
 layout(early_fragment_tests) in;
 
 layout (location = 0) in vec3 inNormal;
@@ -88,13 +89,16 @@ void main()
 	float roughness = metallicRough.x;
     float metallic = metallicRough.y;
 	
-	//metallicRough.x = 0.1;
-	//metallicRough.y = 0.999;
 
     vec3 N = CalculateNormalFromMap();
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
+	
+	//debugPrintfEXT("Light direction %v3f", L);
+	//debugPrintfEXT("camera position %v3f", sceneData.cameraPos.xyz);
+	//debugPrintfEXT("World space position %v3f", inFragPos);
+
 	//Evaluate shadow term
 	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     float depthValue = fragPosViewSpace.z;

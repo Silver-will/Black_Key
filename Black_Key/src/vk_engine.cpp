@@ -226,9 +226,19 @@ void VulkanEngine::init_vulkan(VkPhysicalDeviceFeatures baseFeatures, VkPhysical
 {
 	vkb::InstanceBuilder builder;
 
+	VkValidationFeatureEnableEXT  validation_feature_enables = { VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT };
+
+	//VkValidationFeaturesEXT validation_features{ VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+	//validation_features.enabledValidationFeatureCount = 1;
+	///validation_features.pEnabledValidationFeatures = validation_feature_enables.data();
+
 	//make the vulkan instance, with basic debug features
 	auto inst_ret = builder.set_app_name("Executor")
 		.request_validation_layers(bUseValidationLayers)
+		.add_validation_feature_enable(validation_feature_enables)
+		.add_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
+		.add_debug_messenger_type(VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+		.add_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
 		.use_default_debug_messenger()
 		.require_api_version(1, 3, 0)
 		.enable_extension("VK_KHR_get_physical_device_properties2")

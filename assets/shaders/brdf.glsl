@@ -1,14 +1,5 @@
 #include "global_resources.glsl"
-
-
-layout(set = 0, binding = 2) uniform sampler2DArray shadowMap;
-layout(set = 0, binding = 3) uniform samplerCube irradianceMap;
-layout(set = 0, binding = 4) uniform sampler2D BRDFLUT;
-layout(set = 0, binding = 5) uniform samplerCube preFilterMap;
-layout(set = 0, binding = 11) uniform  ShadowData{   
-	mat4 shadowMatrices[4];
-} shadowData;
-
+#include "forward_resource.glsl"
 
 #define MEDIUMP_FLT_MAX    65504.0
 #define saturateMediump(x) min(x, MEDIUMP_FLT_MAX)
@@ -146,49 +137,7 @@ vec3 CalculatePointLightContribution()
 }
 vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow)
 {
-    /*
-    vec3 R = reflect(-V,N);
-	vec3 H = normalize(V + L);
-
-    //float NoV = abs(dot(N, V)) + 1e-5;
-	float NoL = clamp(dot(N, L), 0.0, 1.0);
-	float NoH = clamp(dot(N, H), 0.0, 1.0);
-    float LoH = clamp(dot(L, H), 0.0, 1.0);
-
-    float roughness = metal_rough.x;
-    float metallic = metal_rough.y;
-    float NoV;
-    N = GetViewReflectedNormal(N, V,NoV);
-
-    roughness = roughness;
-    vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, albedo, metallic);
-    vec3 diffuse = (1.0 - metallic) * albedo;
-	
-    float D = D_GGX_IMPROVED(roughness, NoH, N, H);
-    //float D = DistributionGGX(N, H, roughness);
-    vec3 F = F_Schlick(LoH, F0);
-
-    //This uses 2 square roots
-    //float V_S = V_SmithGGXCorrelated(NoV, NoL, roughness);
-    float V_S = GeometrySmith(N, V, L, roughness);
-
-    float disney_D = D_Burley(roughness, LoH, NoL, NoV);
-    vec3 Fs = (D * V_S) * F;
-    vec3 Fd = diffuse * disney_D;
-
-    //Evaluate IBL Terms
-    vec3 F_IBL = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-    vec2 brdf = texture(BRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	vec3 reflection = prefilteredReflection(R, roughness).rgb;	
-    vec3 texCoord = vec3(N.x, N.y, N.z);
-	vec3 irradiance = texture(irradianceMap, texCoord).rgb;
-
-    vec3 specular = reflection * (F_IBL * brdf.x + brdf.y);
-
-    return (vec3(Fd * irradiance + Fs * specular) * sceneData.sunlightDirection.w) * sceneData.sunlightColor.xyz;
-    */
-
+    
     vec3 R = reflect(-V,N);
 	vec3 H = normalize(V + L);
      //float NoV = abs(dot(N, V)) + 1e-5;

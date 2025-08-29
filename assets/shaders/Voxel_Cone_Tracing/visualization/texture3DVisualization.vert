@@ -2,7 +2,7 @@
 
 #extension GL_EXT_buffer_reference : require
 #extension GL_GOOGLE_include_directive : require
-
+#extension GL_EXT_debug_printf : require
 
 layout(set = 0, binding = 0) uniform  SceneData{   
 	mat4 view;
@@ -44,11 +44,6 @@ struct ObjectData{
 	vec4 pad;
 }; 
 
-layout(set = 0, binding = 6) readonly buffer ObjectBuffer{   
-	ObjectData objects[];
-} objectBuffer;
-
-
 //push constants block
 layout( push_constant ) uniform constants
 {
@@ -62,9 +57,9 @@ invariant gl_Position;
 void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-	ObjectData obj = objectBuffer.objects[gl_BaseInstance];
 	vec4 position = vec4(v.position, 1.0f);
-	vec4 fragPos = obj.model * position;
-	//vec4 fragPos = PushConstants.render_matrix * position;
-	gl_Position =  sceneData.viewproj * fragPos;
+	
+	debugPrintfEXT("Transformed position = %v4f", position);
+
+	gl_Position =  position;
 }
