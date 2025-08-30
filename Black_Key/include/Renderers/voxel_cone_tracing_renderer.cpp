@@ -2056,16 +2056,15 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	vkCmdBeginRendering(cmd, &voxelRenderInfo);
 
 	VoxelizeGeometry(cmd);
-	
+
 	vkCmdEndRendering(cmd);
 	*/
-	
+
 	//GenerateAABB(cmd);
-	
+
 	//Compute shader pass for clustered light culling
 	CullLights(cmd);
 
-	//VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 	VkClearValue depthClear;
 	depthClear.depthStencil.depth = 1.0f;
@@ -2073,8 +2072,8 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	if (visualize_voxel_texture)
-	{	
-		VkRenderingAttachmentInfo tex3DDepthAttachment = vkinit::attachment_info(_depthResolveImage.imageView, nullptr, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,true);
+	{
+		VkRenderingAttachmentInfo tex3DDepthAttachment = vkinit::attachment_info(_depthResolveImage.imageView, nullptr, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, true);
 		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, &tex3DDepthAttachment);
 		vkCmdBeginRendering(cmd, &visualizeRenderInfo);
 
@@ -2084,29 +2083,32 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	}
 	else
 	{
-	VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
+		VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
 
-	auto start = std::chrono::system_clock::now();
-	vkCmdBeginRendering(cmd, &renderInfo);
+		auto start = std::chrono::system_clock::now();
+		vkCmdBeginRendering(cmd, &renderInfo);
 
-	DrawGeometry(cmd);
+		DrawGeometry(cmd);
 
-	vkCmdEndRendering(cmd);
+		vkCmdEndRendering(cmd);
 
-	//vkCmdDraw();
-	auto end = std::chrono::system_clock::now();
-	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-	stats.mesh_draw_time = elapsed.count() / 1000.f;
+		//vkCmdDraw();
+		auto end = std::chrono::system_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		stats.mesh_draw_time = elapsed.count() / 1000.f;
+
+		auto main_end = std::chrono::system_clock::now();
+		auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
+		//stats.frametime = main_elapsed.count() / 1000.f;
+
+
+		VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkRenderingAttachmentInfo depthAttachment3 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+		VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment3);
+		vkCmdBeginRendering(cmd, &backRenderInfo);
+		DrawBackground(cmd);
+		vkCmdEndRendering(cmd);
 	}
-	auto main_end = std::chrono::system_clock::now();
-	auto main_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(main_end - main_start);
-	//stats.frametime = main_elapsed.count() / 1000.f;
-	VkRenderingAttachmentInfo colorAttachment2 = vkinit::attachment_info(_drawImage.imageView, &_resolveImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment3 = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
-	VkRenderingInfo backRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment2, &depthAttachment3);
-	vkCmdBeginRendering(cmd, &backRenderInfo);
-	DrawBackground(cmd);
-	vkCmdEndRendering(cmd);
 	ReduceDepth(cmd);
 }
 
@@ -2908,8 +2910,11 @@ void VoxelConeTracingRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Global Illumination"))
 	{
 		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_res ,64, 64, 512);
-		ImGui::SliderFloat("Voxel padding", &bloom_filter_radius, 0.01f, 1.0f);
-		ImGui::SliderFloat("Voxel size", &bloom_strength, 0.01f, 1.0f);
+		ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
+		ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
+		float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z};
+		ImGui::SliderFloat3("Voxel size", voxel_pos, 1.0f, 10.0f);
+		voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
 		ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
 	}
 

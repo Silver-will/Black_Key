@@ -2,7 +2,6 @@
 
 #extension GL_EXT_buffer_reference : require
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_debug_printf : require
 
 layout(set = 0, binding = 0) uniform  SceneData{   
 	mat4 view;
@@ -58,8 +57,6 @@ void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
-	
-	debugPrintfEXT("Transformed position = %v4f", position);
 
 	gl_Position =  position;
 }
