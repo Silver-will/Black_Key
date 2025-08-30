@@ -43,7 +43,7 @@ void main()
 	vec3 T = normalize(normalMatrix * vec3(v.tangent.xyz));
 	vec3 N = normalize(normalMatrix * v.normal);
 	//T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(N, T);
+    vec3 B = cross(N, T) * v.tangent.w;
 
 	outTBN = mat3(T, B, N);
 	outNormal = normalMatrix * v.normal;

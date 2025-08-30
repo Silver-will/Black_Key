@@ -1094,7 +1094,7 @@ void VoxelConeTracingRenderer::UpdateScene()
 void VoxelConeTracingRenderer::LoadAssets()
 {
 	_skyImage = vkutil::load_cubemap_image(std::string(assets_path + "/textures/hdris/uffizi_cube.ktx").c_str(), VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-	std::string structurePath{ assets_path + "/models/DamagedHelmet/DamagedHelmet.gltf" };
+	std::string structurePath{ assets_path + "/models/Sponza/Sponza.gltf" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 

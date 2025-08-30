@@ -140,15 +140,15 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     
     vec3 R = reflect(-V,N);
 	vec3 H = normalize(V + L);
-     //float NoV = abs(dot(N, V)) + 1e-5;
+    float NoV = abs(dot(N, V)) + 1e-5;
 	float NoL = clamp(dot(N, L), 0.0, 1.0);
 	float NoH = clamp(dot(N, H), 0.0, 1.0);
     float LoH = clamp(dot(L, H), 0.0, 1.0);
 
     float roughness = metal_rough.x;
     float metallic = metal_rough.y;
-    float NoV;
-    N = GetViewReflectedNormal(N, V,NoV);
+    //float NoV;
+    //N = GetViewReflectedNormal(N, V,NoV);
 
     roughness = roughness;
     vec3 F0 = vec3(0.04); 
