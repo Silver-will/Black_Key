@@ -242,11 +242,8 @@ vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, flo
 vec3 CalculateNormalFromMap()
 {
     vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(inMaterialIndex+2)],inUV).rgb * 2.0 - vec3(1.0));
-    vec3 N = normalize(inNormal);
-	vec3 T = normalize(inTangent.xyz);
-	vec3 B = cross(N, T) * inTangent.w;
-	mat3 TBN = mat3(T, B, N);
-	return normalize(TBN * tangentNormal);
+    
+	return normalize(inTBN * tangentNormal);
 }
 
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
