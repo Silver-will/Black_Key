@@ -4,6 +4,7 @@
 #extension GL_EXT_shader_atomic_float : require
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_debug_printf : require
 
 
 #include "voxelizationFrag.glsl"
@@ -23,8 +24,8 @@ void imageAtomicRGBA8Avg(ivec3 coords, vec4 value);
 void main()
 {
     vec3 posW = inFragPos;
-    if(failsPreConditions(posW))
-        discard;
+    //if(failsPreConditions(posW))
+      //  discard;
 
     float lod;
 
@@ -101,8 +102,7 @@ void main()
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
 	    //imageAtomicAdd(voxel_radiance, coords, vec4(radiance,1.0));
 
-       // debugPrintfEXT("Radiance at this voxel = %v4f", vec4(lightContribution,1.0));
-        imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(color.rgb,1.0));
     }
    
 }
@@ -122,6 +122,8 @@ void imageAtomicRGBA8Avg(ivec3 coords, vec4 value)
     {
         prevStoredVal = curStoredVal;
         vec4 rval = convertRGBA8ToVec4(curStoredVal);
+        debugPrintfEXT("Radiance value = %v4f", rval);
+        
         rval.rgb = (rval.rgb * rval.a); // Denormalize
         vec4 curValF = rval + value;    // Add
         curValF.rgb /= curValF.a;       // Renormalize

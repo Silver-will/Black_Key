@@ -12,10 +12,16 @@ struct VoxelData{
 
 ivec3 ComputeVoxelizationCoordinate(vec3 posW, ivec3 image_dim)
 {
-	// Output lighting to 3D texture.
+	posW = clamp(posW, 0, 128);
+	vec3 clipCoords = transformPosWToClipUVW(posW, 128);
+
+	//vec3 region_max = vec3(250);
+	//vec3 region_min = -region_max;
+	//vec3 texCoord =  ((posW - region_min)  / (region_max - region_min));
+	//return ivec3(clipCoords * 128);
+	// Calculate 3D texture co-ordinates.
 	vec3 voxel = 0.5f * posW + vec3(0.5f);
 	return ivec3(image_dim * voxel);
-	//vec4 res = alpha * vec4(vec3(color), 1);
 }
 
 bool isInsideCube(const vec3 p, float e) { return abs(p.x) < 1 + e && abs(p.y) < 1 + e && abs(p.z) < 1 + e; }

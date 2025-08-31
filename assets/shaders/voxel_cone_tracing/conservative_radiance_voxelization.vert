@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_debug_printf : require
 
 #include "../types.glsl"
 #include "../global_resources.glsl"
@@ -35,12 +36,13 @@ void main()
 	material_buff_In = obj.texture_index / 5;
 	vec4 position = vec4(v.position, 1.0f);
 	vec4 fragPos = obj.model * position;
-	gl_Position =  sceneData.viewproj * fragPos;
+	
 	
 	mat3 normalMatrix = mat3(transpose(inverse(obj.model)));
 	outNormal = normalMatrix * v.normal;
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
+	gl_Position =  sceneData.viewproj * fragPos;
 }
 

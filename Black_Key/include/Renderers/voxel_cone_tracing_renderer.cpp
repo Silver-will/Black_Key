@@ -1852,7 +1852,7 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				GPUDrawPushConstants push_constants;
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
 				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::forward)->drawIndirectBuffer.buffer, 0,
+				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 
 			}
@@ -2052,13 +2052,13 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 
-	/*VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
+	VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
 	vkCmdBeginRendering(cmd, &voxelRenderInfo);
 
 	VoxelizeGeometry(cmd);
 
 	vkCmdEndRendering(cmd);
-	*/
+	
 
 	//GenerateAABB(cmd);
 
