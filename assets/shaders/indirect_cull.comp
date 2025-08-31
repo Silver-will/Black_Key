@@ -128,11 +128,6 @@ bool projectSphere(vec3 C, float r, float znear, float P00, float P11, out vec4 
 
 bool IsVisibleFrustum(ObjectData object)
 {
-	if(cullData.cullingEnabled)
-	{
-		//If we don't want to cull e.g VXGI
-		return true;
-	}
 	vec3 corners[] = vec3[8](
 		vec3( 1, 1, 1),
 		vec3(1, 1, -1),
@@ -246,30 +241,35 @@ void main()
 	if(gID < cullData.drawCount)
 	{
 		uint objectID = gID;
-		//Reset instance value
-		drawBuffer.Draws[objectID].instanceCount = 0;
-		bool visible = false;
-		
-		if(cullData.AABBcheck == 0)
+		drawBuffer.Draws[objectID].instanceCount = 1;
+		if(cullData.cullingEnabled == 1)
 		{
-			//visible = IsVisible(gID);
-			ObjectData obj = objectBuffer.objects[gID];
-			visible = IsVisibleFrustum(obj);
-		}
-		else{
-			visible = IsVisibleAABB(gID);
-		}
 		
-		if(visible)
-		{
-			//uint batchIndex = compactInstanceBuffer.Instances[gID].batchID;
-			//uint countIndex = atomicAdd(drawBuffer.Draws[batchIndex].instanceCount,1);
+			//Reset instance value
+			drawBuffer.Draws[objectID].instanceCount = 0;
+			bool visible = false;
+		
+			if(cullData.AABBcheck == 0)
+			{
+				//visible = IsVisible(gID);
+				ObjectData obj = objectBuffer.objects[gID];
+				visible = IsVisibleFrustum(obj);
+			}
+			else{
+				visible = IsVisibleAABB(gID);
+			}
+		
+			if(visible)
+			{
+				//uint batchIndex = compactInstanceBuffer.Instances[gID].batchID;
+				//uint countIndex = atomicAdd(drawBuffer.Draws[batchIndex].instanceCount,1);
 
-			//uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
+				//uint instanceIndex = drawBuffer.Draws[batchIndex].firstInstance + countIndex;
+	
+				//finalInstanceBuffer.IDs[instanceIndex] = objectID;
 
-			//finalInstanceBuffer.IDs[instanceIndex] = objectID;
-
-			drawBuffer.Draws[objectID].instanceCount = 1;
+				drawBuffer.Draws[objectID].instanceCount = 1;
+			}
 		}
 	}
 }

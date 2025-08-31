@@ -30,6 +30,7 @@ void main()
     {
         vec3 worldPosition = inFragPos[i];
         outFragPos = worldPosition;
+        
         //gl_Position = matrixData.viewProj[idx] * gl_in[i].gl_Position;
         if(idx == 0)
             gl_Position = vec4(worldPosition.y,worldPosition.z, 1.0, 1);
@@ -38,16 +39,11 @@ void main()
         else
             gl_Position = vec4(worldPosition.x,worldPosition.y, 1.0, 1);
 
-       
-
-        debugPrintfEXT("Swizzled Voxel position = %v4f", gl_Position);
-
 		
         outNormal = inNormal[i];
         material_tex_out = material_tex_In[i];
         material_buff_out = material_buff_In[i];
         outUV = inUV[i];
-        //
         EmitVertex();
     }
 

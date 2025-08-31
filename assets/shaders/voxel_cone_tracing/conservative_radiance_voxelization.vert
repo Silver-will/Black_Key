@@ -31,15 +31,17 @@ void main()
 {
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	ObjectData obj = objectBuffer.objects[gl_BaseInstance];
+
+	//debugPrintfEXT("indirect world position = %v3f", test.position.xyz);
 	
 	material_tex_In = obj.texture_index;
 	material_buff_In = obj.texture_index / 5;
 	vec4 position = vec4(v.position, 1.0f);
 	vec4 fragPos = obj.model * position;
 	
-	
 	mat3 normalMatrix = mat3(transpose(inverse(obj.model)));
 	outNormal = normalMatrix * v.normal;
+
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;

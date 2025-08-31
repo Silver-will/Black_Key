@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_debug_printf : require
 
 #include "types.glsl"
 #include "global_resources.glsl"
@@ -35,7 +36,9 @@ void main()
 	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 	ObjectData obj = objectBuffer.objects[gl_BaseInstance];
 	vec4 position = vec4(v.position, 1.0f);
+
 	vec4 fragPos = obj.model * position;
+	
 	gl_Position =  sceneData.viewproj * fragPos;	
 
 	//Note: Change this to transpose of inverse of render mat

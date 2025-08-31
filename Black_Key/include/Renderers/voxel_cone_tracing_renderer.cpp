@@ -1852,7 +1852,7 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				GPUDrawPushConstants push_constants;
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
 				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::shadow_pass)->drawIndirectBuffer.buffer, 0,
+				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::forward)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 
 			}
@@ -2913,7 +2913,7 @@ void VoxelConeTracingRenderer::DrawUI()
 		ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
 		ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
 		float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z};
-		ImGui::SliderFloat3("Voxel size", voxel_pos, 1.0f, 10.0f);
+		ImGui::SliderFloat3("Voxel size", voxel_pos, -4.0f, 10.0f);
 		voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
 		ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
 	}

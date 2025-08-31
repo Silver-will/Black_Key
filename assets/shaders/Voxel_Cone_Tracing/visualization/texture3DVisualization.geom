@@ -14,7 +14,7 @@ const float EPSILON = 0.00001;
 
 vec3 toWorld(vec3 p, vec3 offset)
 {
-	return (p + offset);
+	return (p + offset) * tex_3d_data.texel_size + tex_3d_data.position + p * tex_3d_data.padding;
 }
 
 void createQuad(vec4 v0, vec4 v1, vec4 v2, vec4 v3, vec4 color)
@@ -66,6 +66,9 @@ void main()
 		createQuad(v2, v3, v7, v6,color);
 		createQuad(v0, v1, v3, v2,color);
 		createQuad(v4, v6, v7, v5,color);
+		//debugPrintfEXT("indirect world position = %v3i", voxelCoord);
+		debugPrintfEXT("uh voxel colors = %v4f", color);
+
 		//gl_Position = v4;
 		//EmitVertex();
 		//gl_Position = v1;

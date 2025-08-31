@@ -121,9 +121,7 @@ void imageAtomicRGBA8Avg(ivec3 coords, vec4 value)
     while((curStoredVal = imageAtomicCompSwap(voxel_radiance, coords, prevStoredVal, newVal)) != prevStoredVal && i < maxIterations)
     {
         prevStoredVal = curStoredVal;
-        vec4 rval = convertRGBA8ToVec4(curStoredVal);
-        debugPrintfEXT("Radiance value = %v4f", rval);
-        
+        vec4 rval = convertRGBA8ToVec4(curStoredVal);        
         rval.rgb = (rval.rgb * rval.a); // Denormalize
         vec4 curValF = rval + value;    // Add
         curValF.rgb /= curValF.a;       // Renormalize
