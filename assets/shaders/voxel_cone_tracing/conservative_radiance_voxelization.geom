@@ -2,9 +2,11 @@
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
-#include "common.glsl"
-
+#extension GL_EXT_buffer_reference : require
 #extension GL_EXT_debug_printf : require
+#include "common.glsl"
+#include "../global_resources.glsl"
+
 
 layout (location = 0) in vec3 inNormal[];
 layout (location = 1) in vec3 inFragPos[];
@@ -28,7 +30,7 @@ void main()
 	
 	for (int i = 0; i < 3; ++i)
     {
-        vec3 worldPosition = inFragPos[i];
+        vec3 worldPosition = gl_in[i].gl_Position.xyz;
         outFragPos = worldPosition;
         
         //gl_Position = matrixData.viewProj[idx] * gl_in[i].gl_Position;

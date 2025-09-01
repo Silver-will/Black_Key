@@ -100,7 +100,11 @@ void main()
         //ivec3 faceIndices = computeVoxelFaceIndices(-normal);
         //storeVoxelColorAtomicRGBA8Avg(u_voxelRadiance, posW, vec4(radiance, 1.0), faceIndices, abs(normal));
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
-	    //imageAtomicAdd(voxel_radiance, coords, vec4(radiance,1.0));
+        if(any(greaterThan(coords,vec3(127))))
+            discard;
+
+        if(any(lessThan(coords,vec3(0))))
+            discard;
 
         imageAtomicRGBA8Avg(coords, vec4(color.rgb,1.0));
     }

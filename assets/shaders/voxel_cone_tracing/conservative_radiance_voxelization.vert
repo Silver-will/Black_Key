@@ -45,6 +45,11 @@ void main()
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-	gl_Position =  sceneData.viewproj * fragPos;
+	vec3 region_max = vec3(16);
+	vec3 region_min = vec3(-16);
+	vec3 fragPosNorm =  (fragPos.xyz - region_min)  / (region_max - region_min);
+	debugPrintfEXT("Normal world position = %v3f", fragPosNorm);
+	
+	gl_Position =  vec4(fragPosNorm,1);
 }
 
