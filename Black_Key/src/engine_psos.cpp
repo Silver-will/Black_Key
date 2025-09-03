@@ -505,7 +505,7 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
-	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.size = sizeof(VoxelizationPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	DescriptorLayoutBuilder layoutBuilder;

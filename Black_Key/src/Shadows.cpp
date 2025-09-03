@@ -86,7 +86,7 @@ Cascade ShadowCascades::getCascades(VulkanEngine* engine, Camera& mainCamera, GP
 		auto lightSpaceMatrix = lightOrthoMatrix * lightViewMatrix;
 		auto shadowOrigin = lightSpaceMatrix * glm::vec4(0, 0, 0, 1.0f);
 		shadowOrigin *= (float)shadowMapTextureSize/2.0f;
-		auto roundedOrigin = BlackKey::roundVec4(shadowOrigin);
+		auto roundedOrigin = BlackKey::RoundToVec4(shadowOrigin);
 		auto roundedOffset = roundedOrigin - shadowOrigin;
 		roundedOffset *= 2.0f/(float)shadowMapTextureSize;
 		roundedOffset = glm::vec4(roundedOffset.r, roundedOffset.g, 0.0f, 0.0f);

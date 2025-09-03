@@ -31,7 +31,10 @@ struct IBLData {
 
 namespace BlackKey{
 	glm::vec4 Vec3Tovec4(glm::vec3 v, float fill = FLT_MAX);
-	glm::vec4 roundVec4(glm::vec4 v);
+	glm::vec4 RoundToVec4(glm::vec4 v);
+	bool LessThanVec3(glm::vec3 v1, glm::vec3 v2);
+	bool GreaterThanVec3(glm::vec3 v1, glm::vec3 v2);
+	void ExpandBoundingBox(glm::vec3& min, glm::vec3& max, glm::vec3& point);
 	glm::vec4 NormalizePlane(glm::vec4 p);
     uint32_t PreviousPow2(uint32_t v);
     uint32_t GetImageMipLevels(uint32_t width, uint32_t height);

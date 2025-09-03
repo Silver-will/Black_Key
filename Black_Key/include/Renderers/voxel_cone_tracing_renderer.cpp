@@ -1849,9 +1849,12 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 
 				vkCmdBindIndexBuffer(cmd, scene_manager->GetMergedIndexBuffer()->buffer, 0, VK_INDEX_TYPE_UINT32);
 				//calculate final mesh matrix
-				GPUDrawPushConstants push_constants;
+				VoxelizationPushConstants push_constants;
+				auto scene_description = resource_manager->GetSceneDescription();
+				push_constants.min_bounding_box = glm::vec4(scene_description.min_bounds,1.0);
+				push_constants.max_bounding_box = glm::vec4(scene_description.max_bounds, 1.0);
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
-				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VoxelizationPushConstants), &push_constants);
 				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::forward)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 

@@ -20,9 +20,9 @@ layout(set = 0, binding = 1) readonly buffer ObjectBuffer{
 //push constants block
 layout( push_constant ) uniform constants
 {
-	mat4 render_matrix;
+	vec4 min_bounding_box;
+    vec4 max_bounding_box;
 	VertexBuffer vertexBuffer;
-	uint inMaterialIndex;
 } PushConstants;
 
 invariant gl_Position;
@@ -45,11 +45,16 @@ void main()
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-	vec3 region_max = vec3(16);
-	vec3 region_min = vec3(-16);
-	vec3 fragPosNorm =  (fragPos.xyz - region_min)  / (region_max - region_min);
-	debugPrintfEXT("Normal world position = %v3f", fragPosNorm);
+	//vec4 region_max = obj.model * PushConstants.max_bounding_box;
+	//vec4 region_min = obj.model * PushConstants.min_bounding_box;
+	vec4 region_max = vec4(12);
+	vec4 region_min = vec4(-12);
 	
+	vec3 fragPosCorrected = fragPos.xyz;
+	vec3 fragPosNorm =  (fragPosCorrected.xyz - region_min.xyz)  / (region_max.xyz - region_min.xyz);
+	fragPosNorm = 2.0f * fragPosNorm - 1.0f;
+	debugPrintfEXT("transformed region max = %v4f", region_max);
+	//fragPosNorm *= 1.4f;
 	gl_Position =  vec4(fragPosNorm,1);
 }
 

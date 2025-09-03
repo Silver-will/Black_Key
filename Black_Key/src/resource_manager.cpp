@@ -1,4 +1,5 @@
 #include "resource_manager.h"
+#include "engine_util.h"
 #include "stb_image.h"
 #include "vk_buffer.h"
 #include "vk_engine.h"
@@ -439,16 +440,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
                 vertices.resize(vertices.size() + posAccessor.count);
 
-                auto func = [&](glm::vec3 v, size_t index) {
-                    Vertex newvtx;
-                    newvtx.position = v;
-                    newvtx.normal = { 1, 0, 0 };
-                    newvtx.color = glm::vec4{ 1.f };
-                    newvtx.uv_x = 0;
-                    newvtx.uv_y = 0;
-                    vertices[initial_vtx + index] = newvtx;
-                 };
-
                 fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(gltf, posAccessor, [&](fastgltf::math::fvec3 pos, size_t index) {
                         Vertex newvtx;
                         newvtx.position = glm::vec3(pos.x(), pos.y(), pos.z());
@@ -515,6 +506,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> ResourceManager::loadGltf(VulkanEngin
             for (int i = initial_vtx; i < vertices.size(); i++) {
                 minpos = glm::min(minpos, vertices[i].position);
                 maxpos = glm::max(maxpos, vertices[i].position);
+                BlackKey::ExpandBoundingBox(scene_info.min_bounds, scene_info.max_bounds, vertices[i].position);
             }
 
             newSurface.bounds.origin = (maxpos + minpos) / 2.f;
@@ -926,4 +918,9 @@ void ResourceManager::DestroyImage(const AllocatedImage& img)
 {
     vkDestroyImageView(engine->_device, img.imageView, nullptr);
     vmaDestroyImage(engine->_allocator, img.image, img.allocation);
+}
+
+SceneDescription ResourceManager::GetSceneDescription() const
+{
+    return this->scene_info;
 }

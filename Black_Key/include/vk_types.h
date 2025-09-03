@@ -255,6 +255,12 @@ struct GPUDrawPushConstants {
     uint32_t material_index;
 };
 
+struct VoxelizationPushConstants {
+    glm::vec4 min_bounding_box;
+    glm::vec4 max_bounding_box;
+    VkDeviceAddress vertexBuffer;
+};
+
 union BloomFloatRad {
     float radius;
     uint32_t mip;

@@ -11,6 +11,39 @@ std::string GetAssetPath()
     return "assets/";
 }
 
+bool BlackKey::LessThanVec3(glm::vec3 v1, glm::vec3 v2)
+{
+    for (size_t i = 0; i < 3; i++)
+    {
+        if (v1[i] < v2[i])
+            return true;
+    }
+    return false;
+}
+bool BlackKey::GreaterThanVec3(glm::vec3 v1, glm::vec3 v2)
+{
+    for (size_t i = 0; i < 3; i++)
+    {
+        if (v1[i] > v2[i])
+            return true;
+    }
+    return false;
+}
+
+void BlackKey::ExpandBoundingBox(glm::vec3& min, glm::vec3& max, glm::vec3& point)
+
+{
+    for (size_t i = 0; i < 3; i++)
+    {
+        if (point[i] > max[i])
+            max[i] = point[i];
+        
+        if (point[i] < min[i])
+            min[i] = point[i];
+
+    }
+}
+
 glm::vec4 BlackKey::Vec3Tovec4(glm::vec3 v, float fill) {
 	glm::vec4 ret;
 	ret.x = v.x;
@@ -48,7 +81,7 @@ uint32_t BlackKey::GetImageMipLevels(uint32_t width, uint32_t height)
     return result;
 }
 
-glm::vec4 BlackKey::roundVec4(glm::vec4 v)
+glm::vec4 BlackKey::RoundToVec4(glm::vec4 v)
 {
     for (size_t i = 0; i < 4; i++)
     {

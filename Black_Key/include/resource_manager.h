@@ -18,6 +18,10 @@
 
 class VulkanEngine;
 
+struct SceneDescription {
+	glm::vec3 min_bounds = glm::vec3(FLT_MAX);
+	glm::vec3 max_bounds = glm::vec3(FLT_MIN);;
+};
 struct ResourceManager
 {
 	ResourceManager() {}
@@ -48,6 +52,7 @@ struct ResourceManager
 	VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 	VkFilter extract_filter(fastgltf::Filter filter);
 	MaterialInstance SetMaterialProperties(const vkutil::MaterialPass pass, int mat_index);
+	SceneDescription GetSceneDescription() const;
 
 	DeletionQueue deletionQueue;
 	VkDescriptorSetLayout bindless_descriptor_layout;
@@ -55,6 +60,7 @@ struct ResourceManager
 	AllocatedImage errorCheckerboardImage;
 	GLTFMetallic_Roughness* PBRpipeline;
 private:
+	SceneDescription scene_info;
 	bool readBackBufferInitialized = false;
 	VkSampler defaultSamplerNearest;
 	VkSampler defaultSamplerLinear;
