@@ -35,6 +35,7 @@ struct VoxelConeTracingRenderer : public BaseRenderer
 
 	void VoxelizeGeometry(VkCommandBuffer cmd);
 	void VisualizeTexture3D(VkCommandBuffer cmd);
+	void FilterVoxelImage(VkCommandBuffer cmd);
 	void DrawShadows(VkCommandBuffer cmd);
 	void DrawMain(VkCommandBuffer cmd);
 	void DrawPostProcess(VkCommandBuffer cmd);
@@ -91,6 +92,7 @@ private:
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _shadowSceneDescriptorLayout;
+	VkDescriptorSetLayout unpack_3d_image_layout;
 
 	std::vector<vkutil::MaterialPass> forward_passes;
 
@@ -154,6 +156,7 @@ private:
 	PipelineStateObject depth_reduce_pso;
 	PipelineStateObject downsample_bloom_pso;
 	PipelineStateObject upsample_bloom_pso;
+	PipelineStateObject	unpack_and_filter_pso;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -193,6 +196,7 @@ private:
 	VkSampler depthReductionSampler;
 	VkSampler bloomSampler;
 	VkSampler voxelSampler;
+	VkSampler voxelSamplerLinear;
 	DrawContext drawCommands;
 	DrawContext skyDrawCommands;
 	DrawContext imageDrawCommands;

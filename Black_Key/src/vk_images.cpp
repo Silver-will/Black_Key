@@ -73,14 +73,15 @@ void vkutil::copy_image_to_image(VkCommandBuffer cmd, VkImage source, VkImage de
 }
 
 
-void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D imageSize, int faces)
+void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent3D imageSize, int faces)
 {
-    int mipLevels = int(std::floor(std::log2(std::max(imageSize.width, imageSize.height)))) + 1;
+    int mipLevels = int(std::floor(std::log2(std::max(imageSize.depth,std::max(imageSize.width, imageSize.height))))) + 1;
     for (int mip = 0; mip < mipLevels; mip++) {
 
-        VkExtent2D halfSize = imageSize;
+        VkExtent3D halfSize = imageSize;
         halfSize.width /= 2;
         halfSize.height /= 2;
+        halfSize.depth = imageSize.depth > 1 ? imageSize.depth / 2 : 1;
 
         VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
 
@@ -109,11 +110,11 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ima
 
             blitRegion.srcOffsets[1].x = imageSize.width;
             blitRegion.srcOffsets[1].y = imageSize.height;
-            blitRegion.srcOffsets[1].z = 1;
+            blitRegion.srcOffsets[1].z = imageSize.depth;
 
             blitRegion.dstOffsets[1].x = halfSize.width;
             blitRegion.dstOffsets[1].y = halfSize.height;
-            blitRegion.dstOffsets[1].z = 1;
+            blitRegion.dstOffsets[1].z = halfSize.depth;
 
             blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             blitRegion.srcSubresource.baseArrayLayer = 0;
@@ -209,7 +210,7 @@ AllocatedImage vkutil::create_image(void* data, VkExtent3D size, VkFormat format
         &copyRegion);
 
     if (mipmapped) {
-        vkutil::generate_mipmaps(cmd, new_image.image, VkExtent2D{ new_image.imageExtent.width,new_image.imageExtent.height });
+        vkutil::generate_mipmaps(cmd, new_image.image, VkExtent3D(new_image.imageExtent.width,new_image.imageExtent.height, new_image.imageExtent.depth));
     }
     else {
         if(format == VK_IMAGE_USAGE_SAMPLED_BIT)
@@ -339,7 +340,7 @@ AllocatedImage vkutil::load_cubemap_image(std::string_view path, VkExtent3D size
                     bufferCopyRegions.data());
 
                 if (mipmapped) {
-                    vkutil::generate_mipmaps(cmd, newImage.image, VkExtent2D{ newImage.imageExtent.width,newImage.imageExtent.height });
+                    vkutil::generate_mipmaps(cmd, newImage.image, VkExtent3D{ newImage.imageExtent.width,newImage.imageExtent.height, newImage.imageExtent.depth });
                 }
                 else {
                     vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

@@ -118,8 +118,6 @@ vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,v
     vec3 specular = numerator / max (denominator, 0.0001);
 
     vec3 radiance = (kD * (albedo / PI) + specular ) * radianceIn * NoL * sceneData.sunlightColor.w;
-    radiance *= shadow;
-
     return radiance;
 }
 
@@ -176,7 +174,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     vec3 specular = prefilteredColor * (F_IBL * brdf.x + brdf.y);
 
     radiance += (kD * diffuse + specular);
-
+    radiance *= shadow;
     return radiance;
 }
 

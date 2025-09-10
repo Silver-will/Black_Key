@@ -40,7 +40,6 @@ void main()
 	vec3 pos = gl_in[0].gl_Position.xyz;
 	ivec3 samplePos = ivec3(pos);
 	
-	//vec4 colors[6] = vec4[](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));
 	uint encoded_color = imageLoad(voxel_radiance, samplePos).r;
 	vec4 color = convertRGBA8ToVec4(encoded_color);
 	color /= 255.0f;
@@ -80,12 +79,12 @@ void main()
 
 	else
 	{
-	color = vec4(1,1,0,0);
-	createQuad(v0, v2, v6, v4,color);
-	createQuad(v1, v5, v7, v3,color);
-	createQuad(v0, v4, v5, v1,color);
-	createQuad(v2, v3, v7, v6,color);
-	createQuad(v0, v1, v3, v2,color);
-	createQuad(v4, v6, v7, v5,color);
+//	color = vec4(1,1,0,0);
+	//createQuad(v0, v2, v6, v4,color);
+	//createQuad(v1, v5, v7, v3,color);
+	//createQuad(v0, v4, v5, v1,color);
+	//createQuad(v2, v3, v7, v6,color);
+	//createQuad(v0, v1, v3, v2,color);
+	//createQuad(v4, v6, v7, v5,color);
 	}
 }

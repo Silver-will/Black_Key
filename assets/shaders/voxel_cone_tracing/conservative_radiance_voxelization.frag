@@ -87,7 +87,7 @@ void main()
         vec3 F0 = vec3(0.04); 
 	    F0 = mix(F0, color.rgb, metallic);
 
-        float shadow = 0.9f;
+        float shadow = 0.1f;
         lightContribution += CalculateDirectionalLightContribution(N,V,L,color.rgb,F0,metallicRough,shadow,NoV,NoH,NoL);
 
         
@@ -97,8 +97,6 @@ void main()
 		vec3 radiance = lightContribution * color.rgb * color.a;
         radiance = clamp(lightContribution, 0.0, 1.0);
 		
-        //ivec3 faceIndices = computeVoxelFaceIndices(-normal);
-        //storeVoxelColorAtomicRGBA8Avg(u_voxelRadiance, posW, vec4(radiance, 1.0), faceIndices, abs(normal));
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
         if(any(greaterThan(coords,vec3(127))))
             discard;

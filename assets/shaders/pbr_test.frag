@@ -95,7 +95,6 @@ void main()
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
 	
-	//debugPrintfEXT("Light direction %v3f", L);
 	//debugPrintfEXT("camera position %v3f", sceneData.cameraPos.xyz);
 	//debugPrintfEXT("World space position %v3f", inFragPos);
 
@@ -112,10 +111,7 @@ void main()
     vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-	//color *= shadow;
-
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
-	color *= shadow;
 
 	if(mat_description.has_emission == 1)
 	{

@@ -833,10 +833,12 @@ AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, Vk
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
+ 
 
     VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size, layers, msaaSamples, image_type);
     if (mipmapped) {
         img_info.mipLevels = mipLevels != -1 ? mipLevels : static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+       
     }
 
     // always allocate images on dedicated GPU memory
@@ -896,7 +898,7 @@ AllocatedImage ResourceManager::CreateImage(void* data, VkExtent3D size, VkForma
             &copyRegion);
 
         if (mipmapped) {
-            vkutil::generate_mipmaps(cmd, new_image.image, VkExtent2D{ new_image.imageExtent.width,new_image.imageExtent.height });
+            vkutil::generate_mipmaps(cmd, new_image.image, VkExtent3D(new_image.imageExtent.width,new_image.imageExtent.height, new_image.imageExtent.depth));
         }
         else {
             if (format == VK_IMAGE_USAGE_SAMPLED_BIT)

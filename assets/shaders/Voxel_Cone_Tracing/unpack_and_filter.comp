@@ -1,0 +1,26 @@
+#version 460 core
+
+#extension GL_GOOGLE_include_directive : require
+#include "conversion.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 32) in;
+
+layout(set = 0, binding = 0, r32ui) uniform readonly uimage3D packed_image;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image3D radiance_image;
+
+
+void main()
+{
+	ivec3 texCoord = ivec3(gl_GlobalInvocationID.xyz);
+
+	//Both 3D textures are the same size
+	ivec3 size = imageSize(packed_image);
+	if(texCoord.x < size.x && texCoord.y < size.y && texCoord.z < size.z)
+	{
+		uint encoded_color = imageLoad(packed_image, texCoord).r;
+		vec4 color = convertRGBA8ToVec4(encoded_color);
+		color /= 255.0f;
+		imageStore(radiance_image, texCoord, color);
+
+	}
+}
