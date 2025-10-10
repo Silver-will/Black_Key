@@ -663,7 +663,7 @@ void VoxelConeTracingRenderer::InitComputePipelines()
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &upack_layout_create_info, nullptr, &unpack_and_filter_pso.layout));
 
 	VkShaderModule unpack_filter_shader;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/Voxel_Cone_Tracing/unpack_and_filter.spv").c_str(), engine->_device, &unpack_filter_shader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/Voxel_Cone_Tracing/unpack_and_copy.spv").c_str(), engine->_device, &unpack_filter_shader)) {
 		std::print("Error when building the compute shader \n");
 	}
 
@@ -788,7 +788,7 @@ void VoxelConeTracingRenderer::InitDefaultData()
 		mip.i_size = mip_int_extent;
 		mip.mip = resource_manager->CreateImage(VkExtent3D(mip_extent.r, mip_extent.g, 1), VK_FORMAT_B10G11R11_UFLOAT_PACK32,
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_VIEW_TYPE_2D, false, 1);
-
+		
 		bloom_mip_maps.emplace_back(mip);
 	}
 	/*
@@ -1750,6 +1750,7 @@ void VoxelConeTracingRenderer::Draw()
 	vkutil::transition_image(cmd, _hdrImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _depthPyramid.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	vkutil::transition_image(cmd, voxelizer.voxel_radiance_packed.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	DrawMain(cmd);
 
@@ -1911,23 +1912,22 @@ void VoxelConeTracingRenderer::FilterVoxelImage(VkCommandBuffer cmd)
 		vkinit::image_barrier(voxelizer.voxel_radiance_packed.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT),
 	};
 
-	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, VoxelImageBarrier);
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, VoxelImageBarrier);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, unpack_and_filter_pso.pipeline);
+
+	VkDescriptorSet filterDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, depth_reduce_descriptor_layout);
 	DescriptorWriter writer;
 
 	writer.write_image(0, voxelizer.voxel_radiance_packed.imageView, voxelSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	writer.write_image(1, voxelizer.voxel_radiance_image.imageView, depthReductionSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.update_set(engine->_device, depthDescriptor);
+	writer.write_image(1, voxelizer.voxel_radiance_image.imageView, voxelSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.update_set(engine->_device, filterDescriptor);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, depth_reduce_pso.layout, 0, 1, &depthDescriptor, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, depth_reduce_pso.layout, 0, 1, &filterDescriptor, 0, nullptr);
 
-	vkCmdDispatch(cmd, (voxelizer.voxel_res / 32) + 1, (voxelizer.voxel_res / 32) + 1, (voxelizer.voxel_res / 32) + 1);
-	VkImageMemoryBarrier reduceBarrier = vkinit::image_barrier(_depthPyramid.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCmdDispatch(cmd, (voxelizer.voxel_res / 8) + 1, (voxelizer.voxel_res / 8) + 1, (voxelizer.voxel_res / 8) + 1);
 
-	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &reduceBarrier);
-
-
+	vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
@@ -1990,6 +1990,7 @@ void VoxelConeTracingRenderer::DrawShadows(VkCommandBuffer cmd)
 
 void VoxelConeTracingRenderer::VisualizeTexture3D(VkCommandBuffer cmd)
 {
+	
 	ZoneScoped;
 	//allocate uniform buffers for this pass
 	AllocatedBuffer visDataBuffer = vkutil::create_buffer(sizeof(Texture3DVisualizationData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
@@ -2147,6 +2148,13 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	{
 		VkRenderingAttachmentInfo tex3DDepthAttachment = vkinit::attachment_info(_depthResolveImage.imageView, nullptr, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, true);
 		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, &tex3DDepthAttachment);
+		VkImageMemoryBarrier VoxelImageBarrier[] =
+		{
+			vkinit::image_barrier(voxelizer.voxel_radiance_packed.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT),
+		};
+
+		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, VoxelImageBarrier);
+
 		vkCmdBeginRendering(cmd, &visualizeRenderInfo);
 
 		VisualizeTexture3D(cmd);

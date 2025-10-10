@@ -5,6 +5,7 @@ C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DV
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.geom -o voxel_cone_tracing/visualization/texture3DVisualization.geom.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.frag -o voxel_cone_tracing/visualization/texture3DVisualization.frag.spv 
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/unpack_and_filter.comp -o voxel_cone_tracing/unpack_and_filter.spv
+C:\VulkanSDK\1.4.321.1\Bin\glslc.exe voxel_cone_tracing/unpack_and_copy.comp -o voxel_cone_tracing/unpack_and_copy.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe skybox.vert -o skybox.vert.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe skybox.frag -o skybox.frag.spv
 C:\VulkanSDK\1.4.321.1\Bin\glslc.exe cascaded_shadows.vert -o cascaded_shadows.vert.spv

@@ -5,22 +5,42 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 32) in;
 
-layout(set = 0, binding = 0, r32ui) uniform readonly uimage3D packed_image;
-layout(set = 0, binding = 1, rgba8) uniform writeonly image3D radiance_image;
+layout(set = 0, binding = 0, r32ui) uniform readonly uimage3D src_mip;
+layout(set = 0, binding = 1, r32ui) uniform writeonly uimage3D mip;
 
 
 void main()
 {
-	ivec3 texCoord = ivec3(gl_GlobalInvocationID.xyz);
+	ivec3 invocation_coord = ivec3(gl_GlobalInvocationID.xyz);
 
+
+	ivec3 texCoord = (invocation_coord * 2);
 	//Both 3D textures are the same size
-	ivec3 size = imageSize(packed_image);
-	if(texCoord.x < size.x && texCoord.y < size.y && texCoord.z < size.z)
+	ivec3 size = imageSize(mip);
+
+	if(invocation_coord.x < size.x && invocation_coord.y < size.y && invocation_coord.z < size.z)
 	{
-		uint encoded_color = imageLoad(packed_image, texCoord).r;
-		vec4 color = convertRGBA8ToVec4(encoded_color);
-		color /= 255.0f;
-		imageStore(radiance_image, texCoord, color);
+		int offset = 1;
+		uint encoded_color_top = imageLoad(src_mip, texCoord + ivec3(0,offset,0)).r;
+		uint encoded_color_bottom = imageLoad(src_mip, texCoord + ivec3(0,-offset,0)).r;
+		uint encoded_color_right = imageLoad(src_mip, texCoord + ivec3(offset,0,0)).r;
+		uint encoded_color_left = imageLoad(src_mip, texCoord + ivec3(-offset,0,0)).r;
+		
+		uint encoded_color_front = imageLoad(src_mip, texCoord + ivec3(0,0,offset)).r;
+		uint encoded_color_back = imageLoad(src_mip, texCoord + ivec3(0,0,-offset)).r;
+		
+		vec4 color_top = convertRGBA8ToVec4(encoded_color_top);
+		vec4 color_bottom = convertRGBA8ToVec4(encoded_color_bottom);
+		vec4 color_right = convertRGBA8ToVec4(encoded_color_right);
+		vec4 color_left = convertRGBA8ToVec4(encoded_color_left);
+		vec4 color_back = convertRGBA8ToVec4(encoded_color_back);
+		vec4 color_front = convertRGBA8ToVec4(encoded_color_front);
+		
+		vec4 color = ((color_top + color_bottom + color_right + color_left + color_front + color_back) / 6);
+
+		uint encoded_mip_color =  convertVec4ToRGBA8(color);
+		ivec4 mip_col = ivec4(encoded_mip_color,0,0,0);
+		imageStore(mip, texCoord, mip_col);
 
 	}
 }

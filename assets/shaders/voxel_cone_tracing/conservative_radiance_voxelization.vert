@@ -49,6 +49,7 @@ void main()
 	//vec4 region_min = obj.model * PushConstants.min_bounding_box;
 	vec4 region_max = vec4(12);
 	vec4 region_min = vec4(-12);
+	region_max.x = 15;
 	
 	vec3 fragPosCorrected = fragPos.xyz;
 	vec3 fragPosNorm =  (fragPosCorrected.xyz - region_min.xyz)  / (region_max.xyz - region_min.xyz);

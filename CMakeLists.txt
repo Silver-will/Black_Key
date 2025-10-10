@@ -76,8 +76,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     third_party/fmt/src
     ${Vulkan_INCLUDE_DIRS}
 )
-
-set(VULKAN_LIBRARY "$ENV{VK_SDK_PATH}/Lib/vulkan-1.lib")
 target_compile_definitions(${PROJECT_NAME} PRIVATE
                             ENGINE_ASSET_PATH="${CMAKE_CURRENT_LIST_DIR}/assets")
 
@@ -86,7 +84,7 @@ target_link_libraries(${PROJECT_NAME}
     imgui
     fastgltf
     glfw
-    ${VULKAN_LIBRARY}
+    Vulkan::Vulkan
     vk-bootstrap::vk-bootstrap
     GPUOpen::VulkanMemoryAllocator
     ktx

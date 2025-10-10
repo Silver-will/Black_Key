@@ -60,7 +60,7 @@ All the following scenes are rendered in engine:
 To setup the repo:
 
 ```
-    git clone https://github.com/Silver-will/Black_Key.git --recursive
+    git clone --recursive https://github.com/Silver-will/Black_Key.git
     cd Black_key
 ```
 If you don't clone recursively for some reason you can always 
