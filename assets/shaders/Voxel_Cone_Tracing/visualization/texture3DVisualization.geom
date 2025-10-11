@@ -40,10 +40,10 @@ void main()
 	vec3 pos = gl_in[0].gl_Position.xyz;
 	ivec3 samplePos = ivec3(pos);
 	
-	uint encoded_color = imageLoad(voxel_radiance, samplePos).r;
-	vec4 color = convertRGBA8ToVec4(encoded_color);
-	color /= 255.0f;
-	
+	// uint encoded_color = imageLoad(voxel_radiance, samplePos).r;
+	// vec4 color = convertRGBA8ToVec4(encoded_color);
+	// color /= 255.0f;
+	vec4 color = imageLoad(voxel_radiance, samplePos);
 	vec4 v0 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0.0)), 1.0);
 	vec4 v1 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(1, 0, 0)), 1.0);
 	vec4 v2 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0, 1, 0)), 1.0);

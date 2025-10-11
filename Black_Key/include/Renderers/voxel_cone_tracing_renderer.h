@@ -42,6 +42,7 @@ struct VoxelConeTracingRenderer : public BaseRenderer
 	void DrawBackground(VkCommandBuffer cmd);
 	void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 	void DrawGeometry(VkCommandBuffer cmd);
+	void GlobalIlluminationPass(VkCommandBuffer cmd);
 	void DrawHdr(VkCommandBuffer cmd);
 	void DrawEarlyDepth(VkCommandBuffer cmd);
 
@@ -103,6 +104,7 @@ private:
 	bool resize_requested = false;
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
+	bool voxelize_scene{ true };
 	bool render_shadowMap{true};
 	bool stop_rendering{false};
 	bool debugShadowMap{false};
