@@ -11,7 +11,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine, PipelineCreat
 {
 	VkShaderModule meshFragShader;
 	std::string assets_path = ENGINE_ASSET_PATH;
-	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/pbr_test.frag.spv").c_str(), engine->_device, &meshFragShader)) {
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/indirect_forward.frag.spv").c_str(), engine->_device, &meshFragShader)) {
 		std::println("Error when building the triangle fragment shader module");
 	}
 

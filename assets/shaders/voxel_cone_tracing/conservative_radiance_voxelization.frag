@@ -21,6 +21,27 @@ layout(set = 0, binding = 3, r32ui) uniform volatile uimage3D voxel_radiance;
 
 void imageAtomicRGBA8Avg(ivec3 coords, vec4 value);
 
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0 
+);
+
+vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
+{
+    float nDotL = clamp(dot(N, L), 0.0, 1.0);
+
+    //ToDo add point light contribution to GI
+
+    vec3 lightContribution = vec3(0);
+    
+    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightColor.a * nDotL * 1.0f;
+
+    debugPrintfEXT("sun color = %v3f", lightContribution);
+    return lightContribution;
+}
+
 void main()
 {
     vec3 posW = inFragPos;
@@ -58,53 +79,44 @@ void main()
         vec4 color = vec4(0.0);
         
         // Clipmap specific texture sampling
-        //lod = log2(float(textureSize(material_textures[nonuniformEXT(materialIn)], 0).x) / voxelConfigData.clipmapResolution);
-        //color.rgb += textureLod(material_textures[nonuniformEXT(materialIn)], inUV, lod).rgb;
         color.rgb += texture(material_textures[nonuniformEXT(materialIn)], inUV).rgb;
         color.a = 1.0f;
-        //Sample metallic texture
-        vec2 metallicRough = texture(material_textures[nonuniformEXT(materialIn + 1)], inUV).gb;
-        
         vec3 N = normalize(inNormal);
-
         vec3 lightContribution = vec3(0.0);
+
         vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
          
-        vec3 R = reflect(-V,N);
-	    vec3 H = normalize(V + L);
-        //float NoV = abs(dot(N, V)) + 1e-5;
-	    float NoL = clamp(dot(N, L), 0.0, 1.0);
-	    float NoH = clamp(dot(N, H), 0.0, 1.0);
-        float LoH = clamp(dot(L, H), 0.0, 1.0);
-
-        float roughness = metallicRough.x;
-        float metallic = metallicRough.y;
-        float NoV;
-        N = GetViewReflectedNormal(N, V,NoV);
-
-        roughness = roughness;
-        vec3 F0 = vec3(0.04); 
-	    F0 = mix(F0, color.rgb, metallic);
-
-        float shadow = 0.1f;
-        lightContribution += CalculateDirectionalLightContribution(N,V,L,color.rgb,F0,metallicRough,shadow,NoV,NoH,NoL);
+        //Evaluate shadow term
+	    vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
+        float depthValue = fragPosViewSpace.z;
+        int layer = 0;
+	    for(int i = 0; i < 4 - 1; ++i) {
+		    if(depthValue < sceneData.distances[i]) {	
+		    	layer = i + 1;
+	    	}
+	    }    
+        vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
+        float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
+        
+        lightContribution += CalculateLightContribution(inFragPos,L, V, N, shadow);
 
         
         if (all(equal(lightContribution, vec3(0.0))))
-            discard;
+           discard;
         
 		vec3 radiance = lightContribution * color.rgb * color.a;
         radiance = clamp(lightContribution, 0.0, 1.0);
 		
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
+       
         if(any(greaterThan(coords,vec3(127))))
             discard;
 
         if(any(lessThan(coords,vec3(0))))
-            discard;
+           discard;
 
-        imageAtomicRGBA8Avg(coords, vec4(color.rgb,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(lightContribution * color.rgb,1.0));
     }
    
 }

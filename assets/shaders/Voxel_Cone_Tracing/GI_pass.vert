@@ -5,7 +5,6 @@
 #extension GL_EXT_debug_printf : require
 
 #include "types.glsl"
-#include "global_resources.glsl"
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) flat out uint outMaterialIndex;
@@ -17,7 +16,7 @@ layout (location = 6) out vec2 outUV;
 layout (location = 7) out vec4 outTangent;
 layout (location = 8) out mat3 outTBN;
 
-layout(set = 0, binding = 10) readonly buffer ObjectBuffer{   
+layout(set = 0, binding = 4) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
 } objectBuffer;
 

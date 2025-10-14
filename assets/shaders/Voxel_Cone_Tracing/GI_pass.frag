@@ -117,26 +117,6 @@ const vec3 DIFFUSE_CONE_DIRECTIONS[16] = {
 
 void main() 
 {
-	//Calculate current fragment cluster
-	float linDepth = linearDepth(gl_FragCoord.z);
-	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
-	float sliceCountX = tileSizes.x;
-	float sliceCountY = tileSizes.y;
-	vec2 tileSize =
-		vec2(screenDimensions.x / sliceCountX,
-			 screenDimensions.y / sliceCountY);
-	uvec3 cluster = uvec3(
-		gl_FragCoord.x / tileSize.x,
-		gl_FragCoord.y / tileSize.y,
-		zTile);
-	uint clusterIdx =
-		cluster.x +
-		cluster.y * int(tileSizes.x) +
-		cluster.z * int(tileSizes.x) * int(tileSizes.y);
-	uint lightCount = lightGrid[clusterIdx].count;
-	uint lightIndexOffset = lightGrid[clusterIdx].offset;
-
-
 	//Check material description for available texture data
 	GLTFMaterialData mat_description = object_material_description.material_data[nonuniformEXT(inMaterialIndex / 5)];
 	
@@ -174,7 +154,6 @@ void main()
     vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-	//color *= shadow;
 
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
 	color *= shadow;

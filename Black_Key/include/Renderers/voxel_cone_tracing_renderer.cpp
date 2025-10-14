@@ -706,7 +706,7 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.0f)), glm::vec4(1.5f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.0f)), glm::vec4(1.0f), glm::vec4(1.0f));
 	//W stores light intensity
 	directLight.direction.w = 1.0f;
 	//Create Shadow render target
@@ -2123,6 +2123,8 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
 	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 
+	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 	if (voxelize_scene)
 	{
 		VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
@@ -2139,13 +2141,6 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	}
-		
-	//vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	//vkutil::transition_image(cmd, )
-	//vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
-
-	
-	//vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	//GenerateAABB(cmd);
 
@@ -2156,8 +2151,6 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	VkClearValue depthClear;
 	depthClear.depthStencil.depth = 1.0f;
 	VkRenderingAttachmentInfo depthAttachment2 = vkinit::attachment_info(_depthImage.imageView, &_depthResolveImage.imageView, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD);
-
-	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	if (visualize_voxel_texture)
 	{
 		VkRenderingAttachmentInfo tex3DDepthAttachment = vkinit::attachment_info(_depthResolveImage.imageView, nullptr, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, true);
