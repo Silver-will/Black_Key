@@ -19,12 +19,15 @@ layout (location = 4) flat in uint material_buff_In[];
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outFragPos;
 layout (location = 2) out vec2 outUV;
-layout (location = 3) flat out uint material_tex_out;
-layout (location = 4) flat out uint material_buff_out;
+layout (location = 3) flat out vec3 shadingFragPos;
+layout (location = 4) flat out uint material_tex_out;
+layout (location = 5) flat out uint material_buff_out;
+
+const float voxel_size = 15.0f;
+const float voxel_resolution = 128.0f;
 
 void main()
 {
-    
     int idx = getDominantAxisIdx(inFragPos[0].xyz, inFragPos[1].xyz, inFragPos[2].xyz);
 	//gl_ViewportIndex = idx;
 	
@@ -41,7 +44,7 @@ void main()
         else
             gl_Position = vec4(worldPosition.x,worldPosition.y, 1.0, 1);
 
-		
+		shadingFragPos = inFragPos[i];
         outNormal = inNormal[i];
         material_tex_out = material_tex_In[i];
         material_buff_out = material_buff_In[i];
