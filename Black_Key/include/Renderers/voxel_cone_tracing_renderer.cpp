@@ -307,6 +307,23 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		_gpuSceneDataDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		VXGI_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT );
+	}
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -437,6 +454,13 @@ void VoxelConeTracingRenderer::InitPipelines()
 	info.depthFormat = _depthImage.imageFormat;
 	metalRoughMaterial.build_pipelines(engine, info);
 	resource_manager->PBRpipeline = &metalRoughMaterial;
+
+	PipelineCreationInfo GiInfo;
+	GiInfo.layouts.push_back(VXGI_descriptor_layout);
+	GiInfo.layouts.push_back(resource_manager->bindless_descriptor_layout);
+	GiInfo.imageFormat = _drawImage.imageFormat;
+	GiInfo.depthFormat = _depthImage.imageFormat;
+	vxgiPSO.build_pipelines(engine, GiInfo);
 
 	PipelineCreationInfo shadowInfo;
 	shadowInfo.layouts.push_back(cascaded_shadows_descriptor_layout);
@@ -2548,6 +2572,7 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
+	AllocatedBuffer GIDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 	get_current_frame()._deletionQueue.push_function([=, this]() {
 		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		vkutil::destroy_buffer(shadowDataBuffer, engine);

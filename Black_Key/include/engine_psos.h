@@ -128,6 +128,16 @@ struct UpsamplePipelineObject {
 };
 
 
+struct VXGIPipelineObject {
+	MaterialPipeline vxgiPipeline;
+	VkDescriptorSetLayout materialLayout;
+	DescriptorWriter writer;
+
+	void build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info);
+	void clear_resources(VkDevice device);
+};
+
+
 struct GLTFMetallic_Roughness {
 	MaterialPipeline opaquePipeline;
 	MaterialPipeline transparentPipeline;

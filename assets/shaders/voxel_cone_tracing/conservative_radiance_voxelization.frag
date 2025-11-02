@@ -82,8 +82,8 @@ void main()
         vec4 color = vec4(0.0);
         
         // Clipmap specific texture sampling
-        color.rgb += texture(material_textures[nonuniformEXT(materialIn)], inUV).rgb;
-        color.a = 1.0f;
+        color.rgba += texture(material_textures[nonuniformEXT(materialIn)], inUV).rgba;
+        //color.a = 1.0f;
         vec3 N = normalize(inNormal);
         vec3 lightContribution = vec3(0.0);
 
@@ -114,7 +114,7 @@ void main()
         if (all(equal(lightContribution, vec3(0.0))))
            discard;
         
-		vec3 radiance = lightContribution * color.rgb;
+		vec3 radiance = lightContribution * color.rgb * color.a; 
         //radiance = clamp(lightContribution, 0.0, 1.0);
 		
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);

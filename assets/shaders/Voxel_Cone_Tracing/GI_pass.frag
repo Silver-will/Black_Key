@@ -6,7 +6,7 @@
 #extension GL_EXT_debug_printf : require
 
 
-#include "brdf.glsl"
+#include "../brdf.glsl"
 layout(early_fragment_tests) in;
 
 layout (location = 0) in vec3 inNormal;
@@ -115,8 +115,38 @@ const vec3 DIFFUSE_CONE_DIRECTIONS[16] = {
 };
 #endif
 
+layout(set = 0, binding = 1) uniform  VXGIConfigData{   
+	mat4 viewprojInv;
+	float indirectDiffuseIntensity;
+	float indirectSpecularIntensity;
+	float occlusionDecay;
+	float ambientOcclusionFactor;
+	float traceStartOffset;
+} vxgiConfigUB;
+
+
 void main() 
 {
+	//Calculate current fragment cluster
+	float linDepth = linearDepth(gl_FragCoord.z);
+	uint zTile = uint(max(log2(linDepth) * scale + bias, 0.0));
+	float sliceCountX = tileSizes.x;
+	float sliceCountY = tileSizes.y;
+	vec2 tileSize =
+		vec2(screenDimensions.x / sliceCountX,
+			 screenDimensions.y / sliceCountY);
+	uvec3 cluster = uvec3(
+		gl_FragCoord.x / tileSize.x,
+		gl_FragCoord.y / tileSize.y,
+		zTile);
+	uint clusterIdx =
+		cluster.x +
+		cluster.y * int(tileSizes.x) +
+		cluster.z * int(tileSizes.x) * int(tileSizes.y);
+	uint lightCount = lightGrid[clusterIdx].count;
+	uint lightIndexOffset = lightGrid[clusterIdx].offset;
+
+
 	//Check material description for available texture data
 	GLTFMaterialData mat_description = object_material_description.material_data[nonuniformEXT(inMaterialIndex / 5)];
 	
@@ -137,7 +167,6 @@ void main()
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
 	
-	//debugPrintfEXT("Light direction %v3f", L);
 	//debugPrintfEXT("camera position %v3f", sceneData.cameraPos.xyz);
 	//debugPrintfEXT("World space position %v3f", inFragPos);
 
@@ -150,13 +179,10 @@ void main()
 			layer = i + 1;
 		}
 	}
-
     vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
-	color *= shadow;
 
 	if(mat_description.has_emission == 1)
 	{
@@ -285,39 +311,4 @@ vec3 CalculateNormalFromMap()
     vec3 tangentNormal = normalize(texture(material_textures[nonuniformEXT(inMaterialIndex+2)],inUV).rgb * 2.0 - vec3(1.0));
     
 	return normalize(inTBN * tangentNormal);
-}
-
-float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex)
-{
-	float shadow = 1.0;
-	float bias = 0.005;
-
-	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
-		float dist = texture(shadowMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
-		if (shadowCoord.w > 0 && dist < shadowCoord.z - bias) {
-			shadow = 0.05;
-		}
-	}
-	return shadow;
-
-}
-
-float filterPCF(vec4 sc, int cascadeIndex)
-{
-	ivec2 texDim = textureSize(shadowMap, 0).xy;
-	float scale = 0.75;
-	float dx = scale * 1.0 / float(texDim.x);
-	float dy = scale * 1.0 / float(texDim.y);
-
-	float shadowFactor = 0.0;
-	int count = 0;
-	int range = 1;
-	
-	for (int x = -range; x <= range; x++) {
-		for (int y = -range; y <= range; y++) {
-			shadowFactor += textureProj(sc, vec2(dx*x, dy*y), cascadeIndex);
-			count++;
-		}
-	}
-	return shadowFactor / count;
 }

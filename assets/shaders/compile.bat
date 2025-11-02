@@ -3,7 +3,9 @@ C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_vo
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.frag -o voxel_cone_tracing/cons_voxelization.frag.spv
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.vert -o voxel_cone_tracing/visualization/texture3DVisualization.vert.spv 
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.geom -o voxel_cone_tracing/visualization/texture3DVisualization.geom.spv 
-C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.frag -o voxel_cone_tracing/visualization/texture3DVisualization.frag.spv 
+C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/visualization/texture3DVisualization.frag -o voxel_cone_tracing/visualization/texture3DVisualization.frag.spv
+C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/GI_pass.vert -o voxel_cone_tracing/GI_pass.vert.spv 
+C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/GI_pass.frag -o voxel_cone_tracing/GI_pass.frag.spv
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/unpack_and_filter.comp -o voxel_cone_tracing/unpack_and_filter.spv
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/unpack_and_copy.comp -o voxel_cone_tracing/unpack_and_copy.spv
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe skybox.vert -o skybox.vert.spv

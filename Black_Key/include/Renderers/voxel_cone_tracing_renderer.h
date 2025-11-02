@@ -89,6 +89,7 @@ private:
 	EarlyDepthPipelineObject depthPrePassPSO;
 	ConservativeVoxelizationPipelineObject voxelizationPSO;
 	VoxelizationVisualizationPipelineObject voxelVisualizationPSO;
+	VXGIPipelineObject vxgiPSO;
 
 	DescriptorAllocator globalDescriptorAllocator;
 	VkDescriptorSet _drawImageDescriptors;

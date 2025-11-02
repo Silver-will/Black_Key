@@ -126,11 +126,76 @@ void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
 	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
 	vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+	vkDestroyPipelineLayout(device, opaquePipeline.layout, nullptr);
+
 
 	vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
 	vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
 }
 
+void VXGIPipelineObject::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)
+{
+	VkShaderModule meshFragShader;
+	std::string assets_path = ENGINE_ASSET_PATH;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/Voxel_Cone_Tracing/GI_pass.frag.spv").c_str(), engine->_device, &meshFragShader)) {
+		std::println("Error when building the triangle fragment shader module");
+	}
+
+	VkShaderModule meshVertexShader;
+	if (!vkutil::load_shader_module(std::string(assets_path + "/shaders/Voxel_Cone_Tracing/GI_pass.vert.spv").c_str(), engine->_device, &meshVertexShader)) {
+		std::println("Error when building the triangle vertex shader module");
+	}
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	DescriptorLayoutBuilder layoutBuilder;
+
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.pSetLayouts = info.layouts.data();
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VkPipelineLayout newLayout;
+	VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+
+	vxgiPipeline.layout = newLayout;
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(meshVertexShader, meshFragShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_multisampling_level(engine->msaa_samples);
+	pipelineBuilder.disable_blending();
+	//No need to write depth. z-prepass already populated the depth buffer
+	pipelineBuilder.enable_depthtest(false, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	//render format
+	pipelineBuilder.set_color_attachment_format(info.imageFormat);
+	pipelineBuilder.set_depth_format(info.depthFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = newLayout;
+
+	// finally build the pipeline
+	vxgiPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+
+	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
+	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+}
+
+void VXGIPipelineObject::clear_resources(VkDevice device)
+{
+	vkDestroyPipelineLayout(device, vxgiPipeline.layout, nullptr);
+	vkDestroyPipeline(device, vxgiPipeline.pipeline, nullptr);
+}
 
 
 void ShadowPipelineResources::build_pipelines(VulkanEngine* engine, PipelineCreationInfo& info)

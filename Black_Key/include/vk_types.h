@@ -227,6 +227,17 @@ struct GPUSceneData {
     glm::vec4 debugValues; //x for light clusters
   };
 
+struct VXGIData
+{
+    glm::mat4 viewprojInv;
+    float indirectDiffuseIntensity;
+    float indirectSpecularIntensity;
+    float occlusionDecay;
+    float ambientOcclusionFactor;
+    float traceStartOffset;
+    glm::vec3 volumeCenter;
+};
+
 struct Texture3DVisualizationData{
     glm::mat4 viewproj;
     glm::vec3 resolution;
