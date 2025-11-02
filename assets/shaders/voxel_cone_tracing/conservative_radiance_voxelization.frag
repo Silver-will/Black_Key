@@ -40,7 +40,7 @@ vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
 
     vec3 lightContribution = vec3(0);
     
-    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightColor.a * nDotL * 1.0f;
+    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightColor.a * nDotL * shadow;
 
     return lightContribution;
 }
@@ -114,23 +114,18 @@ void main()
         if (all(equal(lightContribution, vec3(0.0))))
            discard;
         
-		vec3 radiance = lightContribution * color.rgb * color.a;
-        radiance = clamp(lightContribution, 0.0, 1.0);
+		vec3 radiance = lightContribution * color.rgb;
+        //radiance = clamp(lightContribution, 0.0, 1.0);
 		
         ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
         
-        if(layer > 0)
-        {
-             //debugPrintfEXT("World space position = %i", 23);
-            color.rgb = vec3(0,1,0);
-        }
         if(any(greaterThan(coords,vec3(127))))
             discard;
 
         if(any(lessThan(coords,vec3(0))))
            discard;
 
-        imageAtomicRGBA8Avg(coords, vec4(lightContribution * color.rgb,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
     }
 }
 

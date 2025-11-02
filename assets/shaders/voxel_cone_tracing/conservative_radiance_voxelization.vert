@@ -58,6 +58,6 @@ void main()
 	vec3 fragPosNorm =  (fragPosCorrected.xyz - region_min.xyz)  / (region_max.xyz - region_min.xyz);
 	fragPosNorm = 2.0f * fragPosNorm - 1.0f;
 	//debugPrintfEXT("transformed region max = %v4f", region_max);
-	gl_Position =  sceneData.viewproj * vec4(fragPosNorm,1);
+	gl_Position = vec4(fragPosNorm,1);
 }
 
