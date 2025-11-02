@@ -114,6 +114,7 @@ private:
 	bool debugBuffer{false};
 	bool debugLightClustering{false};
 	bool readDebugBuffer{false};
+	bool use_vxgi{ false };
 
 
 	Texture3DVisualizationData voxel_vis_data;
@@ -166,6 +167,7 @@ private:
 
 	GPUSceneData scene_data;
 	shadowData shadow_data;
+	VXGIData vxgi_config_data;
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	VkDescriptorSetLayout _skyboxDescriptorLayout;

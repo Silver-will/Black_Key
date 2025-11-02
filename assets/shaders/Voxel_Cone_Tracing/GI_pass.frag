@@ -6,6 +6,7 @@
 #extension GL_EXT_debug_printf : require
 
 
+
 #include "../brdf.glsl"
 layout(early_fragment_tests) in;
 
@@ -19,8 +20,12 @@ layout (location = 6) in vec2 inUV;
 layout (location = 7) in vec4 inTangent;
 layout (location = 8) in mat3 inTBN;
 
-
 layout (location = 0) out vec4 outFragColor;
+
+#define TSQRT2 2.828427
+#define SQRT2 1.414213
+#define ISQRT2 0.707106
+
 float linearDepth(float depthSample);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
 vec3 CalcDiffuseContribution(vec3 W, vec3 N, PointLight light);
@@ -28,6 +33,9 @@ vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, flo
 vec3 CalculateNormalFromMap();
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex);
 float filterPCF(vec4 sc, int cascadeIndex);
+vec4 CastDiffuseCone(vec3 from, vec3 direction);
+vec4 CastSpecularCone(vec3 from, vec3 direction);
+float CastShadowCone();
 
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
@@ -119,12 +127,73 @@ layout(set = 0, binding = 1) uniform  VXGIConfigData{
 	mat4 viewprojInv;
 	float indirectDiffuseIntensity;
 	float indirectSpecularIntensity;
-	float occlusionDecay;
+	float voxel_resolution;
 	float ambientOcclusionFactor;
 	float traceStartOffset;
+	vec3 volumeCenter;
+    vec4 region_min;
+    vec4 region_max;
 } vxgiConfigUB;
 
+layout(set = 0, binding = 13) uniform sampler3D voxel_radiance;
 
+const float VOXEL_SIZE = 1 / vxgiConfigUB.voxel_resolution;
+
+// Scales and bias a given vector (i.e. from [-1, 1] to [0, 1]).
+vec3 scaleAndBias(const vec3 p) { return 0.5f * p + vec3(0.5f); }
+
+
+vec4 CastDiffuseCone(vec3 from, vec3 direction)
+{
+	direction = normalize(direction);
+	
+	const float CONE_SPREAD = 0.325;
+
+	vec4 acc = vec4(0.0f);
+	
+	float dist = 0.1953125;
+
+	// Trace.
+	while(dist < SQRT2 && acc.a < 1){
+		vec3 c = from + dist * direction;
+		c = scaleAndBias(from + dist * direction);
+		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
+		float level = log2(l);
+		float ll = (level + 1) * (level + 1);
+		vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
+		acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
+		dist += ll * VOXEL_SIZE * 2;
+	}
+	return pow(acc.rgb * 2.0, vec3(1.5));
+}
+
+vec4 CastSpecularCone(vec3 from, vec3 direction)
+{
+	direction = normalize(direction);
+
+	const float OFFSET = 8 * VOXEL_SIZE;
+	const float STEP = VOXEL_SIZE;
+
+	from += OFFSET * normal;
+	
+	vec4 acc = vec4(0.0f);
+	float dist = OFFSET;
+
+	// Trace.
+	while(dist < MAX_DISTANCE && acc.a < 1){ 
+		vec3 c = from + dist * direction;
+		if(!isInsideCube(c, 0)) break;
+		c = scaleAndBias(c); 
+		
+		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
+		vec4 voxel = textureLod(texture3D, c, min(level, MIPMAP_HARDCAP));
+		float f = 1 - acc.a;
+		acc.rgb += 0.25 * (1 + material.specularDiffusion) * voxel.rgb * voxel.a * f;
+		acc.a += 0.25 * voxel.a * f;
+		dist += STEP * (1.0f + 0.125f * level);
+	}
+	return 1.0 * pow(material.specularDiffusion + 1, 0.8) * acc.rgb;
+}
 void main() 
 {
 	//Calculate current fragment cluster

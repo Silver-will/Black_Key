@@ -2198,8 +2198,11 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 
 		auto start = std::chrono::system_clock::now();
 		vkCmdBeginRendering(cmd, &renderInfo);
-
-		DrawGeometry(cmd);
+	
+		if (use_vxgi)
+			GlobalIlluminationPass(cmd);
+		else
+			DrawGeometry(cmd);
 
 		vkCmdEndRendering(cmd);
 
@@ -2572,10 +2575,11 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
-	AllocatedBuffer GIDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+	AllocatedBuffer GIDataBuffer = vkutil::create_buffer(sizeof(VXGIData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 	get_current_frame()._deletionQueue.push_function([=, this]() {
 		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		vkutil::destroy_buffer(shadowDataBuffer, engine);
+		vkutil::destroy_buffer(GIDataBuffer, engine);
 		});
 
 
@@ -2594,13 +2598,20 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 	*sceneUniformData = scene_data;
 	vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
 
+	void* GIDataPtr = nullptr;
+	vmaMapMemory(engine->_allocator, GIDataBuffer.allocation, &GIDataPtr);
+	VXGIData* vxgiUniformData = (VXGIData*)GIDataPtr;
+	*vxgiUniformData = vxgi_config_data;
+	vmaUnmapMemory(engine->_allocator, GIDataBuffer.allocation);
+
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, VXGI_descriptor_layout);
 
 	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_buffer(1, GIDataBuffer.buffer, sizeof(VXGIData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_image(2, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, IBL._irradianceCube.imageView, IBL._irradianceCubeSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, IBL._lutBRDF.imageView, IBL._lutBRDFSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -2621,10 +2632,10 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 			if (pass->flat_objects.size() > 0)
 			{
 				stats.drawcall_count++;
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 0, 1,
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vxgiPSO.vxgiPipeline.pipeline);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vxgiPSO.vxgiPipeline.layout, 0, 1,
 					&globalDescriptor, 0, nullptr);
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->flat_objects[0].material->pipeline->layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vxgiPSO.vxgiPipeline.layout, 1, 1, resource_manager->GetBindlessSet(), 0, nullptr);
 
 
 				VkViewport viewport = {};
@@ -2648,7 +2659,7 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 				//calculate final mesh matrix
 				GPUDrawPushConstants push_constants;
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
-				vkCmdPushConstants(cmd, pass->flat_objects[0].material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+				vkCmdPushConstants(cmd, vxgiPSO.vxgiPipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::early_depth)->drawIndirectBuffer.buffer, 0,
 					pass->flat_objects.size(), sizeof(SceneManager::GPUIndirectObject));
 
@@ -3111,11 +3122,12 @@ void VoxelConeTracingRenderer::DrawUI()
 
 	if (ImGui::CollapsingHeader("Global Illumination"))
 	{
+		ImGui::Checkbox("Use Voxel Global illumination", &use_vxgi);
 		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_res ,64, 64, 512);
 		ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
 		ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
 		float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z};
-		ImGui::SliderFloat3("Voxel size", voxel_pos, -4.0f, 10.0f);
+		ImGui::SliderFloat3("Voxel size", voxel_pos, -50.0f, 10.0f);
 		voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
 		ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
 	}

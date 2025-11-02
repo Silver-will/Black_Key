@@ -110,9 +110,6 @@ void main()
             debugPrintfEXT("view space depth = %f", depthValue);
         }
 
-
-        if (all(equal(lightContribution, vec3(0.0))))
-           discard;
         
 		vec3 radiance = lightContribution * color.rgb * color.a; 
         //radiance = clamp(lightContribution, 0.0, 1.0);

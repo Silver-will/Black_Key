@@ -232,17 +232,19 @@ struct VXGIData
     glm::mat4 viewprojInv;
     float indirectDiffuseIntensity;
     float indirectSpecularIntensity;
-    float occlusionDecay;
+    float voxel_resolution;
     float ambientOcclusionFactor;
     float traceStartOffset;
     glm::vec3 volumeCenter;
+    glm::vec4 region_min;
+    glm::vec4 region_max;
 };
 
 struct Texture3DVisualizationData{
     glm::mat4 viewproj;
     glm::vec3 resolution;
-    float texel_size{0.01f};
-    glm::vec3 position = glm::vec3(0.0f);
+    float texel_size{0.5f};
+    glm::vec3 position = glm::vec3(-4,-40,-8.0f);
     float padding{0.01f};
     glm::vec3 border_color;
     float border_alpha;
