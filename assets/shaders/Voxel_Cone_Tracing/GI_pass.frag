@@ -182,7 +182,7 @@ vec4 CastSpecularCone(vec3 from, vec3 direction)
 	// Trace.
 	while(dist < MAX_DISTANCE && acc.a < 1){ 
 		vec3 c = from + dist * direction;
-		if(!isInsideCube(c, 0)) break;
+		//if(!isInsideCube(c, 0)) break;
 		c = scaleAndBias(c); 
 		
 		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
