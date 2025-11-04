@@ -147,7 +147,7 @@ vec3 scaleAndBias(const vec3 p) { return 0.5f * p + vec3(0.5f); }
 
 vec3 CastDiffuseCone(vec3 from, vec3 direction)
 {
-	direction = normalize(direction);
+	//direction = normalize(direction);
 	
 	const float CONE_SPREAD = 0.325;
 
@@ -239,8 +239,6 @@ void main()
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
-	
-	//debugPrintfEXT("camera position %v3f", sceneData.cameraPos.xyz);
 	//debugPrintfEXT("World space position %v3f", inFragPos);
 
 	//Evaluate shadow term
@@ -277,6 +275,7 @@ void main()
 		indirectContribution.rgb +=  CastDiffuseCone(startPos, DIFFUSE_CONE_DIRECTIONS[i]);
 	}
 
+	debugPrintfEXT("IndirectContribution %v3f", indirectContribution.rgb);
 	indirectContribution /= DIFFUSE_CONE_COUNT * 0.5;
     //indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
     
@@ -319,7 +318,7 @@ void main()
         }
 
     }
-    outFragColor = vec4(color,1.0);  
+    outFragColor = vec4(indirectContribution.rgb,1.0);  
 	//uint color_index = cluster.z % 5;
 	//outFragColor = colors[color_index];
     

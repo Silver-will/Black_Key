@@ -145,6 +145,10 @@ void VoxelConeTracingRenderer::InitRenderTargets()
 
 	_resolveImage = _drawImage;
 	_hdrImage = _drawImage;
+	_emptyRenderTarget = _drawImage;
+	_emptyRenderTarget.imageExtent = VkExtent3D{
+		1, 1, 1
+	};
 
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -173,8 +177,14 @@ void VoxelConeTracingRenderer::InitRenderTargets()
 	vmaCreateImage(engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
 	vmaSetAllocationName(engine->_allocator, _resolveImage.allocation, "resolve image");
 
+
 	vmaCreateImage(engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
 	vmaSetAllocationName(engine->_allocator, _hdrImage.allocation, "hdr image");
+
+	//VkImageCreateInfo empty_img_info = vkinit::image_create_info(_emptyRenderTarget.imageFormat, drawImageUsages, _emptyRenderTarget.imageExtent, VK_SAMPLE_COUNT_8_BIT);
+	//vmaCreateImage(engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
+	//vmaSetAllocationName(engine->_allocator, _resolveImage.allocation, "resolve image");
+
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
@@ -363,6 +373,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		//hahaha why is it 11 you ask
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		voxelization_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -740,10 +751,8 @@ void VoxelConeTracingRenderer::InitDefaultData()
 
 	//voxelizer.InitializeVoxelizer(resource_manager);
 	voxelizer.InitializeResources(resource_manager.get());
-	/*voxelizer.voxel_opacity_image = resource_manager->CreateImage(
-		VkExtent3D(voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution, voxelizer.voxel_texture_resolution)
-		, VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_3D, false);
-	*/
+
+
 	//Create default images
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = resource_manager->CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -1845,14 +1854,26 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 {
 	ZoneScoped;
 	stats.drawcall_count = 0;
+	
+	VoxelRegion vx_region
+	{ .min_pos = vxgi_config_data.region_min,
+	 .max_pos = vxgi_config_data.region_max,
+	 .voxel_size = 1 / vxgi_config_data.voxel_resolution
+	};
+
+	auto voxelized_matrices = voxelizer.GetVoxelizationMatrices(vx_region);
+
 	//allocate uniform buffers for this pass
 	AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
 	AllocatedBuffer shadowDataBuffer = vkutil::create_buffer(sizeof(shadowData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
 
+	AllocatedBuffer VoxelizationMatrixBuffer = vkutil::create_buffer(sizeof(glm::mat4) * 6, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, engine);
+
 	get_current_frame()._deletionQueue.push_function([=, this]() {
 		vkutil::destroy_buffer(gpuSceneDataBuffer, engine);
 		vkutil::destroy_buffer(shadowDataBuffer, engine);
+		vkutil::destroy_buffer(VoxelizationMatrixBuffer, engine);
 		});
 
 
@@ -1870,6 +1891,12 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 	*sceneUniformData = scene_data;
 	vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
 
+
+	void* voxelizationDataPtr = nullptr;
+	vmaMapMemory(engine->_allocator, VoxelizationMatrixBuffer.allocation, &voxelizationDataPtr);
+	memcpy(voxelizationDataPtr, voxelized_matrices.data(), sizeof(glm::mat4) * 6);
+	vmaUnmapMemory(engine->_allocator, VoxelizationMatrixBuffer.allocation);
+
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, voxelization_descriptor_layout);
 
@@ -1881,6 +1908,7 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_image(2, _shadowDepthImage.imageView, depthSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, voxelizer.voxel_radiance_packed.imageView, voxelSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.write_buffer(4, VoxelizationMatrixBuffer.buffer, sizeof(glm::mat4) * 6, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 	writer.update_set(engine->_device, globalDescriptor);
@@ -2160,7 +2188,7 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		vkCmdEndRendering(cmd);
 
 		FilterVoxelImage(cmd);
-		voxelize_scene = false;
+		//voxelize_scene = false;
 
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
@@ -3112,7 +3140,7 @@ void VoxelConeTracingRenderer::DrawUI()
 		{
 			ImGui::SeparatorText("direction");
 			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
-			ImGui::SliderFloat3("x,y,z", pos, -7, 7);
+			voxelize_scene =  ImGui::SliderFloat3("x,y,z", pos, -7, 7);
 			ImGui::SliderFloat("Intensity", &directLight.direction.w, 1.0, 20.0);
 			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], directLight.direction.w);
 

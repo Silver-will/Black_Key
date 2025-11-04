@@ -139,6 +139,7 @@ private:
 	AllocatedImage _depthResolveImage;
 	AllocatedImage _resolveImage;
 	AllocatedImage _hdrImage;
+	AllocatedImage _emptyRenderTarget;
 	AllocatedImage _shadowDepthImage;
 	AllocatedImage _presentImage;
 	AllocatedImage _depthPyramid;

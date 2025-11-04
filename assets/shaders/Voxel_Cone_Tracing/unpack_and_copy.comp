@@ -18,6 +18,9 @@ void main()
 
 	if(texCoord.x < size.x && texCoord.y < size.y && texCoord.z < size.z)
 	{
+		vec4 empty_col = vec4(0);
+		imageStore(dst_texture, texCoord, empty_col);
+
 		uint encoded_color = imageLoad(src_texture, texCoord).r;
 		
 		vec4 color = convertRGBA8ToVec4(encoded_color);

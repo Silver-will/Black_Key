@@ -5,6 +5,12 @@
 #include "resource_manager.h"
 #include <print>
 
+struct VoxelRegion {
+	glm::vec3 min_pos;
+	glm::vec3 max_pos;
+	float voxel_size;
+};
+
 struct Voxelizer {
 	int voxel_res = 128;
 	int debug_vertex_count;
@@ -14,6 +20,7 @@ struct Voxelizer {
 
 	void InitializeVoxelizer(std::shared_ptr<ResourceManager> resource_manager);
 	void InitializeResources(ResourceManager* resource_manager);
+	std::vector<glm::mat4>GetVoxelizationMatrices(VoxelRegion voxel_region);
 	GPUMeshBuffers voxel_buffer;
 	AllocatedBuffer vertex_buffer;
 };

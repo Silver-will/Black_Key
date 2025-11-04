@@ -34,13 +34,13 @@ const mat4 biasMat = mat4(
 
 vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
 {
-    float nDotL = clamp(dot(N, L), 0.0, 1.0);
+    float nDotL = clamp(dot(N, L), 0.1, 1.0);
 
     //ToDo add point light contribution to GI
 
     vec3 lightContribution = vec3(0);
     
-    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightColor.a * nDotL * shadow;
+    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightDirection.a * nDotL * shadow;
 
     return lightContribution;
 }

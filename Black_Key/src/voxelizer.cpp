@@ -117,3 +117,30 @@ void Voxelizer::InitializeResources(ResourceManager* resource_manager)
         , VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
         VK_IMAGE_VIEW_TYPE_3D, true, 1, VK_SAMPLE_COUNT_1_BIT, -1, VK_IMAGE_TYPE_3D);
 }
+
+
+std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_region)
+{
+    glm::mat4 proj[3];
+
+    glm::vec3 size = voxel_region.max_pos - voxel_region.min_pos;
+
+    proj[0] = glm::orthoLH(0.0f, size.z, 0.0f, size.y, 0.0f, size.x);
+    proj[1] = glm::orthoLH(0.0f, size.x, 0.0f, size.z, 0.0f, size.y);
+    proj[2] = glm::orthoLH(0.0f, size.x, 0.0f, size.y, 0.0f, size.z);
+
+    std::vector<glm::mat4> viewProj(6);
+    //std::vector<glm::mat4> viewProjInv[3];
+
+    glm::vec3 xyStart = voxel_region.min_pos + glm::vec3(0.0f, 0.0f, size.z);
+    viewProj[0] = glm::lookAt(xyStart, xyStart + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    viewProj[1] = glm::lookAt(xyStart, xyStart + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    viewProj[2] = glm::lookAt(voxel_region.min_pos, voxel_region.min_pos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    for (int i = 0; i < 3; ++i)
+    {
+        viewProj[i] = proj[i] * viewProj[i];
+        viewProj[i + 3] = glm::inverse(viewProj[i]);
+    }
+    return viewProj;
+}
