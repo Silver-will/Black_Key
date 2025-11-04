@@ -229,15 +229,14 @@ struct GPUSceneData {
 
 struct VXGIData
 {
-    glm::mat4 viewprojInv;
-    float indirectDiffuseIntensity;
-    float indirectSpecularIntensity;
-    float voxel_resolution;
+    float indirectDiffuseIntensity{ 15.0f };
+    float indirectSpecularIntensity{2.0f};
+    float voxel_resolution; // This is updated per frame from the voxelizer
     float ambientOcclusionFactor;
-    float traceStartOffset;
+    float traceStartOffset{ 1.0f };
     glm::vec3 volumeCenter;
-    glm::vec4 region_min;
-    glm::vec4 region_max;
+    glm::vec4 region_min = glm::vec4(-15,-12,-12,1);
+    glm::vec4 region_max = glm::vec4(15, 12, 12, 1);
 };
 
 struct Texture3DVisualizationData{

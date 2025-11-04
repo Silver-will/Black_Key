@@ -25,6 +25,8 @@ layout (location = 0) out vec4 outFragColor;
 #define TSQRT2 2.828427
 #define SQRT2 1.414213
 #define ISQRT2 0.707106
+#define MIPMAP_HARDCAP 5.4f 
+#define USE_32_CONES
 
 float linearDepth(float depthSample);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
@@ -33,9 +35,10 @@ vec3 PointLightContribution(vec3 W, vec3 V, vec3 N, vec3 F0, float metallic, flo
 vec3 CalculateNormalFromMap();
 float textureProj(vec4 shadowCoord, vec2 offset, int cascadeIndex);
 float filterPCF(vec4 sc, int cascadeIndex);
-vec4 CastDiffuseCone(vec3 from, vec3 direction);
+vec3 CastDiffuseCone(vec3 from, vec3 direction);
 vec4 CastSpecularCone(vec3 from, vec3 direction);
 float CastShadowCone();
+vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance, float startLevel);
 
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
@@ -124,7 +127,6 @@ const vec3 DIFFUSE_CONE_DIRECTIONS[16] = {
 #endif
 
 layout(set = 0, binding = 1) uniform  VXGIConfigData{   
-	mat4 viewprojInv;
 	float indirectDiffuseIntensity;
 	float indirectSpecularIntensity;
 	float voxel_resolution;
@@ -135,15 +137,15 @@ layout(set = 0, binding = 1) uniform  VXGIConfigData{
     vec4 region_max;
 } vxgiConfigUB;
 
-layout(set = 0, binding = 13) uniform sampler3D voxel_radiance;
+layout(set = 0, binding = 12) uniform sampler3D voxel_radiance;
 
-const float VOXEL_SIZE = 1 / vxgiConfigUB.voxel_resolution;
+const float VOXEL_SIZE = (1/128);
 
 // Scales and bias a given vector (i.e. from [-1, 1] to [0, 1]).
 vec3 scaleAndBias(const vec3 p) { return 0.5f * p + vec3(0.5f); }
 
 
-vec4 CastDiffuseCone(vec3 from, vec3 direction)
+vec3 CastDiffuseCone(vec3 from, vec3 direction)
 {
 	direction = normalize(direction);
 	
@@ -160,13 +162,14 @@ vec4 CastDiffuseCone(vec3 from, vec3 direction)
 		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
 		float level = log2(l);
 		float ll = (level + 1) * (level + 1);
-		vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
+		vec4 voxel = textureLod(voxel_radiance, c, min(MIPMAP_HARDCAP, level));
 		acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
 		dist += ll * VOXEL_SIZE * 2;
 	}
 	return pow(acc.rgb * 2.0, vec3(1.5));
 }
 
+/*
 vec4 CastSpecularCone(vec3 from, vec3 direction)
 {
 	direction = normalize(direction);
@@ -174,7 +177,7 @@ vec4 CastSpecularCone(vec3 from, vec3 direction)
 	const float OFFSET = 8 * VOXEL_SIZE;
 	const float STEP = VOXEL_SIZE;
 
-	from += OFFSET * normal;
+	from += OFFSET * inNormal;
 	
 	vec4 acc = vec4(0.0f);
 	float dist = OFFSET;
@@ -186,7 +189,7 @@ vec4 CastSpecularCone(vec3 from, vec3 direction)
 		c = scaleAndBias(c); 
 		
 		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
-		vec4 voxel = textureLod(texture3D, c, min(level, MIPMAP_HARDCAP));
+		vec4 voxel = textureLod(voxel_radiance, c, min(level, MIPMAP_HARDCAP));
 		float f = 1 - acc.a;
 		acc.rgb += 0.25 * (1 + material.specularDiffusion) * voxel.rgb * voxel.a * f;
 		acc.a += 0.25 * voxel.a * f;
@@ -194,6 +197,7 @@ vec4 CastSpecularCone(vec3 from, vec3 direction)
 	}
 	return 1.0 * pow(material.specularDiffusion + 1, 0.8) * acc.rgb;
 }
+*/
 void main() 
 {
 	//Calculate current fragment cluster
@@ -253,6 +257,32 @@ void main()
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
 
+	// Compute indirect contribution
+    vec4 indirectContribution = vec4(0.0);
+	//Indirect Diffuse Contribution
+
+	vec3 startPos = inFragPos + N * VOXEL_SIZE * vxgiConfigUB.traceStartOffset;
+    
+    float coneTraceCount = 0.0;
+    float cosSum = 0.0;
+	for (int i = 0; i < DIFFUSE_CONE_COUNT; ++i)
+    {
+		float cosTheta = dot(N, DIFFUSE_CONE_DIRECTIONS[i]);
+        
+        if (cosTheta < 0.0)
+            continue;
+        
+        coneTraceCount += 1.0;
+		//indirectContribution += castCone(startPos, DIFFUSE_CONE_DIRECTIONS[i], DIFFUSE_CONE_APERTURE ,MAX_TRACE_DISTANCE, minLevel) * cosTheta;
+		indirectContribution.rgb +=  CastDiffuseCone(startPos, DIFFUSE_CONE_DIRECTIONS[i]);
+	}
+
+	indirectContribution /= DIFFUSE_CONE_COUNT * 0.5;
+    //indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
+    
+	indirectContribution.rgb *= albedo * vxgiConfigUB.indirectDiffuseIntensity;
+    indirectContribution = clamp(indirectContribution, 0.0, 1.0);
+
 	if(mat_description.has_emission == 1)
 	{
 		color += emission;	
@@ -262,6 +292,7 @@ void main()
 	{
 		color *= occlusion;
 	}
+	color.rgb += indirectContribution.rgb;
 	
 
 	if(sceneData.debugInfo.x == 1.0f)

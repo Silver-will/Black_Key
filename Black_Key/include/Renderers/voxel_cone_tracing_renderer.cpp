@@ -322,6 +322,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		builder.add_binding(12, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		VXGI_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT );
 	}
 	{
@@ -2197,6 +2198,8 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		VkRenderingInfo renderInfo = vkinit::rendering_info(_windowExtent, &colorAttachment, &depthAttachment2);
 
 		auto start = std::chrono::system_clock::now();
+		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 		vkCmdBeginRendering(cmd, &renderInfo);
 	
 		if (use_vxgi)
@@ -2623,6 +2626,7 @@ void VoxelConeTracingRenderer::GlobalIlluminationPass(VkCommandBuffer cmd)
 	writer.write_buffer(10, scene_manager->GetObjectDataBuffer()->buffer,
 		sizeof(vkutil::GPUModelInformation) * scene_manager->GetModelCount(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	writer.write_buffer(11, shadowDataBuffer.buffer, sizeof(shadowData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.write_image(12, voxelizer.voxel_radiance_image.imageView, voxelSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(engine->_device, globalDescriptor);
 
 	{
@@ -3124,12 +3128,29 @@ void VoxelConeTracingRenderer::DrawUI()
 	{
 		ImGui::Checkbox("Use Voxel Global illumination", &use_vxgi);
 		ImGui::DragInt("Voxelization texture resolution", &voxelizer.voxel_res ,64, 64, 512);
-		ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
-		ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
-		float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z};
-		ImGui::SliderFloat3("Voxel size", voxel_pos, -50.0f, 10.0f);
-		voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
-		ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
+		vxgi_config_data.voxel_resolution = voxelizer.voxel_res;
+
+		ImGui::SliderFloat("Indirect diffuse intensity",&vxgi_config_data.indirectDiffuseIntensity,1.0f,30.0f);
+		ImGui::SliderFloat("Indirect specular intensity", &vxgi_config_data.indirectSpecularIntensity, 1.0f, 16.0f);
+		ImGui::SliderFloat("Trace start offset", &vxgi_config_data.traceStartOffset, 1.0f, 16.0f);
+		
+		float voxel_region_min[3]{ vxgi_config_data.region_min.x ,vxgi_config_data.region_min.y ,vxgi_config_data.region_min.z };
+		ImGui::SliderFloat3("Voxelization Region Min", voxel_region_min, -100, 100);
+		vxgi_config_data.region_min = glm::vec4(voxel_region_min[0], voxel_region_min[1], voxel_region_min[2],1);
+		
+		float voxel_region_max[3]{ vxgi_config_data.region_min.x ,vxgi_config_data.region_min.y ,vxgi_config_data.region_max.z };
+		ImGui::SliderFloat3("Voxelization Region Max", voxel_region_max, -100, 100);
+		vxgi_config_data.region_max = glm::vec4(voxel_region_max[0], voxel_region_max[1], voxel_region_max[2], 1);;
+		if (ImGui::TreeNode("Debugging"))
+		{
+			ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
+			ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
+			float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z };
+			ImGui::SliderFloat3("Voxel size", voxel_pos, -50.0f, 10.0f);
+			voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
+			ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
+			ImGui::TreePop();
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Post processing"))
