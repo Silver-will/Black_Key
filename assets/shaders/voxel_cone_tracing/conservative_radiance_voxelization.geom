@@ -10,21 +10,26 @@ layout(triangle_strip, max_vertices = 3) out;
 
 layout (location = 0) in vec3 inNormal[];
 layout (location = 1) in vec3 inFragPos[];
-layout (location = 2) in vec2 inUV[];
-layout (location = 3) flat in uint material_tex_In[];
-layout (location = 4) flat in uint material_buff_In[];
+layout (location = 2) in vec3 inNormalisedPosition[];
+layout (location = 3) in vec2 inUV[];
+layout (location = 4) flat in uint material_tex_In[];
+layout (location = 5) flat in uint material_buff_In[];
 
 
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outFragPos;
 layout (location = 2) out vec2 outUV;
-layout (location = 3) flat out vec3 shadingFragPos;
+layout (location = 3) out vec3 outNormPosition;
 layout (location = 4) flat out uint material_tex_out;
 layout (location = 5) flat out uint material_buff_out;
 
 const float voxel_size = 15.0f;
 const float voxel_resolution = 128.0f;
+
+layout(set = 0, binding = 4) uniform  ProjViewMatUB{   
+    mat4 projViewMat[6]; //
+} MatrixUB;
 
 void main()
 {
@@ -33,23 +38,16 @@ void main()
 	
 	for (int i = 0; i < 3; ++i)
     {
+        vec4 clipPosition = MatrixUB.projViewMat[idx] * gl_in[i].gl_Position;
         vec3 worldPosition = gl_in[i].gl_Position.xyz;
-        outFragPos = worldPosition;
-        
-        //gl_Position = matrixData.viewProj[idx] * gl_in[i].gl_Position;
-        if(idx == 0)
-            gl_Position = vec4(worldPosition.y,worldPosition.z, 1.0, 1);
-        else if(idx == 1)
-            gl_Position = vec4(worldPosition.x,worldPosition.z, 1.0, 1);
-        else
-            gl_Position = vec4(worldPosition.x,worldPosition.y, 1.0, 1);
-
-		shadingFragPos = inFragPos[i];
+        outFragPos = inFragPos[i];
+        outNormPosition = inNormalisedPosition[i];
         outNormal = inNormal[i];
         material_tex_out = material_tex_In[i];
         material_buff_out = material_buff_In[i];
         outUV = inUV[i];
-        EmitVertex();
+        gl_Position = clipPosition;
+        EmitVertex();		
     }
 
     EndPrimitive();

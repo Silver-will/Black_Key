@@ -9,9 +9,10 @@
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outFragPos;
-layout (location = 2) out vec2 outUV;
-layout (location = 3) flat out uint material_tex_In;
-layout (location = 4) flat out uint material_buff_In;
+layout (location = 2) out vec3 outNormalisedPosition;
+layout (location = 3) out vec2 outUV;
+layout (location = 4) flat out uint material_tex_In;
+layout (location = 5) flat out uint material_buff_In;
 
 layout(set = 0, binding = 1) readonly buffer ObjectBuffer{   
 	ObjectData objects[];
@@ -57,7 +58,8 @@ void main()
 	vec3 fragPosCorrected = fragPos.xyz;
 	vec3 fragPosNorm =  (fragPosCorrected.xyz - region_min.xyz)  / (region_max.xyz - region_min.xyz);
 	fragPosNorm = 2.0f * fragPosNorm - 1.0f;
+	outNormalisedPosition = fragPosNorm;
 	//debugPrintfEXT("transformed region max = %v4f", region_max);
-	gl_Position = vec4(fragPosNorm,1);
+	gl_Position = fragPos;
 }
 

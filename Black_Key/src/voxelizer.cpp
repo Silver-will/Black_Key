@@ -133,9 +133,10 @@ std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_regi
     //std::vector<glm::mat4> viewProjInv[3];
 
     glm::vec3 xyStart = voxel_region.min_pos + glm::vec3(0.0f, 0.0f, size.z);
-    viewProj[0] = glm::lookAt(xyStart, xyStart + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    viewProj[1] = glm::lookAt(xyStart, xyStart + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-    viewProj[2] = glm::lookAt(voxel_region.min_pos, voxel_region.min_pos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    viewProj[0] = glm::lookAtLH(xyStart, xyStart + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    viewProj[1] = glm::lookAtLH(xyStart, xyStart + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    viewProj[2] = glm::lookAtLH(voxel_region.min_pos, voxel_region.min_pos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
 
     for (int i = 0; i < 3; ++i)
     {

@@ -2189,10 +2189,11 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 
 		FilterVoxelImage(cmd);
 		//voxelize_scene = false;
-
+		voxelize_scene = true;
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+		std::print("Revoxelized the scene!");
 	}
 
 	//GenerateAABB(cmd);
@@ -3140,7 +3141,7 @@ void VoxelConeTracingRenderer::DrawUI()
 		{
 			ImGui::SeparatorText("direction");
 			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
-			voxelize_scene =  ImGui::SliderFloat3("x,y,z", pos, -7, 7);
+			/*voxelize_scene = */ ImGui::SliderFloat3("x,y,z", pos, -7, 7);
 			ImGui::SliderFloat("Intensity", &directLight.direction.w, 1.0, 20.0);
 			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], directLight.direction.w);
 
@@ -3169,12 +3170,12 @@ void VoxelConeTracingRenderer::DrawUI()
 		float voxel_region_max[3]{ vxgi_config_data.region_min.x ,vxgi_config_data.region_min.y ,vxgi_config_data.region_max.z };
 		ImGui::SliderFloat3("Voxelization Region Max", voxel_region_max, -100, 100);
 		vxgi_config_data.region_max = glm::vec4(voxel_region_max[0], voxel_region_max[1], voxel_region_max[2], 1);;
-		if (ImGui::TreeNode("Debugging"))
+		if (ImGui::TreeNode("Debug Visualization"))
 		{
 			ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);
 			ImGui::SliderFloat("Voxel size", &voxel_vis_data.texel_size, 0.01f, 1.0f);
 			float voxel_pos[3]{ voxel_vis_data.position.x ,voxel_vis_data.position.y ,voxel_vis_data.position.z };
-			ImGui::SliderFloat3("Voxel size", voxel_pos, -50.0f, 10.0f);
+			ImGui::SliderFloat3("Voxel Position", voxel_pos, -50.0f, 10.0f);
 			voxel_vis_data.position = glm::vec3(voxel_pos[0], voxel_pos[1], voxel_pos[2]);
 			ImGui::Checkbox("Visualize Voxel Texture", &visualize_voxel_texture);
 			ImGui::TreePop();

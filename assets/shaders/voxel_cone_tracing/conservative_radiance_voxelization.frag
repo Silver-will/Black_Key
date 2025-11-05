@@ -13,7 +13,7 @@
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inFragPos;
 layout (location = 2) in vec2 inUV;
-layout (location = 3) flat in vec3 inShadingFragPos;
+layout (location = 3) in vec3 inNormPos;
 layout (location = 4) flat in uint materialIn;
 layout (location = 5) flat in uint matBufIn;
 
@@ -34,7 +34,7 @@ const mat4 biasMat = mat4(
 
 vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
 {
-    float nDotL = clamp(dot(N, L), 0.1, 1.0);
+    float nDotL = clamp(dot(N, L), 0.01, 1.0);
 
     //ToDo add point light contribution to GI
 
@@ -71,7 +71,7 @@ void main()
         //storeVoxelColorAtomicRGBA8Avg6Faces(voxel_radiance, posW, emission);
         emission.a = 1;
 
-        ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
+        ivec3 coords = ComputeVoxelizationCoordinate(inNormPos, im_size);
         
         imageAtomicRGBA8Avg(coords, emission);
        
@@ -88,10 +88,10 @@ void main()
         vec3 lightContribution = vec3(0.0);
 
         vec3 L = normalize(-sceneData.sunlightDirection.xyz);
-	    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inShadingFragPos);
+	    vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - posW);
          
         //Evaluate shadow term
-	    vec4 fragPosViewSpace = sceneData.view * vec4(inShadingFragPos,1.0f);
+	    vec4 fragPosViewSpace = sceneData.view * vec4(posW,1.0f);
         float depthValue = fragPosViewSpace.z;
         int layer = 0;
 	    for(int i = 0; i < 4 - 1; ++i) {
@@ -100,10 +100,12 @@ void main()
 	    	}
 	    }  
         
-        vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inShadingFragPos, 1.0);		
+        vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(posW, 1.0);		
         float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
         
-        lightContribution += CalculateLightContribution(inShadingFragPos,L, V, N, shadow);
+        lightContribution += CalculateLightContribution(posW,L, V, N, shadow);
+        
+        debugPrintfEXT("View space position = %v4f", fragPosViewSpace);
         
         if (layer != 0)
         {
@@ -112,9 +114,9 @@ void main()
 
         
 		vec3 radiance = lightContribution * color.rgb * color.a; 
-        //radiance = clamp(lightContribution, 0.0, 1.0);
+        radiance = clamp(lightContribution, 0.0, 1.0);
 		
-        ivec3 coords = ComputeVoxelizationCoordinate(posW, im_size);
+        ivec3 coords = ComputeVoxelizationCoordinate(inNormPos, im_size);
         
         if(any(greaterThan(coords,vec3(127))))
             discard;
@@ -122,7 +124,7 @@ void main()
         if(any(lessThan(coords,vec3(0))))
            discard;
 
-        imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(color.rgb * shadow,1.0));
     }
 }
 

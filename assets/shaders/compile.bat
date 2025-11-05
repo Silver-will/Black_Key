@@ -1,3 +1,4 @@
+C:\VulkanSDK\1.4.328.1\Bin\glslc.exe postprocessing.comp -o postprocessing.comp.spv
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.vert -o voxel_cone_tracing/cons_voxelization.vert.spv 
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.geom -o voxel_cone_tracing/cons_voxelization.geom.spv 
 C:\VulkanSDK\1.4.328.1\Bin\glslc.exe voxel_cone_tracing/conservative_radiance_voxelization.frag -o voxel_cone_tracing/cons_voxelization.frag.spv
