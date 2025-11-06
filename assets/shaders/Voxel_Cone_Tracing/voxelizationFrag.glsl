@@ -12,6 +12,19 @@ struct VoxelData{
 	uint voxel_num;
 };
 
+ivec3 ComputeImageCoords(vec3 posW, ivec3 image_dim)
+{
+	float voxel_size = 1 /128;
+	float c = voxel_size * 0.25;
+	vec3 region_min = vec3(-15);
+	vec3 region_max = vec3(15);
+	posW = clamp(posW, region_min + c, region_max - c);
+
+	vec3 clipCoords = transformPosWToClipUVW(posW, region_max - region_min);
+
+	return ivec3(clipCoords * image_dim);
+}
+
 ivec3 ComputeVoxelizationCoordinate(vec3 posW, ivec3 image_dim)
 {
 	vec3 voxel = 0.5f * posW + vec3(0.5f);

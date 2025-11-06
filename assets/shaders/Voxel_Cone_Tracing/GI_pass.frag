@@ -3,7 +3,6 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_debug_printf : require
 
 
 
@@ -26,7 +25,6 @@ layout (location = 0) out vec4 outFragColor;
 #define SQRT2 1.414213
 #define ISQRT2 0.707106
 #define MIPMAP_HARDCAP 5.4f 
-#define USE_32_CONES
 
 float linearDepth(float depthSample);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
@@ -140,13 +138,87 @@ layout(set = 0, binding = 1) uniform  VXGIConfigData{
 layout(set = 0, binding = 12) uniform sampler3D voxel_radiance;
 
 const float VOXEL_SIZE = (1/128);
+const float MIN_STEP_FACTOR = 0.2;
 
 // Scales and bias a given vector (i.e. from [-1, 1] to [0, 1]).
 vec3 scaleAndBias(const vec3 p) { return 0.5f * p + vec3(0.5f); }
 
 
+vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance, float startLevel)
+{
+	/*
+	 // Initialize accumulated color and opacity
+    vec4 dst = vec4(0.0);
+    // Coefficient used in the computation of the diameter of a cone
+	float coneCoefficient = 2.0 * tan(aperture * 0.5);
+    
+    float curLevel = 0;
+    float voxelSize = VOXEL_SIZE;
+    
+    // Offset startPos in the direction to avoid self occlusion and reduce voxel aliasing
+    startPos += direction * voxelSize * vxgiConfigUB.traceStartOffset * 0.5;
+
+    float s = 0.0;
+    float diameter = max(s * coneCoefficient, voxelSize);
+
+	float stepFactor = 0.8f;
+    float stepFactor = max(MIN_STEP_FACTOR, stepFactor);
+	float occlusion = 0.0;
+    
+    //ivec3 faceIndices = computeVoxelFaceIndices(direction); // Implementation in voxelConeTracing/common.glsl
+    vec3 weight = direction * direction;
+    
+    float curSegmentLength = voxelSize;
+    
+    float minRadius = u_voxelSizeL0 * u_volumeDimension * 0.5;
+    
+    // Ray marching - compute occlusion and radiance in one go
+    while (s < maxDistance && occlusion < 1.0)
+    {
+        vec3 position = startPos + direction * s;
+        
+        float distanceToCenter = length(u_volumeCenterL0 - position);
+        float minLevel = ceil(log2(distanceToCenter / minRadius));
+        
+        curLevel = log2(diameter / u_voxelSizeL0);
+        // The startLevel is the minimum level we start off with, minLevel is the current minLevel
+        // It's important to use the max of both (and curLevel of course) because we don't want to suddenly
+        // sample at a lower level than we started off with and ensure that we don't sample in a level that is too low.
+        curLevel = min(max(max(startLevel, curLevel), minLevel), CLIP_LEVEL_COUNT - 1);
+        
+        // Retrieve radiance by accessing the 3D clipmap (voxel radiance and opacity)
+        vec4 radiance = sampleClipmapLinearly(u_voxelRadiance, position, curLevel, faceIndices, weight);
+		float opacity = radiance.a;
+
+        voxelSize = u_voxelSizeL0 * exp2(curLevel);
+        
+        // Radiance correction
+        float correctionQuotient = curSegmentLength / voxelSize;
+        radiance.rgb = radiance.rgb * correctionQuotient;
+		
+        // Opacity correction
+        opacity = clamp(1.0 - pow(1.0 - opacity, correctionQuotient), 0.0, 1.0);
+
+        vec4 src = vec4(radiance.rgb, opacity);
+		
+        // Front-to-back compositing
+        dst += clamp(1.0 - dst.a, 0.0, 1.0) * src;
+		occlusion += (1.0 - occlusion) * opacity / (1.0 + (s + voxelSize) * u_occlusionDecay);
+
+		float sLast = s;
+        s += max(diameter, u_voxelSizeL0) * stepFactor;
+        curSegmentLength = (s - sLast);
+        diameter = s * coneCoefficient;
+    }
+    
+    return clamp(vec4(dst.rgb, 1.0 - occlusion), 0.0, 1.0);
+	*/
+	return vec4(0);
+
+}
 vec3 CastDiffuseCone(vec3 from, vec3 direction)
 {
+	/*
 	//direction = normalize(direction);
 	
 	const float CONE_SPREAD = 0.325;
@@ -167,6 +239,45 @@ vec3 CastDiffuseCone(vec3 from, vec3 direction)
 		dist += ll * VOXEL_SIZE * 2;
 	}
 	return pow(acc.rgb * 2.0, vec3(1.5));
+	*/
+
+
+	direction = normalize(direction);
+
+	float voxelGridSize = vxgiConfigUB.region_max.x - vxgiConfigUB.region_min.x;
+	voxelGridSize = 32;
+    float voxelSize = voxelGridSize / 128;
+	
+
+    float distance = voxelSize;
+    float occlusion = 0.0f;
+
+    vec3 result = vec3(0.0f);
+
+    float coneIncline = 0.57735f;
+	float maxDistance = voxelGridSize;
+
+	    while (occlusion < 1.0f && distance <= maxDistance) {
+        vec3 currentPos = from + direction * distance;
+
+        vec3 uvw = (currentPos + voxelGridSize * 0.5) / voxelGridSize;
+
+        if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0))))
+            break;
+
+        float diameter = distance * coneIncline;
+        float lod = log2(diameter / voxelSize);
+
+        vec4 voxelSample = textureLod(voxel_radiance, uvw, 3);
+
+        if (distance > voxelSize * 2)
+            result += (1.0 - occlusion) * voxelSample.rgb * voxelSample.a;
+        occlusion += (1.0 - occlusion) *  voxelSample.a * 2;
+
+        distance += max(diameter, voxelSize);
+    }
+
+    return result;
 }
 
 /*
@@ -239,9 +350,7 @@ void main()
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
-	//debugPrintfEXT("World space position %v3f", inFragPos);
-
-	//Evaluate shadow term
+		//Evaluate shadow term
 	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     float depthValue = fragPosViewSpace.z;
     int layer = 0;
@@ -275,7 +384,6 @@ void main()
 		indirectContribution.rgb +=  CastDiffuseCone(startPos, DIFFUSE_CONE_DIRECTIONS[i]);
 	}
 
-	debugPrintfEXT("IndirectContribution %v3f", indirectContribution.rgb);
 	indirectContribution /= DIFFUSE_CONE_COUNT * 0.5;
     //indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
     

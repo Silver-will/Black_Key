@@ -125,9 +125,10 @@ std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_regi
 
     glm::vec3 size = voxel_region.max_pos - voxel_region.min_pos;
 
-    proj[0] = glm::orthoLH(0.0f, size.z, 0.0f, size.y, 0.0f, size.x);
-    proj[1] = glm::orthoLH(0.0f, size.x, 0.0f, size.z, 0.0f, size.y);
-    proj[2] = glm::orthoLH(0.0f, size.x, 0.0f, size.y, 0.0f, size.z);
+    size = glm::vec3(0, 0, 0);
+    proj[0] = glm::orthoLH_ZO(0.0f, size.z, 0.0f, size.y, 0.0f, size.x);
+    proj[1] = glm::orthoLH_ZO(0.0f, size.x, 0.0f, size.z, 0.0f, size.y);
+    proj[2] = glm::orthoLH_ZO(0.0f, size.x, 0.0f, size.y, 0.0f, size.z);
 
     std::vector<glm::mat4> viewProj(6);
     //std::vector<glm::mat4> viewProjInv[3];
@@ -140,6 +141,7 @@ std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_regi
 
     for (int i = 0; i < 3; ++i)
     {
+        //proj[i][1][1] *= -1.0f;
         viewProj[i] = proj[i] * viewProj[i];
         viewProj[i + 3] = glm::inverse(viewProj[i]);
     }

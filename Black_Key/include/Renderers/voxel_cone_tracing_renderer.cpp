@@ -1946,8 +1946,8 @@ void VoxelConeTracingRenderer::VoxelizeGeometry(VkCommandBuffer cmd)
 				//calculate final mesh matrix
 				VoxelizationPushConstants push_constants;
 				auto scene_description = resource_manager->GetSceneDescription();
-				push_constants.min_bounding_box = glm::vec4(scene_description.min_bounds,1.0);
-				push_constants.max_bounding_box = glm::vec4(scene_description.max_bounds, 1.0);
+				push_constants.min_bounding_box = vxgi_config_data.region_min;
+				push_constants.max_bounding_box = vxgi_config_data.region_max;
 				push_constants.vertexBuffer = *scene_manager->GetMergedDeviceAddress();
 				vkCmdPushConstants(cmd, voxelizationPSO.conservative_radiance_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VoxelizationPushConstants), &push_constants);
 				vkCmdDrawIndexedIndirect(cmd, scene_manager->GetMeshPass(vkutil::MaterialPass::forward)->drawIndirectBuffer.buffer, 0,
@@ -2193,7 +2193,6 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-		std::print("Revoxelized the scene!");
 	}
 
 	//GenerateAABB(cmd);
@@ -3167,9 +3166,10 @@ void VoxelConeTracingRenderer::DrawUI()
 		ImGui::SliderFloat3("Voxelization Region Min", voxel_region_min, -100, 100);
 		vxgi_config_data.region_min = glm::vec4(voxel_region_min[0], voxel_region_min[1], voxel_region_min[2],1);
 		
-		float voxel_region_max[3]{ vxgi_config_data.region_min.x ,vxgi_config_data.region_min.y ,vxgi_config_data.region_max.z };
+		float voxel_region_max[3]{ vxgi_config_data.region_max.x ,vxgi_config_data.region_max.y ,vxgi_config_data.region_max.z };
 		ImGui::SliderFloat3("Voxelization Region Max", voxel_region_max, -100, 100);
 		vxgi_config_data.region_max = glm::vec4(voxel_region_max[0], voxel_region_max[1], voxel_region_max[2], 1);;
+		
 		if (ImGui::TreeNode("Debug Visualization"))
 		{
 			ImGui::SliderFloat("Voxel padding", &voxel_vis_data.padding, 0.01f, 1.0f);

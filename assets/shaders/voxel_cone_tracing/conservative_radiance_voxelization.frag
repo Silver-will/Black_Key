@@ -105,11 +105,11 @@ void main()
         
         lightContribution += CalculateLightContribution(posW,L, V, N, shadow);
         
-        debugPrintfEXT("View space position = %v4f", fragPosViewSpace);
+        //debugPrintfEXT("View space position = %v4f", fragPosViewSpace);
         
         if (layer != 0)
         {
-            debugPrintfEXT("view space depth = %f", depthValue);
+            //debugPrintfEXT("view space depth = %f", depthValue);
         }
 
         
@@ -118,8 +118,9 @@ void main()
 		
         ivec3 coords = ComputeVoxelizationCoordinate(inNormPos, im_size);
         
+        //ivec3 coords = ComputeImageCoords(inFragPos, im_size);
         if(any(greaterThan(coords,vec3(127))))
-            discard;
+           discard;
 
         if(any(lessThan(coords,vec3(0))))
            discard;
@@ -139,7 +140,7 @@ void imageAtomicRGBA8Avg(ivec3 coords, vec4 value)
 	int i = 0;
 	const int maxIterations = 100;
 
-    while((curStoredVal = imageAtomicCompSwap(voxel_radiance, coords, prevStoredVal, newVal)) != prevStoredVal && i < maxIterations)
+    while((curStoredVal = imageAtomicCompSwap(voxel_radiance, coords, prevStoredVal, newVal)) != prevStoredVal)
     {
         prevStoredVal = curStoredVal;
         vec4 rval = convertRGBA8ToVec4(curStoredVal);        

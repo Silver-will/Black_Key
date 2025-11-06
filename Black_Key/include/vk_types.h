@@ -235,8 +235,8 @@ struct VXGIData
     float ambientOcclusionFactor;
     float traceStartOffset{ 1.0f };
     glm::vec3 volumeCenter;
-    glm::vec4 region_min = glm::vec4(-15,-12,-12,1);
-    glm::vec4 region_max = glm::vec4(15, 12, 12, 1);
+    glm::vec4 region_min = glm::vec4(-15,-15,-15,1);
+    glm::vec4 region_max = glm::vec4(15,15,15,1);
 };
 
 struct Texture3DVisualizationData{

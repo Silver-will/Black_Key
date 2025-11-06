@@ -2,7 +2,6 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
-#extension GL_EXT_debug_printf : require
 
 #include "../types.glsl"
 #include "../global_resources.glsl"
