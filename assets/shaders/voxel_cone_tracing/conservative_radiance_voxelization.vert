@@ -58,6 +58,7 @@ void main()
 	fragPosNorm = 2.0f * fragPosNorm - 1.0f;
 	outNormalisedPosition = fragPosNorm;
 	//debugPrintfEXT("transformed region max = %v4f", region_max);
-	gl_Position = fragPos;
+	//gl_Position = fragPos;
+	gl_Position = fragPosNorm;
 }
 

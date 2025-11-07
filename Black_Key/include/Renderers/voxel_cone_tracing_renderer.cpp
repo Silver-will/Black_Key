@@ -181,16 +181,18 @@ void VoxelConeTracingRenderer::InitRenderTargets()
 	vmaCreateImage(engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_hdrImage.image, &_hdrImage.allocation, nullptr);
 	vmaSetAllocationName(engine->_allocator, _hdrImage.allocation, "hdr image");
 
-	//VkImageCreateInfo empty_img_info = vkinit::image_create_info(_emptyRenderTarget.imageFormat, drawImageUsages, _emptyRenderTarget.imageExtent, VK_SAMPLE_COUNT_8_BIT);
-	//vmaCreateImage(engine->_allocator, &resolve_img_info, &rimg_allocinfo, &_resolveImage.image, &_resolveImage.allocation, nullptr);
-	//vmaSetAllocationName(engine->_allocator, _resolveImage.allocation, "resolve image");
+	VkImageCreateInfo empty_img_info = vkinit::image_create_info(_emptyRenderTarget.imageFormat, drawImageUsages, _emptyRenderTarget.imageExtent,1, VK_SAMPLE_COUNT_8_BIT);
+	vmaCreateImage(engine->_allocator, &empty_img_info, &rimg_allocinfo, &_emptyRenderTarget.image, &_emptyRenderTarget.allocation, nullptr);
+	vmaSetAllocationName(engine->_allocator, _emptyRenderTarget.allocation, "Empty MSAA target");
 
 
 	//build a image-view for the draw image to use for rendering
 	VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo resolve_view_info = vkinit::imageview_create_info(_resolveImage.imageFormat, _resolveImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 	VkImageViewCreateInfo hdr_view_info = vkinit::imageview_create_info(_hdrImage.imageFormat, _hdrImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
+	VkImageViewCreateInfo empty_view_info = vkinit::imageview_create_info(_emptyRenderTarget.imageFormat, _emptyRenderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D);
 
+	VK_CHECK(vkCreateImageView(engine->_device, &empty_view_info, nullptr, &_emptyRenderTarget.imageView));
 	VK_CHECK(vkCreateImageView(engine->_device, &rview_info, nullptr, &_drawImage.imageView));
 	VK_CHECK(vkCreateImageView(engine->_device, &resolve_view_info, nullptr, &_resolveImage.imageView));
 	VK_CHECK(vkCreateImageView(engine->_device, &hdr_view_info, nullptr, &_hdrImage.imageView));
@@ -493,7 +495,7 @@ void VoxelConeTracingRenderer::InitPipelines()
 	PipelineCreationInfo voxelInfo;
 	voxelInfo.layouts.push_back(voxelization_descriptor_layout);
 	voxelInfo.layouts.push_back(resource_manager->bindless_descriptor_layout);
-	voxelInfo.imageFormat = _resolveImage.imageFormat;
+	voxelInfo.imageFormat = _emptyRenderTarget.imageFormat;
 	voxelizationPSO.build_pipelines(engine, voxelInfo);
 
 
@@ -2174,13 +2176,14 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	}
 
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
-	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_emptyRenderTarget.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	if (voxelize_scene)
 	{
-		VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
+		VkExtent2D dummy_extent{1,1};
+		VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(dummy_extent, &colorAttachmentDummy, nullptr);
 		vkCmdBeginRendering(cmd, &voxelRenderInfo);
 
 		VoxelizeGeometry(cmd);
@@ -2207,7 +2210,11 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	if (visualize_voxel_texture)
 	{
 		VkRenderingAttachmentInfo tex3DDepthAttachment = vkinit::attachment_info(_depthResolveImage.imageView, nullptr, &depthClear, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, true);
-		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, &tex3DDepthAttachment);
+		VkRenderingAttachmentInfo colorAttachmentDebug = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+
+
+		
+		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDebug, &tex3DDepthAttachment);
 		VkImageMemoryBarrier VoxelImageBarrier[] =
 		{
 			vkinit::image_barrier(voxelizer.voxel_radiance_packed.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT),

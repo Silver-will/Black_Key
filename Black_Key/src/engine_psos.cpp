@@ -601,11 +601,11 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
 	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_multisampling_level(info.msaa_samples);
+	pipelineBuilder.set_multisampling_level(VK_SAMPLE_COUNT_8_BIT);
 	pipelineBuilder.disable_blending();
 	pipelineBuilder.disable_color_write();
 	pipelineBuilder.disable_depthtest();
-	pipelineBuilder.set_stencil_test(VK_TRUE);
+	pipelineBuilder.set_stencil_test(VK_FALSE);
 
 
 	//Conservative rasterization setup
@@ -624,7 +624,7 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	conservativeRasterStateCI.extraPrimitiveOverestimationSize = conservativeRasterProps.maxExtraPrimitiveOverestimationSize;
 	
 	// Conservative rasterization state has to be chained into the pipeline rasterization state create info structure
-	pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
+	//pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
 	
 	//render format
 	pipelineBuilder.set_color_attachment_format(info.imageFormat);

@@ -125,7 +125,7 @@ void main()
         if(any(lessThan(coords,vec3(0))))
            discard;
 
-        imageAtomicRGBA8Avg(coords, vec4(color.rgb * shadow,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(color.rgb,1.0));
     }
 }
 

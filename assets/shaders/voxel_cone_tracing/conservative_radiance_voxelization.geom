@@ -33,12 +33,13 @@ layout(set = 0, binding = 4) uniform  ProjViewMatUB{
 
 void main()
 {
-    int idx = getDominantAxisIdx(inFragPos[0].xyz, inFragPos[1].xyz, inFragPos[2].xyz);
+    int idx = getDominantAxisIdx(gl_in[0].gl_Position.xyz, gl_in[1].gl_Position.xyz, gl_in[2].gl_Position.xyz);
 	//gl_ViewportIndex = idx;
 	
 	for (int i = 0; i < 3; ++i)
     {
         vec4 clipPosition = MatrixUB.projViewMat[idx] * gl_in[i].gl_Position;
+        //debugPrintfEXT("Clip space position = %v4f", clipPosition);
         vec3 worldPosition = gl_in[i].gl_Position.xyz;
         outFragPos = inFragPos[i];
         outNormPosition = inNormalisedPosition[i];

@@ -121,11 +121,40 @@ void Voxelizer::InitializeResources(ResourceManager* resource_manager)
 
 std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_region)
 {
-    glm::mat4 proj[3];
+    //glm::mat4 proj[3];
 
     glm::vec3 size = voxel_region.max_pos - voxel_region.min_pos;
 
-    size = glm::vec3(0, 0, 0);
+    size *= 0.5f;
+
+    float maxLen = glm::max(size.x, glm::max(size.y, size.z));
+    float maxLen2 = maxLen * 2;
+
+    std::vector<glm::mat4> viewProj(6);
+
+    glm::mat4 proj_all = glm::orthoRH(-maxLen, maxLen, -maxLen, maxLen, 0.0f, maxLen2);
+
+    proj_all[1][1] *= -1;
+    glm::vec3 center = glm::vec3(0);
+
+    viewProj[0] = glm::lookAt(center - glm::vec3(maxLen, 0.0f, 0.0f), center, glm::vec3(0.0f, 1.0f, 0.0f));
+    viewProj[1] = glm::lookAt(center - glm::vec3(0.0f, maxLen, 0.0f), center, glm::vec3(-1.0f, 0.0f, 0.0f));
+    viewProj[2] = glm::lookAt(center - glm::vec3(0.0f, 0.0f, maxLen), center, glm::vec3(0.0f, 1.0f, 0.0f));
+
+
+    for (int i = 0; i < 3; ++i)
+    {
+        //proj[i][1][1] *= -1.0f;
+        viewProj[i] = proj_all * viewProj[i];
+        viewProj[i + 3] = glm::inverse(viewProj[i]);
+    }
+    return viewProj;
+
+
+
+    /*
+    //size = glm::vec3(1, 1, 01);
+   // size = glm::vec3(0, 0, 0);
     proj[0] = glm::orthoLH_ZO(0.0f, size.z, 0.0f, size.y, 0.0f, size.x);
     proj[1] = glm::orthoLH_ZO(0.0f, size.x, 0.0f, size.z, 0.0f, size.y);
     proj[2] = glm::orthoLH_ZO(0.0f, size.x, 0.0f, size.y, 0.0f, size.z);
@@ -133,17 +162,14 @@ std::vector<glm::mat4> Voxelizer::GetVoxelizationMatrices(VoxelRegion voxel_regi
     std::vector<glm::mat4> viewProj(6);
     //std::vector<glm::mat4> viewProjInv[3];
 
+    glm::vec3 centerX = glm::vec3(size.x, size.y/2.0f,size.z/2.0f);
+    glm::vec3 centerY = glm::vec3(size.x / 2.0f, size.y, size.z / 2.0f);
+    glm::vec3 centerZ = glm::vec3(size.x / 2.0f, size.y / 2.0f, size.z);
+
     glm::vec3 xyStart = voxel_region.min_pos + glm::vec3(0.0f, 0.0f, size.z);
     viewProj[0] = glm::lookAtLH(xyStart, xyStart + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     viewProj[1] = glm::lookAtLH(xyStart, xyStart + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
     viewProj[2] = glm::lookAtLH(voxel_region.min_pos, voxel_region.min_pos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    */
 
-
-    for (int i = 0; i < 3; ++i)
-    {
-        //proj[i][1][1] *= -1.0f;
-        viewProj[i] = proj[i] * viewProj[i];
-        viewProj[i + 3] = glm::inverse(viewProj[i]);
-    }
-    return viewProj;
 }
