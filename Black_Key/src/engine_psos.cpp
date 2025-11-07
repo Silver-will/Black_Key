@@ -624,7 +624,7 @@ void ConservativeVoxelizationPipelineObject::build_pipelines(VulkanEngine* engin
 	conservativeRasterStateCI.extraPrimitiveOverestimationSize = conservativeRasterProps.maxExtraPrimitiveOverestimationSize;
 	
 	// Conservative rasterization state has to be chained into the pipeline rasterization state create info structure
-	//pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
+	pipelineBuilder.set_next_rasterization_state(&conservativeRasterStateCI);
 	
 	//render format
 	pipelineBuilder.set_color_attachment_format(info.imageFormat);
