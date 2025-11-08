@@ -1,9 +1,9 @@
-#version 460 core
+﻿#version 460 core
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_debug_printf : require
+
 
 
 #include "../brdf.glsl"
@@ -24,7 +24,7 @@ layout (location = 0) out vec4 outFragColor;
 #define TSQRT2 2.828427
 #define SQRT2 1.414213
 #define ISQRT2 0.707106
-#define MIPMAP_HARDCAP 6.0f 
+#define MIPMAP_HARDCAP 5.4f 
 
 float linearDepth(float depthSample);
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 C, vec3 F0, float metallic, float roughness);
@@ -36,7 +36,7 @@ float filterPCF(vec4 sc, int cascadeIndex);
 vec3 CastDiffuseCone(vec3 from, vec3 direction);
 vec4 CastSpecularCone(vec3 from, vec3 direction);
 float CastShadowCone();
-vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance);
+vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance, float startLevel);
 
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
@@ -60,9 +60,6 @@ layout( push_constant ) uniform constants
 	VertexBuffer vertexBuffer;
 	uint inMaterialIndex;
 } PushConstants;
-const float MAX_TRACE_DISTANCE = 30.0;
-
-#define USE_32_CONES
 
 #ifdef USE_32_CONES
 // 32 Cones for higher quality (16 on average per hemisphere)
@@ -133,9 +130,7 @@ layout(set = 0, binding = 1) uniform  VXGIConfigData{
 	float voxel_resolution;
 	float ambientOcclusionFactor;
 	float traceStartOffset;
-	float voxel_size;
-	float step_factor;
-	float volumeCenter;
+	vec3 volumeCenter;
     vec4 region_min;
     vec4 region_max;
 } vxgiConfigUB;
@@ -151,17 +146,10 @@ vec3 scaleAndBias(const vec3 p) { return 0.5f * p + vec3(0.5f); }
 
 vec3 worldToVoxelUV(vec3 p)
 {
-	vec3 bounds = vxgiConfigUB.region_max.xyz - vxgiConfigUB.region_min.xyz;
-	float extent = max(bounds.x,max(bounds.y, bounds.z));
-
-	//vec3 samplePos = fract(p / extent);
-	//return samplePos;
-    vec3 samplePos =  (p - vxgiConfigUB.region_min.xyz) / (vxgiConfigUB.region_max.xyz - vxgiConfigUB.region_min.xyz);
-	return samplePos;
-
+    return (p - vxgiConfigUB.region_min) / (vxgiConfigUB.region_max - vxgiConfigUB.region_min);
 }
 
-vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance)
+vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance, float startLevel)
 {
 	// Accumulated radiance and opacity
     vec4 dst = vec4(0.0);
@@ -169,20 +157,14 @@ vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance)
     // Cone expansion coefficient
     float coneCoeff = 2.0 * tan(aperture * 0.5);
 
-	float voxelSize = vxgiConfigUB.voxel_size;
-	//voxelSize = 0.25;
     // Offset trace start to avoid sampling inside the surface
-    startPos += direction * voxelSize * vxgiConfigUB.traceStartOffset;
+    startPos += direction * voxelSize * traceStartOffset;
 
-	float s = 0.0;                   // ray distance along the cone
-    float diameter = max(s * coneCoeff, voxelSize);      // initial cone diameter
+    float s = 0.0;                   // ray distance along the cone
+    float diameter = voxelSize;      // initial cone diameter
     float occlusion = 0.0;           // accumulated opacity
     float lastS = 0.0;
-	float curSegmentLength = voxelSize;
-	float stepFactor = vxgiConfigUB.step_factor;
-	
-	vec4 color_ret = vec4(0);
-	//debugPrintfEXT("Start trace pos = %v3f, voxelSize: %f", startPos, voxelSize);
+
     while (s < maxDistance && occlusion < 1.0)
     {
         // Current world position along cone
@@ -190,55 +172,45 @@ vec4 CastCone(vec3 startPos, vec3 direction, float aperture, float maxDistance)
 
         // Convert world coordinate → voxel texture coordinate (0–1)
         // You'll replace this with your own world→voxel transform.
-		vec3 uvw = worldToVoxelUV(position);
-
-		if(any(greaterThan(uvw,vec3(1))))
-		{
-			break;
-		}
-    
-		float lod = log2(diameter / voxelSize);
+        vec3 uvw = worldToVoxelUV(position);
 
         // Read radiance (RGBA)
-        vec4 radiance = texture(voxel_radiance, uvw,  min(lod,MIPMAP_HARDCAP ));
+        vec4 radiance = texture(voxelRadiance, uvw);
         float opacity = radiance.a;
-		
-        // Compute radiance/opacity correction for cone step size
-		float correction = curSegmentLength / voxelSize;
 
-		float att = 1.0 / (1.0 + s * s * 0.1); 
+        // Compute radiance/opacity correction for cone step size
+        float curSegmentLength = s - lastS;
+        float correction = curSegmentLength / voxelSize;
+
         // Radiance grows proportionally to how many voxels you cross
-        radiance.rgb *= correction * att;
+        radiance.rgb *= correction;
 
         // Opacity corrected like Beer-Lambert
         opacity = clamp(1.0 - pow(1.0 - opacity, correction), 0.0, 1.0);
 
         vec4 src = vec4(radiance.rgb, opacity);
+
         // Front-to-back compositing
-        dst += clamp((1.0 - dst.a),0.0,1.0) * src;
+        dst += (1.0 - dst.a) * src;
 
         // Occlusion accumulation (soft shadow behavior)
-        occlusion += (1.0 - occlusion) * opacity / (1.0 + (s + voxelSize));
+        occlusion += (1.0 - occlusion) * opacity / (1.0 + (s + voxelSize) * occlusionDecay);
 
         // Advance along the cone
         lastS = s;
 
         // Step size grows with the cone diameter
-       
-		s += max(diameter, voxelSize) * stepFactor;
+        s += diameter * stepFactor;
 
         // Cone diameter grows linearly with distance
-        diameter = s * coneCoeff;
-		curSegmentLength = s - lastS;
-        
+        diameter = max(s * coneCoeff, voxelSize);
     }
-	//return color_ret;
+
     return clamp(vec4(dst.rgb, 1.0 - occlusion), 0.0, 1.0);
 }
 
 vec3 CastDiffuseCone(vec3 from, vec3 direction)
 {
-	/*
 	direction = normalize(direction);
 	
 	const float CONE_SPREAD = 0.325;
@@ -247,31 +219,27 @@ vec3 CastDiffuseCone(vec3 from, vec3 direction)
 	
 	float dist = 0.1953125;
 
-	float voxelSize = vxgiConfigUB.voxel_size;
-
 	// Trace.
 	while(dist < SQRT2 && acc.a < 1){
 		vec3 c = from + dist * direction;
-		c = worldToVoxelUV(c);
-		c = 0.5f * c + vec3(0.5f);
 		//c = scaleAndBias(from + dist * direction);
-		float l = (1 + CONE_SPREAD * dist / voxelSize);
+		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
 		float level = log2(l);
 		float ll = (level + 1) * (level + 1);
 		vec4 voxel = textureLod(voxel_radiance, c, min(MIPMAP_HARDCAP, level));
 		acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
-		dist += ll * voxelSize * 2;
+		dist += ll * VOXEL_SIZE * 2;
 	}
 	return pow(acc.rgb * 2.0, vec3(1.5));
-	*/
 
-	
+
+	/*
 	direction = normalize(direction);
 
-	vec3 bounds = vxgiConfigUB.region_max.xyz - vxgiConfigUB.region_min.xyz;
-	float voxelGridSize = max(bounds.x,max(bounds.y, bounds.z));
+	float voxelGridSize = vxgiConfigUB.region_max.x - vxgiConfigUB.region_min.x;
+	voxelGridSize = 32;
+    float voxelSize = voxelGridSize / 128;
 	
-	float voxelSize = vxgiConfigUB.voxel_size;
 
     float distance = voxelSize;
     float occlusion = 0.0f;
@@ -279,16 +247,12 @@ vec3 CastDiffuseCone(vec3 from, vec3 direction)
     vec3 result = vec3(0.0f);
 
     float coneIncline = 0.57735f;
-	float maxDistance = MAX_TRACE_DISTANCE;
-	//vec3 posW = 0.5f * from + vec3(0.5f);
+	float maxDistance = voxelGridSize;
 
 	    while (occlusion < 1.0f && distance <= maxDistance) {
         vec3 currentPos = from + direction * distance;
 
-        //vec3 uvw = (currentPos + voxelGridSize * 0.5) / voxelGridSize;
-		vec3 uvw = worldToVoxelUV(currentPos);
-
-		debugPrintfEXT("UVW = %v3f", uvw);
+        vec3 uvw = (currentPos + voxelGridSize * 0.5) / voxelGridSize;
 
         if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0))))
             break;
@@ -296,18 +260,18 @@ vec3 CastDiffuseCone(vec3 from, vec3 direction)
         float diameter = distance * coneIncline;
         float lod = log2(diameter / voxelSize);
 
-        vec4 voxelSample = textureLod(voxel_radiance, uvw, min(lod,MIPMAP_HARDCAP ));
+        vec4 voxelSample = textureLod(voxel_radiance, uvw, 3);
 
-		float att = 1.0 / (distance * distance);
-		
-
-		//result += voxelSample.rgb * att;
         if (distance > voxelSize * 2)
             result += (1.0 - occlusion) * voxelSample.rgb * voxelSample.a;
-			occlusion += (1.0 - occlusion) *  voxelSample.a * 2;
+        occlusion += (1.0 - occlusion) *  voxelSample.a * 2;
+
         distance += max(diameter, voxelSize);
     }
+
     return result;
+	*/
+
 }
 
 /*
@@ -380,33 +344,6 @@ void main()
     vec3 V = normalize(vec3(sceneData.cameraPos.xyz) - inFragPos);
 	vec3 L = normalize(-sceneData.sunlightDirection.xyz);
 	
-	// Compute indirect contribution
-    vec4 indirectContribution = vec4(0.0);
-	//Indirect Diffuse Contribution
-
-	vec3 startPos = inFragPos + N * vxgiConfigUB.voxel_size * vxgiConfigUB.traceStartOffset;
-    
-    float coneTraceCount = 0.0;
-    float cosSum = 0.0;
-	for (int i = 0; i < DIFFUSE_CONE_COUNT; ++i)
-    {
-		float cosTheta = dot(N, DIFFUSE_CONE_DIRECTIONS[i]);
-        
-        if (cosTheta < 0.0)
-			   continue;
-        
-        coneTraceCount += 1.0;
-		//indirectContribution += CastCone(startPos, DIFFUSE_CONE_DIRECTIONS[i], DIFFUSE_CONE_APERTURE, MAX_TRACE_DISTANCE) * cosTheta;
-		indirectContribution.rgb +=  CastDiffuseCone(startPos, DIFFUSE_CONE_DIRECTIONS[i]) * cosTheta;
-	}
-
-	indirectContribution /= coneTraceCount;
-    indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
-    
-	indirectContribution.rgb *= albedo * vxgiConfigUB.indirectDiffuseIntensity;
-    //indirectContribution.rgb *= vxgiConfigUB.indirectDiffuseIntensity;
-	indirectContribution = clamp(indirectContribution, 0.0, 1.0);
-
 		//Evaluate shadow term
 	vec4 fragPosViewSpace = sceneData.view * vec4(inFragPos,1.0f);
     float depthValue = fragPosViewSpace.z;
@@ -421,6 +358,32 @@ void main()
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
 	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
 
+	// Compute indirect contribution
+    vec4 indirectContribution = vec4(0.0);
+	//Indirect Diffuse Contribution
+
+	vec3 startPos = inFragPos + N * VOXEL_SIZE * vxgiConfigUB.traceStartOffset;
+    
+    float coneTraceCount = 0.0;
+    float cosSum = 0.0;
+	for (int i = 0; i < DIFFUSE_CONE_COUNT; ++i)
+    {
+		float cosTheta = dot(N, DIFFUSE_CONE_DIRECTIONS[i]);
+        
+        if (cosTheta < 0.0)
+            continue;
+        
+        coneTraceCount += 1.0;
+		//indirectContribution += castCone(startPos, DIFFUSE_CONE_DIRECTIONS[i], DIFFUSE_CONE_APERTURE ,MAX_TRACE_DISTANCE, minLevel) * cosTheta;
+		indirectContribution.rgb +=  CastDiffuseCone(startPos, DIFFUSE_CONE_DIRECTIONS[i]);
+	}
+
+	indirectContribution /= DIFFUSE_CONE_COUNT * 0.5;
+    //indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
+    
+	indirectContribution.rgb *= albedo * vxgiConfigUB.indirectDiffuseIntensity;
+    indirectContribution = clamp(indirectContribution, 0.0, 1.0);
+
 	if(mat_description.has_emission == 1)
 	{
 		color += emission;	
@@ -431,7 +394,7 @@ void main()
 		color *= occlusion;
 	}
 	color.rgb += indirectContribution.rgb;
-	//color.rgb *= indirectContribution.a;
+	
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
@@ -457,8 +420,7 @@ void main()
         }
 
     }
-	//vec3 indirect_color = (vec3(1.0) + indirectContribution.rgb) / 2.0f; 
-    outFragColor = vec4(color.rgb,1);  
+    outFragColor = vec4(indirectContribution.rgb,1.0);  
 	//uint color_index = cluster.z % 5;
 	//outFragColor = colors[color_index];
     

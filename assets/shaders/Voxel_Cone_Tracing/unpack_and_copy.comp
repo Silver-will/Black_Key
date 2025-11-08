@@ -5,7 +5,7 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-layout(set = 0, binding = 0, r32ui) uniform readonly uimage3D src_texture;
+layout(set = 0, binding = 0, r32ui) uniform uimage3D src_texture;
 layout(set = 0, binding = 1, rgba16f) uniform writeonly image3D dst_texture;
 
 
@@ -19,13 +19,20 @@ void main()
 	if(texCoord.x < size.x && texCoord.y < size.y && texCoord.z < size.z)
 	{
 		vec4 empty_col = vec4(0);
+		//Clear destination texture
 		imageStore(dst_texture, texCoord, empty_col);
 
 		uint encoded_color = imageLoad(src_texture, texCoord).r;
 		
 		vec4 color = convertRGBA8ToVec4(encoded_color);
 		color /= 255.0f;
+		if(color.rgb != vec3(0))
+			color.a = 1.0f;
 
 		imageStore(dst_texture, texCoord, color);
+		
+		//Clear voxelization texture
+		uvec4 clear_vec = uvec4(0);
+		imageStore(src_texture, texCoord, clear_vec);
 	}
 }

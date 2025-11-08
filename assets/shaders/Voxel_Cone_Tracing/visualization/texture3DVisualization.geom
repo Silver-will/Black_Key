@@ -7,6 +7,8 @@
 layout(points) in;
 layout(triangle_strip, max_vertices = 24) out;
 
+layout (set = 0, binding = 1) uniform sampler3D voxelization_tex;
+
 
 layout(location = 0) out vec4 outColor;
 
@@ -43,7 +45,8 @@ void main()
 	// uint encoded_color = imageLoad(voxel_radiance, samplePos).r;
 	// vec4 color = convertRGBA8ToVec4(encoded_color);
 	// color /= 255.0f;
-	vec4 color = imageLoad(voxel_radiance, samplePos);
+	vec3 texCoord = (samplePos / 128.0f);
+	vec4 color = textureLod(voxelization_tex, texCoord,5.0f);
 	vec4 v0 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0.0)), 1.0);
 	vec4 v1 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(1, 0, 0)), 1.0);
 	vec4 v2 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0, 1, 0)), 1.0);

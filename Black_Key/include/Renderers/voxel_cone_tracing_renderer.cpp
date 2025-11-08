@@ -384,7 +384,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		texture_3D_visualizer_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
@@ -893,11 +893,13 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	VkSamplerCreateInfo voxelSampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	voxelSampl.magFilter = VK_FILTER_NEAREST;
 	voxelSampl.minFilter = VK_FILTER_NEAREST;
-	voxelSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	voxelSampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	voxelSampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	voxelSampl.addressModeV = voxelSampl.addressModeU;
 	voxelSampl.addressModeW = voxelSampl.addressModeU;
 	voxelSampl.mipLodBias = 0.0f;
+	voxelSampl.minLod = 0.0f;
+	voxelSampl.maxLod = std::floor(std::log2(128)) + 1;
 	vkCreateSampler(engine->_device, &voxelSampl, nullptr, &voxelSampler);
 
 	voxelSampl.magFilter = VK_FILTER_LINEAR;
@@ -2070,7 +2072,7 @@ void VoxelConeTracingRenderer::VisualizeTexture3D(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, visDataBuffer.buffer, sizeof(Texture3DVisualizationData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.write_image(1, voxelizer.voxel_radiance_image.imageView, defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.write_image(1, voxelizer.voxel_radiance_image.imageView, voxelSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.update_set(engine->_device, globalDescriptor);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, voxelVisualizationPSO.texture_3D_pipeline.pipeline);
@@ -2191,10 +2193,10 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		vkCmdEndRendering(cmd);
 
 		FilterVoxelImage(cmd);
-		//voxelize_scene = false;
-		voxelize_scene = true;
+		voxelize_scene = false;
+		//voxelize_scene = true;
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent);
+		vkutil::generate_mipmaps(cmd, voxelizer.voxel_radiance_image.image, voxelizer.voxel_radiance_image.imageExtent, 1);
 		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	}
 
@@ -2217,16 +2219,18 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 		VkRenderingInfo visualizeRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDebug, &tex3DDepthAttachment);
 		VkImageMemoryBarrier VoxelImageBarrier[] =
 		{
-			vkinit::image_barrier(voxelizer.voxel_radiance_packed.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT),
+			vkinit::image_barrier(voxelizer.voxel_radiance_image.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT),
 		};
 
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, VoxelImageBarrier);
 
+		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkCmdBeginRendering(cmd, &visualizeRenderInfo);
 
 		VisualizeTexture3D(cmd);
 
 		vkCmdEndRendering(cmd);
+		vkutil::transition_image(cmd, voxelizer.voxel_radiance_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	}
 	else
 	{
@@ -3147,7 +3151,7 @@ void VoxelConeTracingRenderer::DrawUI()
 		{
 			ImGui::SeparatorText("direction");
 			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
-			/*voxelize_scene = */ ImGui::SliderFloat3("x,y,z", pos, -7, 7);
+			voxelize_scene =  ImGui::SliderFloat3("x,y,z", pos, -7, 7);
 			ImGui::SliderFloat("Intensity", &directLight.direction.w, 1.0, 20.0);
 			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], directLight.direction.w);
 
@@ -3167,7 +3171,10 @@ void VoxelConeTracingRenderer::DrawUI()
 
 		ImGui::SliderFloat("Indirect diffuse intensity",&vxgi_config_data.indirectDiffuseIntensity,1.0f,30.0f);
 		ImGui::SliderFloat("Indirect specular intensity", &vxgi_config_data.indirectSpecularIntensity, 1.0f, 16.0f);
-		ImGui::SliderFloat("Trace start offset", &vxgi_config_data.traceStartOffset, 1.0f, 16.0f);
+		ImGui::SliderFloat("Trace start offset", &vxgi_config_data.traceStartOffset, 0.1f, 2.5f);
+		ImGui::SliderFloat("Voxel Size", &vxgi_config_data.voxel_size, 0.01f, 2.0f);
+		ImGui::SliderFloat("Cone tracing step factor", &vxgi_config_data.step_factor, 0.5f, 8.0f);
+		ImGui::SliderFloat("VXAO strength", &vxgi_config_data.ambientOcclusionFactor, 0.1f, 10.0f);
 		
 		float voxel_region_min[3]{ vxgi_config_data.region_min.x ,vxgi_config_data.region_min.y ,vxgi_config_data.region_min.z };
 		ImGui::SliderFloat3("Voxelization Region Min", voxel_region_min, -100, 100);

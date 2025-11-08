@@ -232,9 +232,11 @@ struct VXGIData
     float indirectDiffuseIntensity{ 15.0f };
     float indirectSpecularIntensity{2.0f};
     float voxel_resolution; // This is updated per frame from the voxelizer
-    float ambientOcclusionFactor;
+    float ambientOcclusionFactor{4.0};
     float traceStartOffset{ 1.0f };
-    glm::vec3 volumeCenter;
+    float voxel_size = 0.25f;
+    float step_factor = 2.0f;
+    float volumeCenter;
     glm::vec4 region_min = glm::vec4(-15,-15,-15,1);
     glm::vec4 region_max = glm::vec4(15,15,15,1);
 };

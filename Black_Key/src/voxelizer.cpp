@@ -106,11 +106,13 @@ void Voxelizer::InitializeResources(ResourceManager* resource_manager)
     vmaUnmapMemory(resource_manager->engine->_allocator, staging.allocation);
     resource_manager->DestroyBuffer(staging);
 
+    auto mip_count = log2(voxel_res);
     //Create 3D texture for GPU scene Voxelization
     voxel_radiance_packed = resource_manager->CreateImage(
         VkExtent3D(voxel_res, voxel_res, voxel_res)
         , VK_FORMAT_R32_UINT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
         VK_IMAGE_VIEW_TYPE_3D, true, 1, VK_SAMPLE_COUNT_1_BIT, -1, VK_IMAGE_TYPE_3D);
+
 
     voxel_radiance_image = resource_manager->CreateImage(
         VkExtent3D(voxel_res, voxel_res, voxel_res)

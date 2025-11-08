@@ -99,7 +99,7 @@ void main()
 		    	layer = i + 1;
 	    	}
 	    }  
-        
+        layer = 1;
         vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(posW, 1.0);		
         float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
         

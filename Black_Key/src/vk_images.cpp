@@ -81,7 +81,7 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent3D ima
         VkExtent3D halfSize = imageSize;
         halfSize.width /= 2;
         halfSize.height /= 2;
-        halfSize.depth = imageSize.depth > 1 ? imageSize.depth / 2 : 1;
+        halfSize.depth = halfSize.depth > 1 ? halfSize.depth / 2 : 1;
 
         VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
 
@@ -107,11 +107,12 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent3D ima
 
         if (mip < mipLevels - 1) {
             VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
-
+           // blitRegion.srcOffsets[0] = { 0, 0, 0 };
             blitRegion.srcOffsets[1].x = imageSize.width;
             blitRegion.srcOffsets[1].y = imageSize.height;
             blitRegion.srcOffsets[1].z = imageSize.depth;
-
+            
+           // blitRegion.dstOffsets[0] = { 0, 0, 0 };
             blitRegion.dstOffsets[1].x = halfSize.width;
             blitRegion.dstOffsets[1].y = halfSize.height;
             blitRegion.dstOffsets[1].z = halfSize.depth;
