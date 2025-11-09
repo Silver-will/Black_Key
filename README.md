@@ -5,6 +5,15 @@ A realtime rendering engine written in modern c++ and vulkan built as a research
 
 All the following scenes are rendered in engine:
 
+![VOXEL_GI_DIFFUSE](showcase/vxgi_diffuse.png)
+*Voxel cone traced Diffuse global illumination*
+
+![VOXEL_GI_SPECULAR](showcase/vxgi_specular.png)
+*Specular GI*
+
+![VOXEL_GI_SOFT_SHADOWS](showcase/vxgi_soft_shadows.png)
+*Soft shadows calculated from voxel grid*
+
 ![Clustered_LIGHTS](showcase/clustered_lights.png)
 *3000 point lights rendered on a 2016 intel laptop IGPU at 30 fps thanks to clustered forward shading*
 
@@ -19,6 +28,7 @@ All the following scenes are rendered in engine:
 
 ## Graphics
 * Voxel cone traced Global illumination for both specular and diffuse GI
+* Cone traced soft shadows
 * Clustered forward shading using compute shaders for light culling
 * GPU frustum and occlusion culling via compute shaders
 * GPU Driven rendering and bindless pipelines
