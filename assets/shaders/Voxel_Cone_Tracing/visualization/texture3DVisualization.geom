@@ -46,7 +46,7 @@ void main()
 	// vec4 color = convertRGBA8ToVec4(encoded_color);
 	// color /= 255.0f;
 	vec3 texCoord = (samplePos / 128.0f);
-	vec4 color = textureLod(voxelization_tex, texCoord,5.0f);
+	vec4 color = texture(voxelization_tex, texCoord);
 	vec4 v0 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0.0)), 1.0);
 	vec4 v1 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(1, 0, 0)), 1.0);
 	vec4 v2 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0, 1, 0)), 1.0);

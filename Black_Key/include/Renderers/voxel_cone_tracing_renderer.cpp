@@ -746,7 +746,7 @@ void VoxelConeTracingRenderer::InitDefaultData()
 
 	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.0f)), glm::vec4(1.0f), glm::vec4(1.0f));
 	//W stores light intensity
-	directLight.direction.w = 1.0f;
+	directLight.direction.w = 5.0f;
 	//Create Shadow render target
 	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);

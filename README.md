@@ -18,6 +18,7 @@ All the following scenes are rendered in engine:
 # Currently supported features
 
 ## Graphics
+* Voxel cone traced Global illumination for both specular and diffuse GI
 * Clustered forward shading using compute shaders for light culling
 * GPU frustum and occlusion culling via compute shaders
 * GPU Driven rendering and bindless pipelines
@@ -39,11 +40,6 @@ All the following scenes are rendered in engine:
 * Dynamic Rendering
 * Bindless resources via descriptor indexing
 * Multi Draw indirect
-
-##  Roadmap
-* [x] occlusion culling
-* [x] Bloom
-* [ ] HBAO/GTAO/SSAO
 
 ## Things to look into
 * Render Graph

@@ -117,7 +117,7 @@ vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,v
     float denominator = 4.0 * NoV * NoL;
     vec3 specular = numerator / max (denominator, 0.0001);
     spec = specular;
-    vec3 radiance = (kD * (albedo / PI) + specular ) * radianceIn * NoL * sceneData.sunlightColor.w;
+    vec3 radiance = (kD * (albedo / PI) + specular ) * radianceIn * NoL * sceneData.sunlightColor.w * sceneData.sunlightDirection.w;
     return radiance;
 }
 

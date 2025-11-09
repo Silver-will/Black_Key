@@ -32,7 +32,7 @@ const mat4 biasMat = mat4(
 	0.5, 0.5, 0.0, 1.0 
 );
 
-vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
+vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow, vec3 color)
 {
     float nDotL = clamp(dot(N, L), 0.01, 1.0);
 
@@ -40,7 +40,7 @@ vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow)
 
     vec3 lightContribution = vec3(0);
     
-    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightDirection.a * nDotL * shadow;
+    lightContribution += sceneData.sunlightColor.rgb * sceneData.sunlightDirection.w * nDotL * shadow * color;
 
     return lightContribution;
 }
@@ -103,7 +103,7 @@ void main()
         vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(posW, 1.0);		
         float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
         
-        lightContribution += CalculateLightContribution(posW,L, V, N, shadow);
+        lightContribution += CalculateLightContribution(posW,L, V, N, shadow, color.rgb);
         
         //debugPrintfEXT("View space position = %v4f", fragPosViewSpace);
         
@@ -113,8 +113,8 @@ void main()
         }
 
         
-		vec3 radiance = lightContribution * color.rgb * color.a; 
-        radiance = clamp(lightContribution, 0.0, 1.0);
+		vec3 radiance = lightContribution; 
+        radiance = clamp(radiance, 0.0, 1.0);
 		
         ivec3 coords = ComputeVoxelizationCoordinate(inNormPos, im_size);
         
@@ -125,7 +125,7 @@ void main()
         if(any(lessThan(coords,vec3(0))))
            discard;
 
-        imageAtomicRGBA8Avg(coords, vec4(color.rgb * shadow,1.0));
+        imageAtomicRGBA8Avg(coords, vec4(radiance,1.0));
     }
 }
 
