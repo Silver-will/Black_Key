@@ -108,7 +108,9 @@ void main()
     vec4 shadowCoord = (biasMat * shadowData.shadowMatrices[layer]) * vec4(inFragPos, 1.0);		
 
     float shadow = filterPCF(shadowCoord/shadowCoord.w,layer);
-	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow);
+	vec3 spec_comp = vec3(0.0f);
+	vec3 KD = vec3(0.0f);
+	vec3 color = StandardSurfaceShading(N, V, L, albedo, metallicRough,shadow, spec_comp, KD);
 
 	if(mat_description.has_emission == 1)
 	{

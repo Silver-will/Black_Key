@@ -94,7 +94,7 @@ vec3 GetViewReflectedNormal(vec3 N, vec3 V, inout float NdotV)
     return N;
 }
 
-vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,vec3 F0, vec2 metal_rough, float shadow, float NoV, float NoH, float NoL)
+vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,vec3 F0, vec2 metal_rough, float shadow, float NoV, float NoH, float NoL,inout vec3 spec)
 {
     vec3 H  = normalize(L + V);
 
@@ -116,7 +116,7 @@ vec3 CalculateDirectionalLightContribution(vec3 N, vec3 V, vec3 L, vec3 albedo,v
     vec3 numerator = NDF * G * F;
     float denominator = 4.0 * NoV * NoL;
     vec3 specular = numerator / max (denominator, 0.0001);
-
+    spec = specular;
     vec3 radiance = (kD * (albedo / PI) + specular ) * radianceIn * NoL * sceneData.sunlightColor.w;
     return radiance;
 }
@@ -133,7 +133,7 @@ vec3 CalculatePointLightContribution()
 	//}
     return vec3(0.0f);
 }
-vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow)
+vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_rough, float shadow,inout vec3 spec, inout vec3 kd)
 {
     
     vec3 R = reflect(-V,N);
@@ -153,7 +153,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
 	F0 = mix(F0, albedo, metallic);
 
     vec3 radiance = vec3(0.0f);
-    radiance += CalculateDirectionalLightContribution(N,V,L,albedo,F0,metal_rough,shadow,NoV,NoH,NoL);
+    radiance += CalculateDirectionalLightContribution(N,V,L,albedo,F0,metal_rough,shadow,NoV,NoH,NoL,spec);
 
     //Calculate point lights here.
 
@@ -162,6 +162,7 @@ vec3 StandardSurfaceShading(vec3 N, vec3 V, vec3 L, vec3 albedo, vec2 metal_roug
     float lam = D_Lambert();
     vec3  kD = 1.0 - F_IBL;
     kD *= 1.0 - metallic;
+    kd = kD;
     //kD = vec3(lam);
     vec3 texCoord = vec3(N.x, N.y, N.z);
     vec3 irradiance = texture(irradianceMap, texCoord).rgb;
