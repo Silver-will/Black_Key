@@ -744,9 +744,8 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
-	directLight = DirectionalLight(glm::normalize(glm::vec4(-20.0f, -50.0f, -20.0f, 1.0f)), glm::vec4(1.0f), glm::vec4(1.0f));
+	directLight = DirectionalLight(glm::vec4(-0.348f, -1.010f, 0.068f, 10.0f), glm::vec4(1.0f), glm::vec4(1.0f));
 	//W stores light intensity
-	directLight.direction.w = 5.0f;
 	//Create Shadow render target
 	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
@@ -2178,14 +2177,14 @@ void VoxelConeTracingRenderer::DrawMain(VkCommandBuffer cmd)
 	}
 
 	VkClearValue geometryClear{ 1.0,1.0,1.0,1.0f };
-	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_emptyRenderTarget.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+	VkRenderingAttachmentInfo colorAttachmentDummy = vkinit::attachment_info(_resolveImage.imageView, nullptr, &geometryClear, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
 
 	vkutil::transition_image(cmd, _shadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	if (voxelize_scene)
 	{
 		VkExtent2D dummy_extent{1,1};
-		VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(dummy_extent, &colorAttachmentDummy, nullptr);
+		VkRenderingInfo voxelRenderInfo = vkinit::rendering_info(_windowExtent, &colorAttachmentDummy, nullptr);
 		vkCmdBeginRendering(cmd, &voxelRenderInfo);
 
 		VoxelizeGeometry(cmd);
@@ -3151,7 +3150,7 @@ void VoxelConeTracingRenderer::DrawUI()
 		{
 			ImGui::SeparatorText("direction");
 			float pos[3] = { directLight.direction.x, directLight.direction.y, directLight.direction.z };
-			voxelize_scene =  ImGui::SliderFloat3("x,y,z", pos, -7, 7);
+			voxelize_scene =  ImGui::SliderFloat3("x,y,z", pos, -1, 1);
 			ImGui::SliderFloat("Intensity", &directLight.direction.w, 1.0, 20.0);
 			directLight.direction = glm::vec4(pos[0], pos[1], pos[2], directLight.direction.w);
 

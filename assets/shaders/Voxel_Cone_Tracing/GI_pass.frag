@@ -190,7 +190,7 @@ float CastShadowCone(vec3 from, vec3 direction, float aperture, float maxDistanc
     return clamp(1.0 - occlusion, 0.0, 1.0);
 }
 
-vec3 CastCone(vec3 from, vec3 direction, float aperture)
+vec4 CastCone(vec3 from, vec3 direction, float aperture)
 {
 	direction = normalize(direction);
 
@@ -226,12 +226,15 @@ vec3 CastCone(vec3 from, vec3 direction, float aperture)
 		
 
 		//result += voxelSample.rgb * att;
-        if (distance > voxelSize * 2)
-            result += (1.0 - occlusion) * voxelSample.rgb * voxelSample.a;
-			occlusion += (1.0 - occlusion) *  voxelSample.a * 2;
-        distance += max(diameter, voxelSize);
+        //if (distance > voxelSize)
+        result += (1.0 - occlusion) * voxelSample.rgb * voxelSample.a;
+		occlusion += (1.0 - occlusion) *  voxelSample.a;
+        
+		distance += max(diameter, voxelSize);
     }
-    return result;
+	occlusion = min(occlusion, 1.0);
+	occlusion = 1.0 - occlusion;
+    return vec4(result,occlusion);
 }
 
 
@@ -326,15 +329,15 @@ void main()
 			   continue;
         
         coneTraceCount += 1.0;
-		indirectContribution.rgb +=  CastCone(startPos, DIFFUSE_CONE_DIRECTIONS[i], cone_aperture) ;
+		indirectContribution += CastCone(startPos, DIFFUSE_CONE_DIRECTIONS[i], cone_aperture) * cosTheta;
 	}
 
 	indirectContribution /= coneTraceCount;
-    indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
+    //indirectContribution.a *= vxgiConfigUB.ambientOcclusionFactor;
     
 	vec3 specularConeDirection = reflect(-V, N);
     vec3 specularContribution = vec3(0.0);
-	specularContribution += CastCone(startPos, specularConeDirection, 0.1);
+	specularContribution += CastCone(startPos, specularConeDirection, 0.1).rgb;
 	specularContribution =  clamp(specularContribution, 0.0,1.0f);
 	specularContribution *=  vxgiConfigUB.indirectSpecularIntensity;
 
@@ -377,7 +380,7 @@ void main()
 	}
 	color.rgb += indirectContribution.rgb;
 	color.rgb += specularContribution.rgb;
-	//color.rgb *= indirectContribution.a;
+	color.rgb *= indirectContribution.a;
 
 	if(sceneData.debugInfo.x == 1.0f)
 	{
@@ -403,7 +406,6 @@ void main()
         }
 
     }
-	//vec3 indirect_color = (vec3(1.0) + indirectContribution.rgb) / 2.0f; 
     outFragColor = vec4(color.rgb,1);  
 	//uint color_index = cluster.z % 5;
 	//outFragColor = colors[color_index];

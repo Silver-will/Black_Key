@@ -233,7 +233,7 @@ struct VXGIData
     float indirectSpecularIntensity{2.0f};
     float voxel_resolution; // This is updated per frame from the voxelizer
     float ambientOcclusionFactor{0.24456};
-    float traceStartOffset{ 1.0f };
+    float traceStartOffset{ 1.535f };
     float voxel_size = 0.25f;
     float step_factor = 2.0f;
     float volumeCenter;
