@@ -1,0 +1,27 @@
+#version 460 core
+
+#extension GL_GOOGLE_include_directive : require
+#include "conversion.glsl"
+#include "cone_tracing.glsl"
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(set = 0, binding = 0, r32ui) uniform uimage3D packed_normals;
+layout(set = 0, binding = 1, rgba16f) uniform sampler3D src_texture;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image3D dst_texture;
+
+void main()
+{
+	ivec3 texCoord = ivec3(gl_GlobalInvocationID.xyz);
+
+	//Both 3D textures are the same size
+	ivec3 size = imageSize(src_texture);
+	
+	if(texCoord.x < size.x && texCoord.y < size.y && texCoord.z < size.z)
+	{
+		vec4 dst_texel = imageLoad(dst_texture, texCoord);
+		//If voxel is not opaque then skip
+		if(dst_texel.a == 0) return;
+
+
+	}
+}

@@ -861,9 +861,6 @@ AllocatedImage ResourceManager::CreateImage(VkExtent3D size, VkFormat format, Vk
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
     VK_CHECK(vkCreateImageView(engine->_device, &view_info, nullptr, &newImage.imageView));
-    deletionQueue.push_function([=]() {
-        DestroyImage(newImage);
-        });
     return newImage;
 }
 
