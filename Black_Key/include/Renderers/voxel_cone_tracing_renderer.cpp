@@ -317,7 +317,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		builder.add_binding(9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(11, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
+		gpu_scene_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_GEOMETRY_BIT);
 	}
 
 	{
@@ -348,7 +348,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_skyboxDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		skybox_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	{
@@ -359,14 +359,14 @@ void VoxelConeTracingRenderer::InitDescriptors()
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_cullLightsDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		cull_light_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-		_buildClustersDescriptorLayout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
+		build_clusters_descriptor_layout = builder.build(engine->_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	{
@@ -421,11 +421,14 @@ void VoxelConeTracingRenderer::InitDescriptors()
 
 	_mainDeletionQueue.push_function([&]() {
 		vkDestroyDescriptorSetLayout(engine->_device, postprocess_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(engine->_device, _gpuSceneDataDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(engine->_device, _skyboxDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, gpu_scene_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, skybox_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, cascaded_shadows_descriptor_layout, nullptr);
-		vkDestroyDescriptorSetLayout(engine->_device, _cullLightsDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(engine->_device, _buildClustersDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, cull_light_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, build_clusters_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, voxelization_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, VXGI_descriptor_layout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, texture_3D_visualizer_layout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, resource_manager->bindless_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, compute_cull_descriptor_layout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, depth_reduce_descriptor_layout, nullptr);
@@ -462,7 +465,7 @@ void VoxelConeTracingRenderer::InitDescriptors()
 void VoxelConeTracingRenderer::InitPipelines()
 {
 	PipelineCreationInfo info;
-	info.layouts.push_back(_gpuSceneDataDescriptorLayout);
+	info.layouts.push_back(gpu_scene_descriptor_layout);
 	info.layouts.push_back(resource_manager->bindless_descriptor_layout);
 	info.imageFormat = _drawImage.imageFormat;
 	info.depthFormat = _depthImage.imageFormat;
@@ -482,7 +485,7 @@ void VoxelConeTracingRenderer::InitPipelines()
 	cascadedShadows.build_pipelines(engine, shadowInfo);
 
 	PipelineCreationInfo skyInfo;
-	skyInfo.layouts.push_back(_skyboxDescriptorLayout);
+	skyInfo.layouts.push_back(skybox_descriptor_layout);
 	skyInfo.depthFormat = _depthImage.imageFormat;
 	skyInfo.imageFormat = _drawImage.imageFormat;
 	skyBoxPSO.build_pipelines(engine, skyInfo);
@@ -506,7 +509,7 @@ void VoxelConeTracingRenderer::InitPipelines()
 	voxelVisualizationPSO.build_pipelines(engine, voxelVisualizationInfo);
 
 	PipelineCreationInfo earlyDepthInfo;
-	earlyDepthInfo.layouts.push_back(_gpuSceneDataDescriptorLayout);
+	earlyDepthInfo.layouts.push_back(gpu_scene_descriptor_layout);
 	earlyDepthInfo.depthFormat = _depthImage.imageFormat;
 	depthPrePassPSO.build_pipelines(engine, earlyDepthInfo);
 	InitComputePipelines();
@@ -527,7 +530,7 @@ void VoxelConeTracingRenderer::InitComputePipelines()
 	VkPipelineLayoutCreateInfo cullLightsLayoutInfo = {};
 	cullLightsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	cullLightsLayoutInfo.pNext = nullptr;
-	cullLightsLayoutInfo.pSetLayouts = &_cullLightsDescriptorLayout;
+	cullLightsLayoutInfo.pSetLayouts = &cull_light_descriptor_layout;
 	cullLightsLayoutInfo.setLayoutCount = 1;
 
 	VkPushConstantRange pushConstant{};
@@ -744,31 +747,15 @@ void VoxelConeTracingRenderer::InitDefaultData()
 	forward_passes.push_back(vkutil::MaterialPass::forward);
 	forward_passes.push_back(vkutil::MaterialPass::transparency);
 
-	directLight = DirectionalLight(glm::vec4(-0.348f, -1.010f, 0.068f, 10.0f), glm::vec4(1.0f), glm::vec4(1.0f));
 	//W stores light intensity
+	directLight = DirectionalLight(glm::vec4(-0.348f, -1.010f, 0.068f, 10.0f), glm::vec4(1.0f), glm::vec4(1.0f));
+	
 	//Create Shadow render target
 	_shadowDepthImage = resource_manager->CreateImage(VkExtent3D(shadowMapSize, shadowMapSize, 1), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, false, shadows.getCascadeLevels());
 	shadows.SetShadowMapTextureSize(shadowMapSize);
 
-	//voxelizer.InitializeVoxelizer(resource_manager);
 	voxelizer.InitializeResources(resource_manager.get());
 
-
-	//Create default images
-	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	_whiteImage = resource_manager->CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT);
-
-	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	_greyImage = resource_manager->CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT);
-
-	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	_blackImage = resource_manager->CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT);
-
-	storageImage = resource_manager->CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	depthPyramidWidth = BlackKey::PreviousPow2(_windowExtent.width);
 	depthPyramidHeight = BlackKey::PreviousPow2(_windowExtent.height);
@@ -826,37 +813,6 @@ void VoxelConeTracingRenderer::InitDefaultData()
 		
 		bloom_mip_maps.emplace_back(mip);
 	}
-	/*
-	int light_per_row = 20;
-	//Generate Light grid
-	for (int x = 1; x < light_per_row; x++)
-	{
-		for (int y = 1; y < 5; y++)
-		{
-			for (int z = 1; z < light_per_row; z++)
-			{
-				auto xpos = ((22.0f / (float)x) / 2) - 22.0f - (22.0f/light_per_row);
-				auto ypos = 10.0f / (float)y;
-				auto zpos = ((5.0f / (float)z) / 2) - 5;
-				pointData.pointLights.push_back(PointLight(glm::vec4(xpos, ypos, zpos, 1.0f), glm::vec4(distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, distRGB(rng) / 255.0f, 1.0), 10.0f, 10.0f));
-
-			}
-		}
-	}
-	*/
-
-	//checkerboard image
-	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
-	for (int x = 0; x < 16; x++) {
-		for (int y = 0; y < 16; y++) {
-			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
-		}
-	}
-
-	errorCheckerboardImage = resource_manager->CreateImage(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT, this);
-
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
 	sampl.magFilter = VK_FILTER_NEAREST;
@@ -943,9 +899,15 @@ void VoxelConeTracingRenderer::InitDefaultData()
 		vkDestroySampler(engine->_device, voxelSampler, nullptr);
 		vkDestroySampler(engine->_device, voxelSamplerLinear, nullptr);
 
+
 		for (size_t i = 0; i < bloom_mip_maps.size(); i++)
 		{
-			resource_manager->DestroyImage(bloom_mip_maps[i].mip);
+			//resource_manager->DestroyImage(bloom_mip_maps[i].mip);
+		}
+		
+		for (size_t i = 0; i < depthPyramidLevels; i++)
+		{
+			vkDestroyImageView(engine->_device, depthPyramidMips[i], nullptr);
 		}
 		});
 }
@@ -1224,9 +1186,9 @@ void VoxelConeTracingRenderer::PreProcessPass()
 {
 	GenerateIrradianceCube();
 	GeneratePrefilteredCubemap();
-	black_key::generate_brdf_lut(engine, IBL);
+	black_key::GenerateBRDFLUT(engine, IBL);
 	PipelineCreationInfo clusterInfo;
-	clusterInfo.layouts.push_back(_buildClustersDescriptorLayout);
+	clusterInfo.layouts.push_back(build_clusters_descriptor_layout);
 	BuildClusters();
 
 	resource_manager->deletionQueue.push_function([=]() {
@@ -1244,7 +1206,7 @@ void VoxelConeTracingRenderer::BuildClusters()
 	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
 	ClusterLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	ClusterLayoutInfo.pNext = nullptr;
-	ClusterLayoutInfo.pSetLayouts = &_buildClustersDescriptorLayout;
+	ClusterLayoutInfo.pSetLayouts = &build_clusters_descriptor_layout;
 	ClusterLayoutInfo.setLayoutCount = 1;
 
 	VkPushConstantRange pushConstant{};
@@ -1282,7 +1244,7 @@ void VoxelConeTracingRenderer::BuildClusters()
 
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &clusterPipeline));
 	generate_clusters_pso.pipeline = clusterPipeline;
-	VkDescriptorSet globalDescriptor = globalDescriptorAllocator.allocate(engine->_device, _buildClustersDescriptorLayout);
+	VkDescriptorSet globalDescriptor = globalDescriptorAllocator.allocate(engine->_device, build_clusters_descriptor_layout);
 
 	engine->immediate_submit([&](VkCommandBuffer cmd)
 		{
@@ -1798,12 +1760,9 @@ void VoxelConeTracingRenderer::Draw()
 	//vkutil::transition_image(cmd, _resolveImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transition_image(cmd, swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-	//< draw_first
-	//> imgui_draw
 	// execute a copy from the draw image into the swapchain
 	vkutil::copy_image_to_image(cmd, _hdrImage.image, swapchain_images[swapchainImageIndex], _drawExtent, _swapchainExtent);
-	//vkutil::copy_image_to_image(cmd, _resolveImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
-	// set swapchain image layout to Attachment Optimal so we can draw it
+
 	vkutil::transition_image(cmd, swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	//draw UI directly into the swapchain image
@@ -1831,9 +1790,6 @@ void VoxelConeTracingRenderer::Draw()
 	VK_CHECK(vkQueueSubmit2(engine->_graphicsQueue, 1, &submit, get_current_frame()._renderFence));
 
 	//prepare present
-	// this will put the image we just rendered to into the visible window.
-	// we want to wait on the _renderSemaphore for that, 
-	// as its necessary that drawing commands have finished before the image is displayed to the user
 	VkPresentInfoKHR presentInfo = vkinit::present_info();
 
 	presentInfo.pSwapchains = &swapchain;
@@ -2563,7 +2519,7 @@ void VoxelConeTracingRenderer::DrawBackground(VkCommandBuffer cmd)
 	vmaUnmapMemory(engine->_allocator, skySceneDataBuffer.allocation);
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _skyboxDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, skybox_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, skySceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -2741,7 +2697,7 @@ void VoxelConeTracingRenderer::DrawGeometry(VkCommandBuffer cmd)
 	vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
 
 	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, gpu_scene_descriptor_layout);
 
 	static auto totalLightCount = ClusterValues.maxLightsPerTile * ClusterValues.numClusters;
 
@@ -2811,7 +2767,7 @@ void VoxelConeTracingRenderer::CullLights(VkCommandBuffer cmd)
 {
 	CullData culling_information;
 
-	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _cullLightsDescriptorLayout);
+	VkDescriptorSet cullingDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, cull_light_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -2876,7 +2832,7 @@ void VoxelConeTracingRenderer::GenerateAABB(VkCommandBuffer cmd)
 {
 	CullData culling_information;
 
-	VkDescriptorSet aabbDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _buildClustersDescriptorLayout);
+	VkDescriptorSet aabbDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, build_clusters_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, ClusterValues.AABBVolumeGridSSBO.buffer, ClusterValues.numClusters * sizeof(VolumeTileAABB), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -2947,7 +2903,7 @@ void VoxelConeTracingRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 	*sceneUniformData = scene_data;
 	vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
 
-	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, _gpuSceneDataDescriptorLayout);
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(engine->_device, gpu_scene_descriptor_layout);
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -3198,7 +3154,7 @@ void VoxelConeTracingRenderer::DrawUI()
 	if (ImGui::CollapsingHeader("Post processing"))
 	{
 		ImGui::SeparatorText("Bloom");
-		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 2.0f);
+		ImGui::SliderFloat("Bloom filter Radius", &bloom_filter_radius, 0.01f, 0.5f);
 		ImGui::SliderFloat("Bloom strength", &bloom_strength, 0.01f, 1.0f);
 		ImGui::Checkbox("Use FXAA", &use_fxaa);
 		ImGui::Checkbox("Use SMAA", &use_smaa);

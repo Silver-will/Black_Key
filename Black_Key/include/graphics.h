@@ -6,11 +6,11 @@
 class VulkanEngine;
 
 namespace black_key {
-	bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
-	void generate_brdf_lut(VulkanEngine* engine, IBLData& ibl);
-	void generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl);
-	void generate_prefiltered_cubemap(VulkanEngine* engine, IBLData& ibl);
-	void build_clusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator);
+	bool IsVisible(const RenderObject& obj, const glm::mat4& viewproj);
+	void GenerateBRDFLUT(VulkanEngine* engine, IBLData& ibl);
+	void GenerateIrradianceCube(VulkanEngine* engine, IBLData& ibl);
+	void GeneratedPrefilteredCubemap(VulkanEngine* engine, IBLData& ibl);
+	void BuildClusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator);
 
 	struct PushBlock {
 		glm::mat4 mvp;

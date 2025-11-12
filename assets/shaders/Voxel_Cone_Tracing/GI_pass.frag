@@ -366,7 +366,6 @@ void main()
 
 	indirectContribution.rgb *= albedo * D_Lambert() * vxgiConfigUB.indirectDiffuseIntensity * KD;
 	indirectContribution = clamp(indirectContribution, 0.0, 1.0);
-
 	specularContribution *= spec_comp;
 
 	if(mat_description.has_emission == 1)
@@ -378,10 +377,14 @@ void main()
 	{
 		color *= occlusion;
 	}
+
+	//Add indirect Contribution
 	color.rgb += indirectContribution.rgb;
 	color.rgb += specularContribution.rgb;
-	color.rgb *= indirectContribution.a;
+	//color.rgb *= indirectContribution.a;
 
+
+	//Debugging options
 	if(sceneData.debugInfo.x == 1.0f)
 	{
 		float r_off = float(lightCount) * 0.1;

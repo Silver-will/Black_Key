@@ -4,8 +4,6 @@
 #extension GL_EXT_shader_atomic_float : require
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_buffer_reference : require
-#extension GL_EXT_debug_printf : require
-
 
 #include "voxelizationFrag.glsl"
 #include "../brdf.glsl"
@@ -36,7 +34,7 @@ vec3 CalculateLightContribution(vec3 posW,vec3 L, vec3 V, vec3 N, float shadow, 
 {
     float nDotL = clamp(dot(N, L), 0.01, 1.0);
 
-    //ToDo add point light contribution to GI
+    //Todo add point light contribution to GI
 
     vec3 lightContribution = vec3(0);
     
@@ -105,20 +103,11 @@ void main()
         
         lightContribution += CalculateLightContribution(posW,L, V, N, shadow, color.rgb);
         
-        //debugPrintfEXT("View space position = %v4f", fragPosViewSpace);
-        
-        if (layer != 0)
-        {
-            //debugPrintfEXT("view space depth = %f", depthValue);
-        }
-
-        
 		vec3 radiance = lightContribution; 
         radiance = clamp(radiance, 0.0, 1.0);
 		
         ivec3 coords = ComputeVoxelizationCoordinate(inNormPos, im_size);
         
-        //ivec3 coords = ComputeImageCoords(inFragPos, im_size);
         if(any(greaterThan(coords,vec3(127))))
            discard;
 

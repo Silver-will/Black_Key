@@ -42,9 +42,6 @@ void main()
 	vec3 pos = gl_in[0].gl_Position.xyz;
 	ivec3 samplePos = ivec3(pos);
 	
-	// uint encoded_color = imageLoad(voxel_radiance, samplePos).r;
-	// vec4 color = convertRGBA8ToVec4(encoded_color);
-	// color /= 255.0f;
 	vec3 texCoord = (samplePos / 128.0f);
 	vec4 color = texture(voxelization_tex, texCoord);
 	vec4 v0 = tex_3d_data.viewproj * vec4(toWorld(pos, vec3(0.0)), 1.0);
@@ -59,7 +56,6 @@ void main()
 	
 	//Create 6 quads modelling a cube
 	
-	//debugPrintfEXT("Voxel Color = %v4f", color);
 	if(color.rgba != vec4(0,0,0,0))
 	{
 		outColor = color;
@@ -69,14 +65,5 @@ void main()
 		createQuad(v2, v3, v7, v6,color);
 		createQuad(v0, v1, v3, v2,color);
 		createQuad(v4, v6, v7, v5,color);
-		//debugPrintfEXT("indirect world position = %v3i", voxelCoord);
-
-		//gl_Position = v4;
-		//EmitVertex();
-		//gl_Position = v1;
-		//EmitVertex();
-		//gl_Position = v2;
-		//EmitVertex();
-		//EndPrimitive();
 	}
 }

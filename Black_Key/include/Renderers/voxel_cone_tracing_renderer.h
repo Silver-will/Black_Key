@@ -169,12 +169,12 @@ private:
 	GPUSceneData scene_data;
 	shadowData shadow_data;
 	VXGIData vxgi_config_data;
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	VkDescriptorSetLayout gpu_scene_descriptor_layout;
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
-	VkDescriptorSetLayout _skyboxDescriptorLayout;
+	VkDescriptorSetLayout skybox_descriptor_layout;
 	VkDescriptorSetLayout postprocess_descriptor_layout;
-	VkDescriptorSetLayout _cullLightsDescriptorLayout;
-	VkDescriptorSetLayout _buildClustersDescriptorLayout;
+	VkDescriptorSetLayout cull_light_descriptor_layout;
+	VkDescriptorSetLayout build_clusters_descriptor_layout;
 	VkDescriptorSetLayout compute_cull_descriptor_layout;
 	VkDescriptorSetLayout depth_reduce_descriptor_layout;
 	VkDescriptorSetLayout cascaded_shadows_descriptor_layout;

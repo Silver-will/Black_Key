@@ -34,7 +34,6 @@ layout(set = 0, binding = 4) uniform  ProjViewMatUB{
 void main()
 {
     int idx = getDominantAxisIdx(gl_in[0].gl_Position.xyz, gl_in[1].gl_Position.xyz, gl_in[2].gl_Position.xyz);
-	//gl_ViewportIndex = idx;
 	
 	for (int i = 0; i < 3; ++i)
     {

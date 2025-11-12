@@ -48,16 +48,13 @@ void main()
 	outFragPos = vec3(fragPos.xyz);
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-	//vec4 region_max = obj.model * PushConstants.max_bounding_box;
-	//vec4 region_min = obj.model * PushConstants.min_bounding_box;
-	vec4 region_max = vec4(15);
-	vec4 region_min = vec4(-15);
+	vec4 region_max =  PushConstants.max_bounding_box;
+	vec4 region_min =  PushConstants.min_bounding_box;
 	
 	vec3 fragPosCorrected = fragPos.xyz;
 	vec3 fragPosNorm =  (fragPosCorrected.xyz - region_min.xyz)  / (region_max.xyz - region_min.xyz);
 	fragPosNorm = 2.0f * fragPosNorm - 1.0f;
 	outNormalisedPosition = fragPosNorm;
-	//debugPrintfEXT("transformed region max = %v4f", region_max);
 	gl_Position = fragPos;
 }
 

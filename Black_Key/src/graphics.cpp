@@ -18,7 +18,7 @@ struct PushParams {
 	glm::vec2 mips;
 	float roughness;
 };
-void black_key::build_clusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator)
+void black_key::BuildClusters(VulkanEngine* engine, PipelineCreationInfo& info, DescriptorAllocator& descriptorAllocator)
 {
 	/*
 	VkPipelineLayoutCreateInfo ClusterLayoutInfo = {};
@@ -82,7 +82,7 @@ void black_key::build_clusters(VulkanEngine* engine, PipelineCreationInfo& info,
 		});
 	*/
 }
-bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
+bool black_key::IsVisible(const RenderObject& obj, const glm::mat4& viewproj) {
 	std::array<glm::vec3, 8> corners{
 		glm::vec3 { 1, 1, 1 },
 		glm::vec3 { 1, 1, -1 },
@@ -121,7 +121,7 @@ bool black_key::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	}
 }
 
-void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
+void black_key::GenerateIrradianceCube(VulkanEngine* engine, IBLData& ibl)
 {
 	/*
 	//Created irradiance cubemap mage
@@ -425,7 +425,7 @@ void black_key::generate_irradiance_cube(VulkanEngine* engine, IBLData& ibl)
 	*/
 }
 
-void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
+void black_key::GenerateBRDFLUT(VulkanEngine* engine, IBLData& ibl)
 {
 	std::string assets_path = ENGINE_ASSET_PATH;
 	VkFormat format = VK_FORMAT_R16G16_SFLOAT;
@@ -553,7 +553,7 @@ void black_key::generate_brdf_lut(VulkanEngine* engine, IBLData& ibl)
 	vkDestroyDescriptorSetLayout(engine->_device, lutBRDFSetLayout, nullptr);
 }
 
-void black_key::generate_prefiltered_cubemap(VulkanEngine* engine, IBLData& ibl)
+void black_key::GeneratedPrefilteredCubemap(VulkanEngine* engine, IBLData& ibl)
 {
 	/*
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;

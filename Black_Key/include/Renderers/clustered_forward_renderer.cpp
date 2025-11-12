@@ -424,11 +424,6 @@ void ClusteredForwardRenderer::InitPipelines()
 	HDRinfo.imageFormat = _drawImage.imageFormat;
 	HdrPSO.build_pipelines(engine,HDRinfo);
 
-	PipelineCreationInfo upsampleBloomInfo;
-	upsampleBloomInfo.layouts.push_back(postprocess_descriptor_layout);
-	upsampleBloomInfo.imageFormat = bloom_mip_maps[0].mip.imageFormat;
-	upsamplePSO.build_pipelines(engine, upsampleBloomInfo);
-
 	PipelineCreationInfo earlyDepthInfo;
 	earlyDepthInfo.layouts.push_back(_gpuSceneDataDescriptorLayout);
 	earlyDepthInfo.depthFormat = _depthImage.imageFormat;
@@ -1044,7 +1039,7 @@ void ClusteredForwardRenderer::LoadAssets()
 {
 	//Load in skyBox image
 	_skyImage = vkutil::load_cubemap_image(std::string(assets_path + "/textures/hdris/uffizi_cube.ktx").c_str(), VkExtent3D{ 1,1,1 }, engine, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, true);
-	std::string structurePath{ assets_path +  "/models/material_sphere.glb" };
+	std::string structurePath{ assets_path +  "/models/sponza/sponza.gltf" };
 	auto structureFile = resource_manager->loadGltf(engine, structurePath, true);
 	assert(structureFile.has_value());
 
@@ -1096,7 +1091,7 @@ void ClusteredForwardRenderer::PreProcessPass()
 {
 	GenerateIrradianceCube();
 	GeneratePrefilteredCubemap();
-	black_key::generate_brdf_lut(engine, IBL);
+	black_key::GenerateBRDFLUT(engine, IBL);
 	PipelineCreationInfo clusterInfo;
 	clusterInfo.layouts.push_back(_buildClustersDescriptorLayout);
 	BuildClusters();
@@ -2552,7 +2547,7 @@ void ClusteredForwardRenderer::DrawEarlyDepth(VkCommandBuffer cmd)
 {
 	draws.reserve(drawCommands.OpaqueSurfaces.size());
 	for (int i = 0; i < drawCommands.OpaqueSurfaces.size(); i++) {
-		if (black_key::is_visible(drawCommands.OpaqueSurfaces[i], scene_data.viewproj)) {
+		if (black_key::IsVisible(drawCommands.OpaqueSurfaces[i], scene_data.viewproj)) {
 			draws.push_back(i);
 		}
 	}
