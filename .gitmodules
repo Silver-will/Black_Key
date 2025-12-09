@@ -16,9 +16,6 @@
 [submodule "third_party/vma"]
 	path = third_party/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-[submodule "third_party/fastgltf"]
-	path = third_party/fastgltf
-	url = https://github.com/spnda/fastgltf.git
 [submodule "third_party/ktx"]
 	path = third_party/ktx
 	url = https://github.com/KhronosGroup/KTX-Software.git
